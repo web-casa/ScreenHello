@@ -1,0 +1,2426 @@
+@layer theme, base, antd, components, utilities;
+@import "tailwindcss" source("../");
+
+@layer base {
+    .shoteasy-app,
+    .shoteasy-components {
+        /* —— design.md「neon gallery in the void」设计令牌 —— */
+        /* 颜色：灰阶分层 + 唯一强调色电光蓝 */
+        --color-void: #000000;
+        --color-graphite: #111111;
+        --color-obsidian: #171717;
+        --color-slate: #242424;
+        --color-smoke: #666666;
+        --color-fog: #888888;
+        --color-mist: #999999;
+        --color-pearl: #cccccc;
+        --color-bone: #ffffff;
+        --color-electric-blue: #0066ff;
+        --color-deep-current: #00406b;
+        --color-midnight-tide: #002238;
+        --color-vivid-violet: #0066ff;
+        --sans-zh: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", sans-serif;
+        /* 使用系统字体，核心编辑链路不依赖运行时字体网络请求。 */
+        --font-body: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans SC", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        --font-display: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", "微软雅黑", sans-serif;
+        --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        /* 圆角标尺：8 / 12 / 15 / 20 / 25 / 9999 */
+        --radius-control: 8px;
+        --radius-popover: 12px;
+        --radius-nav: 15px;
+        --radius-card: 20px;
+        --radius-card-lg: 25px;
+        --radius-pill: 9999px;
+        /* 阴影：极简黑影（两主题通用） */
+        --shadow-subtle: rgba(0, 0, 0, 0.1) 0px 1px 2px 0px;
+        --shadow-float: rgba(0, 0, 0, 0.25) 0px 4px 8px 0px;
+
+        /* —— 语义 token（亮色）—— */
+        --se-primary: #2563eb;
+        --se-ghost-fill: rgba(15, 23, 42, 0.05);
+        --se-glow: 0 4px 12px rgba(37, 99, 235, 0.22);
+        --se-canvas: #f5f7fb;
+        --se-panel: #ffffff;
+        --se-panel-muted: #f7f8fb;
+        --se-border: #e5e8ef;
+        --se-border-strong: #d5dae4;
+        --se-ink: #172033;
+        --se-muted: #6d7788;
+        --se-muted-contrast: #596579;
+        --se-accent: #2563eb;
+        --se-accent-text: #1d4ed8;
+        --se-accent-soft: #eaf1ffb9;
+        --se-control-icon: #526071;
+        --se-canvas-dot: #c8ced850;
+        --c-wb: #d1d6df;
+        --c-wc: #fafbfc;
+        --c-bg: #f7f8fb;
+        --c-br: #d9dee7;
+        --c-se: #2563eb;
+        --c-scroll: #cbd2dd;
+        --c-scroll-hover: #aeb8c6;
+        --initial-text:#eaf1ff;
+        --initial-bg:#aeb8c631;
+        color: var(--se-ink);
+        font-family: var(--font-body);
+        font-weight: 300;
+    }
+
+    /* 表单类控件不继承字重（UA 默认 + antd 组件样式），显式归到 300；
+       components 层的显式字重（.ant-btn 500 等）与 Tailwind font-* 工具类仍优先生效 */
+    .shoteasy-app label,
+    .shoteasy-app input,
+    .shoteasy-app textarea,
+    .shoteasy-app select,
+    .shoteasy-components label,
+    .shoteasy-components input,
+    .shoteasy-components textarea,
+    .shoteasy-components select {
+        font-weight: 300;
+    }
+
+    .shoteasy-app code,
+    .shoteasy-app kbd,
+    .shoteasy-app pre,
+    .shoteasy-app samp,
+    .shoteasy-components code,
+    .shoteasy-components kbd,
+    .shoteasy-components pre,
+    .shoteasy-components samp {
+        font-family: var(--font-mono);
+    }
+
+    .shoteasy-app[data-mode="dark"],
+    .shoteasy-components.dark-mode,
+    .shoteasy-components [data-mode="dark"] {
+        /* 暗色映射到 void 系统：深度靠亮度分层（void→graphite→obsidian→slate），不靠阴影 */
+        --se-primary: var(--color-vivid-violet);
+        --se-ghost-fill: rgba(255, 255, 255, 0.07);
+        --se-glow: rgba(0, 153, 255, 0.2) 0px 5px 5px 0px;
+        --se-canvas: var(--color-void);
+        --se-panel: #0d0d0d;
+        --se-panel-muted: var(--color-obsidian);
+        --se-border: rgba(136, 136, 136, 0.16);
+        --se-border-strong: rgba(136, 136, 136, 0.32);
+        --se-ink: var(--color-bone);
+        --se-muted: var(--color-mist);
+        --se-muted-contrast: #a3a3a3;
+        --se-accent: var(--color-electric-blue);
+        --se-accent-text: #78aaff;
+        --se-accent-soft: rgba(0, 153, 255, 0.13);
+        --se-control-icon: var(--color-pearl);
+        --se-canvas-dot: #1c1c1c;
+        --c-wb: var(--color-slate);
+        --c-wc: var(--color-obsidian);
+        --c-bg: #101010;
+        --c-br: #2a2a2a;
+        --c-se: var(--color-electric-blue);
+        --c-scroll: #2a2a2a;
+        --c-scroll-hover: #3d3d3d;
+        --initial-text: var(--color-pearl);
+        --initial-bg:var(--se-ghost-fill);
+    }
+
+    .shoteasy-app,
+    .shoteasy-components {
+        @apply [&_::-webkit-scrollbar]:w-1.5 [&_::-webkit-scrollbar]:h-1.5;
+        @apply [&_::-webkit-scrollbar-thumb]:bg-[var(--c-scroll)] [&_::-webkit-scrollbar-thumb]:rounded-md;
+        @apply hover:[&_::-webkit-scrollbar-thumb]:bg-[var(--c-scroll-hover)];
+        @apply [&_::-webkit-scrollbar-track]:bg-[var(--c-bg)];
+    }
+
+    .shoteasy-app button:focus-visible,
+    .shoteasy-app [role="button"]:focus-visible,
+    .shoteasy-components button:focus-visible {
+        outline: 2px solid var(--se-accent);
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    .shoteasy-error-boundary {
+        display: flex;
+        min-height: 240px;
+        width: 100%;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 32px;
+        color: #172033;
+        background: #f7f8fb;
+        text-align: center;
+    }
+
+    .shoteasy-error-boundary span {
+        max-width: 520px;
+        color: #6d7788;
+    }
+
+    .shoteasy-error-boundary button {
+        border: 1px solid #d5dae4;
+        border-radius: 9999px;
+        padding: 8px 18px;
+        background: #ffffff;
+        color: #172033;
+        cursor: pointer;
+    }
+
+    .polka {
+        background-color: var(--se-canvas);
+        background-image: radial-gradient(var(--se-canvas-dot) 0.7px, transparent 0.9px);
+        background-size: 14px 14px;
+    }
+
+    .shoteasy-app .ant-btn {
+        border-radius: var(--radius-pill);
+        font-weight: 500;
+        transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .shoteasy-app .ant-btn.ant-btn-circle {
+        border-radius: 999px;
+    }
+
+    .shoteasy-app .ant-btn .ant-btn-icon,
+    .shoteasy-app .ant-btn > .inline-flex {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .shoteasy-topbar {
+        z-index: 11;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 56px;
+        padding: 0 14px;
+        background: color-mix(in srgb, var(--se-panel) 92%, transparent);
+        border-bottom: 1px solid var(--se-border);
+        backdrop-filter: blur(8px);
+    }
+
+    .shoteasy-topbar__brand,
+    .shoteasy-topbar__meta,
+    .shoteasy-history,
+    .shoteasy-mobile-actions,
+    .shoteasy-top-actions {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .shoteasy-topbar__brand {
+        min-width: 0;
+    }
+
+    .shoteasy-logo {
+        color: var(--se-ink);
+        white-space: nowrap;
+        letter-spacing: 0.1px;
+    }
+
+    .shoteasy-logo__image {
+        display: block;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 24px;
+        object-fit: contain;
+    }
+
+    .shoteasy-logo:hover {
+        color: var(--se-accent);
+    }
+
+    .shoteasy-media-links {
+        color: var(--se-muted);
+    }
+
+    .shoteasy-social-link {
+        color: inherit;
+        transition: color 160ms ease, background-color 160ms ease;
+    }
+
+    .shoteasy-social-link:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-topbar__spacer {
+        flex: 1 1 auto;
+        min-width: 8px;
+    }
+
+    .shoteasy-topbar__divider {
+        height: 22px;
+        margin-inline: 2px;
+        border-color: var(--se-border);
+    }
+
+    .shoteasy-icon-button.ant-btn {
+        width: 32px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0;
+        color: var(--se-control-icon);
+    }
+
+    .shoteasy-icon-button.ant-btn:hover,
+    .shoteasy-icon-button.ant-btn:focus-visible {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-top-actions {
+        gap: 6px;
+    }
+
+    .shoteasy-top-action.ant-btn {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-color: var(--se-border-strong);
+        color: var(--se-control-icon);
+        box-shadow: none;
+    }
+
+    .shoteasy-top-action.ant-btn:hover {
+        border-color: var(--se-accent);
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-top-action--primary.ant-btn {
+        border-color: var(--se-primary);
+        background: var(--se-primary);
+        color: #fff;
+        box-shadow: var(--se-glow);
+    }
+
+    .shoteasy-top-action--primary.ant-btn:hover {
+        color: #fff;
+        background: color-mix(in srgb, var(--se-primary) 86%, #000);
+    }
+
+    /* 导出格式/倍率入口：直接展示当前导出状态（pill + mono 数字），不用齿轮图标 */
+    .shoteasy-top-action--export.ant-btn {
+        width: auto;
+        min-width: 76px;
+        padding-inline: 12px;
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+        letter-spacing: 0;
+    }
+
+    .shoteasy-top-action.ant-btn-dangerous {
+        color: #d84a4a;
+    }
+
+    .shoteasy-top-action.ant-btn-dangerous:hover {
+        color: #fff;
+        background: #d84a4a;
+        border-color: #d84a4a;
+    }
+
+    .shoteasy-mobile-actions {
+        display: none;
+    }
+
+    .shoteasy-empty-state {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+        overflow: auto;
+        color: var(--se-ink);
+    }
+
+    .shoteasy-drop-surface {
+        position: relative;
+    }
+
+    .shoteasy-drop-overlay {
+        position: absolute;
+        inset: 12px;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 2px dashed var(--se-accent);
+        border-radius: var(--radius-card);
+        color: var(--se-accent);
+        background: color-mix(in srgb, var(--se-accent-soft) 78%, var(--se-panel));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 10%, transparent);
+        font-size: 14px;
+        font-weight: 500;
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(.99);
+        transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .shoteasy-drop-surface.is-dragging > .shoteasy-drop-overlay {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .shoteasy-empty-state__content {
+        width: min(100%, 620px);
+    }
+
+    /* 初始页 4:3 画布卡：跟随默认背景令牌铺面，中间承载精简上传 UI；
+       尺寸对齐编辑器「适应画布」：按视口高度铺满工作区（仅扣除 topbar 56 + 空态 padding），4:3 不溢出 */
+    .shoteasy-init-canvas {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        width: min(100%, calc((100dvh - 200px) * 4 / 3));
+        aspect-ratio: 4 / 3;
+        background-color: var(--se-panel-muted);
+        background-repeat: no-repeat;
+        border: 1px solid var(--se-border);
+        border-radius: 10px;
+        box-shadow: var(--shadow-float);
+        transition: transform 160ms ease;
+    }
+
+    .shoteasy-empty-state__heading {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 0 auto 18px;
+        width: min(100%, 560px);
+    }
+
+    .shoteasy-empty-state__mark {
+        width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+        border: 1px solid color-mix(in srgb, var(--se-accent) 40%, transparent);
+        border-radius: var(--radius-control);
+        box-shadow: var(--se-glow);
+    }
+
+    /* 展示标题：GT Walsheim 替代字体，紧字距、压缩行高（design.md display 规范） */
+    .shoteasy-empty-state__heading h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 26px;
+        line-height: 1.05;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+    }
+
+    .shoteasy-empty-state__heading p {
+        margin: 4px 0 0;
+        color: var(--se-muted);
+        font-size: 13px;
+    }
+
+    .shoteasy-upload-card {
+        display: block;
+    }
+
+    /* 上传卡：默认即呈现原 hover 的强调态（蓝虚线 + 强调底 + 辉光） */
+    .shoteasy-upload-card .ant-upload.ant-upload-drag {
+        padding: 0;
+        border: 1px dashed var(--se-accent);
+        border-radius: var(--radius-card);
+        background: var(--se-accent-soft);
+        box-shadow: var(--se-glow);
+        transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    /* hover 只轻微变灰，不再进一步强调 */
+    .shoteasy-upload-card .ant-upload.ant-upload-drag:hover {
+        border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-border-strong));
+        background: color-mix(in srgb, var(--se-accent-soft) 55%, var(--se-panel-muted));
+        box-shadow: var(--shadow-subtle);
+    }
+
+    .shoteasy-upload-card__body {
+        min-height: 164px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 24px;
+        color: var(--se-accent);
+    }
+
+    .shoteasy-upload-card__body > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        text-align: left;
+    }
+
+    .shoteasy-upload-card__body strong {
+        color: var(--se-ink);
+        font-size: 14px;
+    }
+
+    .shoteasy-upload-card__body span {
+        color: var(--se-muted);
+        font-size: 12px;
+    }
+
+    .shoteasy-quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .shoteasy-quick-actions .ant-btn {
+        width: auto;
+        padding-inline: 10px;
+        border-radius: var(--radius-control);
+        color: var(--initial-text);
+        border-color: var(--se-border);
+        background: var(--se-ghost-fill);
+    }
+
+    .shoteasy-quick-actions .ant-btn:hover {
+        color: var(--se-accent);
+        border-color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-demo-card {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        padding: 6px 10px 6px 6px;
+        color: var(--se-muted);
+        background: var(--se-panel-muted);
+        border: 1px solid var(--se-border);
+        border-radius: var(--radius-popover);
+        text-align: left;
+        cursor: pointer;
+        transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+    }
+
+    .shoteasy-demo-card:hover {
+        color: var(--se-accent);
+        border-color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-demo-card__icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-demo-card__copy {
+        flex: 1;
+        font-size: 12px;
+    }
+
+    .shoteasy-demo-card strong {
+        color: var(--se-ink);
+        font-weight: 600;
+    }
+
+    .shoteasy-editor-canvas {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+    }
+
+    .shoteasy-left-rail,
+    .shoteasy-right-inspector {
+        background: var(--se-panel);
+        color: var(--se-ink);
+    }
+
+    .shoteasy-left-rail {
+        width: 256px;
+        border-right: 1px solid var(--se-border);
+    }
+
+    .shoteasy-right-inspector {
+        width: 336px;
+        border-left: 1px solid var(--se-border);
+    }
+
+    .shoteasy-rail-content {
+        min-width: 0;
+    }
+
+    .shoteasy-size-trigger {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 48px;
+        padding: 7px 10px;
+        color: var(--se-ink);
+        background: var(--se-panel-muted);
+        border: 1px solid var(--se-border);
+        border-color: var(--se-border);
+        border-radius: var(--radius-control);
+        text-align: left;
+        cursor: pointer;
+        transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .shoteasy-size-trigger:hover,
+    .shoteasy-size-trigger.is-open {
+        border-color: var(--se-accent);
+        background: color-mix(in srgb, var(--se-accent-soft) 45%, var(--se-panel-muted));
+    }
+
+    .shoteasy-size-trigger:focus-visible {
+        outline: 2px solid var(--se-accent);
+        outline-offset: 2px;
+    }
+
+    .shoteasy-size-trigger__preview {
+        display: grid;
+        flex: 0 0 24px;
+        width: 24px;
+        height: 24px;
+        place-items: center;
+        color: var(--se-muted);
+    }
+
+    .shoteasy-size-trigger__preview span {
+        display: block;
+        width: 19px;
+        max-height: 19px;
+        border: 1px solid currentColor;
+        border-radius: 2px;
+    }
+
+    .shoteasy-size-trigger__copy {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .shoteasy-size-trigger__title {
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 400;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-size-trigger__meta {
+        overflow: hidden;
+        margin-top: 4px;
+        color: var(--se-muted);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-size-trigger__chevron {
+        color: var(--se-muted);
+        transition: color 160ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .shoteasy-size-trigger.is-open .shoteasy-size-trigger__chevron {
+        color: var(--se-accent);
+        transform: rotate(180deg);
+    }
+
+    .shoteasy-size-popover {
+        min-height: 0;
+        height: 100%;
+    }
+
+    .shoteasy-size-popover__custom {
+        padding: 12px;
+        border-bottom: 1px solid var(--se-border);
+    }
+
+    .shoteasy-custom-size {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 400;
+    }
+
+    .shoteasy-custom-size__fields {
+        display: grid;
+        min-width: 0;
+        flex: 1;
+        grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+        align-items: center;
+        gap: 5px;
+    }
+
+    .shoteasy-custom-size__fields .ant-input-number {
+        width: 100%;
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .shoteasy-custom-size__prefix,
+    .shoteasy-custom-size__divider {
+        color: var(--se-muted);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+    }
+
+    .shoteasy-custom-size__divider {
+        text-align: center;
+    }
+
+    .shoteasy-custom-size__actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .shoteasy-custom-size__actions .ant-btn {
+        gap: 5px;
+        padding-inline: 10px;
+        border-radius: var(--radius-control);
+        font-size: 12px;
+    }
+
+    .shoteasy-size-popover__toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--se-border);
+    }
+
+    .shoteasy-size-popover__toolbar > .ant-input-affix-wrapper {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .shoteasy-size-tabs {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 2px;
+        padding: 2px;
+        background: var(--se-panel-muted);
+        border-radius: var(--radius-control);
+    }
+
+    .shoteasy-size-tabs .ant-btn {
+        min-width: auto;
+        height: 26px;
+        padding-inline: 8px;
+        color: var(--se-muted);
+        border-radius: 6px;
+        font-size: 11px;
+    }
+
+    .shoteasy-size-tabs .ant-btn.is-active {
+        color: var(--se-ink);
+        background: var(--se-panel);
+        box-shadow: var(--shadow-subtle);
+    }
+
+    .shoteasy-size-popover__scroll {
+        padding: 0 12px 10px;
+        scrollbar-gutter: stable;
+    }
+
+    .shoteasy-size-group {
+        padding: 15px 0 16px;
+        border-bottom: 1px solid var(--se-border);
+    }
+
+    .shoteasy-size-group:last-child {
+        border-bottom: 0;
+    }
+
+    .shoteasy-size-group__heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .shoteasy-size-group__heading h3 {
+        margin: 0;
+        color: var(--se-ink);
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.3;
+    }
+
+    .shoteasy-size-group__heading > span {
+        color: var(--se-muted);
+        font-size: 10px;
+    }
+
+    .shoteasy-size-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .shoteasy-size-option {
+        display: flex;
+        min-width: 0;
+        min-height: 112px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 9px 5px 8px;
+        color: var(--se-muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: var(--radius-control);
+        cursor: pointer;
+        transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .shoteasy-size-option:hover {
+        color: var(--se-ink);
+        background: var(--se-panel-muted);
+        border-color: var(--se-border);
+    }
+
+    .shoteasy-size-option:focus-visible {
+        outline: 2px solid var(--se-accent);
+        outline-offset: 1px;
+    }
+
+    .shoteasy-size-option.is-selected {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+        border-color: color-mix(in srgb, var(--se-accent) 65%, transparent);
+    }
+
+    .shoteasy-size-option__preview {
+        display: grid;
+        width: 66px;
+        height: 62px;
+        place-items: center;
+    }
+
+    .shoteasy-size-option__preview span {
+        display: block;
+        background: color-mix(in srgb, var(--se-ink) 3%, transparent);
+        border: 1px solid color-mix(in srgb, currentColor 62%, transparent);
+        border-radius: 3px;
+    }
+
+    .shoteasy-size-option strong {
+        max-width: 100%;
+        overflow: hidden;
+        color: currentColor;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-size-option__meta {
+        max-width: 100%;
+        overflow: hidden;
+        margin-top: 3px;
+        color: var(--se-muted);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-size-empty {
+        padding: 48px 16px;
+        color: var(--se-muted);
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .shoteasy-size-overlay {
+        max-height: calc(100vh - 72px);
+    }
+
+    .shoteasy-frame-panel,
+    .shoteasy-layout-panel,
+    .shoteasy-custom-size {
+        color: var(--se-ink);
+    }
+
+    .shoteasy-frame-panel {
+        padding-top: 2px;
+    }
+
+    .shoteasy-frame-panel__heading,
+    .shoteasy-frame-section__heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .shoteasy-frame-panel__heading h2,
+    .shoteasy-frame-section__heading h3 {
+        margin: 0;
+        color: var(--se-ink);
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.35;
+    }
+
+    .shoteasy-frame-panel__heading > div > span,
+    .shoteasy-frame-drawer__title small {
+        display: block;
+        margin-top: 2px;
+        color: var(--se-muted);
+        font-size: 10px;
+        font-weight: 300;
+        line-height: 1.3;
+    }
+
+    .shoteasy-frame-panel__heading .ant-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        height: 28px;
+        padding-inline: 7px;
+        color: var(--se-muted);
+        border-radius: 6px;
+        font-size: 11px;
+    }
+
+    .shoteasy-frame-panel__heading .ant-btn:hover {
+        color: var(--se-ink);
+        background: var(--se-panel-muted);
+    }
+
+    .shoteasy-frame-panel__subheading {
+        margin: 14px 0 7px;
+        color: var(--se-muted);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+    }
+
+    .shoteasy-frame-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .shoteasy-frame-grid.is-quick {
+        gap: 6px;
+    }
+
+    .shoteasy-frame-option {
+        position: relative;
+        display: block;
+        min-width: 0;
+        color: var(--se-muted);
+        cursor: pointer;
+    }
+
+    .shoteasy-frame-option > input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .shoteasy-frame-option__content {
+        display: flex;
+        min-height: 96px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        padding: 7px 5px 6px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: var(--radius-control);
+        transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .shoteasy-frame-grid.is-quick .shoteasy-frame-option__content {
+        min-height: 84px;
+        padding: 6px 4px 5px;
+    }
+
+    .shoteasy-frame-option:hover .shoteasy-frame-option__content {
+        color: var(--se-ink);
+        background: var(--se-panel-muted);
+        border-color: var(--se-border);
+    }
+
+    .shoteasy-frame-option.is-selected .shoteasy-frame-option__content {
+        color: var(--se-accent-text);
+        background: var(--se-accent-soft);
+        border-color: color-mix(in srgb, var(--se-accent) 65%, transparent);
+    }
+
+    .shoteasy-frame-option:focus-within .shoteasy-frame-option__content {
+        outline: 2px solid var(--se-accent);
+        outline-offset: 1px;
+    }
+
+    .shoteasy-frame-option__content > span {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        color: currentColor;
+        font-size: 10px;
+        font-weight: 550;
+        line-height: 1.3;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-frame-option__content > small {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        margin-top: -3px;
+        color: var(--se-muted);
+        font-size: 9px;
+        font-weight: 300;
+        line-height: 1.3;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-frame-thumb {
+        position: relative;
+        display: grid;
+        width: 100%;
+        height: 62px;
+        place-items: center;
+    }
+
+    .shoteasy-frame-thumb.is-compact {
+        height: 52px;
+    }
+
+    .shoteasy-frame-thumb__surface {
+        position: relative;
+        z-index: 1;
+        width: 82%;
+        height: 78%;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+    }
+
+    .shoteasy-frame-thumb[data-kind="none"] .shoteasy-frame-thumb__surface {
+        background: color-mix(in srgb, var(--se-ink) 3%, transparent);
+        border-style: dashed;
+        border-color: color-mix(in srgb, var(--se-muted) 55%, transparent);
+    }
+
+    .shoteasy-frame-thumb[data-kind="stroke"] .shoteasy-frame-thumb__surface {
+        background: color-mix(in srgb, var(--se-ink) 6%, transparent);
+        border-width: 3px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="dark"] .shoteasy-frame-thumb__surface {
+        border-color: #30343b;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="card"] .shoteasy-frame-thumb__surface,
+    .shoteasy-frame-thumb[data-thumb="stack"] .shoteasy-frame-thumb__surface,
+    .shoteasy-frame-thumb[data-thumb="stack2"] .shoteasy-frame-thumb__surface,
+    .shoteasy-frame-thumb[data-thumb="polaroid"] .shoteasy-frame-thumb__surface {
+        background: #ffffff;
+        border: 0;
+        box-shadow: 0 5px 12px rgba(15, 23, 42, 0.2);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="stack"]::before,
+    .shoteasy-frame-thumb[data-thumb="stack2"]::before,
+    .shoteasy-frame-thumb[data-thumb="stack2"]::after {
+        position: absolute;
+        width: 76%;
+        height: 70%;
+        background: #d7dce3;
+        border-radius: 5px;
+        content: '';
+    }
+
+    .shoteasy-frame-thumb[data-thumb="stack"]::before,
+    .shoteasy-frame-thumb[data-thumb="stack2"]::before {
+        transform: translate(5px, 4px);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="stack2"]::after {
+        background: #bfc6cf;
+        transform: translate(9px, 7px);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="glass-light"] .shoteasy-frame-thumb__surface {
+        background: rgba(255, 255, 255, 0.72);
+        border-color: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 5px 13px rgba(100, 116, 139, 0.25);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="glass-dark"] .shoteasy-frame-thumb__surface {
+        background: rgba(17, 24, 39, 0.88);
+        border-color: rgba(255, 255, 255, 0.28);
+        box-shadow: 0 5px 13px rgba(0, 0, 0, 0.32);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="polaroid"] .shoteasy-frame-thumb__surface {
+        height: 84%;
+        border-radius: 3px;
+        box-shadow: inset 0 -9px 0 #ffffff, 0 5px 12px rgba(15, 23, 42, 0.2);
+    }
+
+    .shoteasy-frame-thumb[data-kind="browser"] .shoteasy-frame-thumb__surface,
+    .shoteasy-frame-thumb[data-kind="arc"] .shoteasy-frame-thumb__surface {
+        overflow: hidden;
+        background: linear-gradient(to bottom, #eef0f3 0 16px, #ffffff 16px 100%);
+        border: 0;
+        border-radius: 6px;
+        box-shadow: 0 5px 12px rgba(15, 23, 42, 0.22);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="mac-dark"] .shoteasy-frame-thumb__surface,
+    .shoteasy-frame-thumb[data-thumb="windows-dark"] .shoteasy-frame-thumb__surface {
+        background: linear-gradient(to bottom, #292b30 0 16px, #181a1f 16px 100%);
+        border: 1px solid #3a3d45;
+    }
+
+    .shoteasy-frame-thumb[data-thumb^="windows"] .shoteasy-frame-thumb__surface {
+        background: linear-gradient(to bottom, #d9dde3 0 14px, #ffffff 14px 28px, #f8fafc 28px 100%);
+    }
+
+    .shoteasy-frame-thumb[data-thumb="windows-dark"] .shoteasy-frame-thumb__surface {
+        background: linear-gradient(to bottom, #34363c 0 14px, #24262b 14px 28px, #181a1f 28px 100%);
+    }
+
+    .shoteasy-frame-thumb[data-thumb^="windows"] .shoteasy-frame-thumb__surface::before {
+        position: absolute;
+        top: 3px;
+        left: 22%;
+        width: 34%;
+        height: 11px;
+        background: #ffffff;
+        border-radius: 4px 4px 0 0;
+        content: '';
+    }
+
+    .shoteasy-frame-thumb[data-thumb="windows-dark"] .shoteasy-frame-thumb__surface::before {
+        background: #24262b;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="arc"] .shoteasy-frame-thumb__surface {
+        background: linear-gradient(to bottom, #e4e7eb 0 14px, #f8fafc 14px 100%);
+        border: 1px solid #cbd1d9;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+
+    .shoteasy-frame-thumb__traffic {
+        position: absolute;
+        top: 5px;
+        left: 6px;
+        display: flex;
+        gap: 2.5px;
+    }
+
+    .shoteasy-frame-thumb__traffic i {
+        display: block;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: #fb7185;
+    }
+
+    .shoteasy-frame-thumb__traffic i:nth-child(2) { background: #fbbf24; }
+    .shoteasy-frame-thumb__traffic i:nth-child(3) { background: #4ade80; }
+
+    .shoteasy-frame-thumb__address {
+        position: absolute;
+        top: 4px;
+        right: 7px;
+        width: 40%;
+        height: 6px;
+        background: rgba(100, 116, 139, 0.14);
+        border-radius: 2px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb^="windows"] .shoteasy-frame-thumb__traffic {
+        top: 5px;
+        right: auto;
+        left: 6px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb^="windows"] .shoteasy-frame-thumb__address {
+        top: 18px;
+        right: 9px;
+        left: 9px;
+        width: auto;
+        height: 7px;
+    }
+
+    .shoteasy-frame-thumb[data-kind="device"] .shoteasy-frame-thumb__surface {
+        width: 92%;
+        height: 92%;
+        background-color: transparent;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .shoteasy-frame-thumb[data-kind="vector-device"] .shoteasy-frame-thumb__surface {
+        background: #171b21;
+        border: 1px solid #4b5563;
+        box-shadow: 0 5px 10px rgba(15, 23, 42, 0.25);
+    }
+
+    .shoteasy-frame-thumb__device-screen {
+        position: absolute;
+        background: linear-gradient(145deg, #dbeafe, #f8fafc 52%, #d1fae5);
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        content: '';
+    }
+
+    .shoteasy-frame-thumb__device-detail {
+        position: absolute;
+        display: block;
+        background: #7b8794;
+        content: '';
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-laptop"] .shoteasy-frame-thumb__surface {
+        width: 78%;
+        height: 70%;
+        margin-top: -5px;
+        border-radius: 6px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-laptop"] .shoteasy-frame-thumb__surface::after {
+        position: absolute;
+        right: -7%;
+        bottom: -8px;
+        left: -7%;
+        height: 7px;
+        background: #aeb7c2;
+        border-radius: 2px 2px 6px 6px;
+        content: '';
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-laptop"] .shoteasy-frame-thumb__device-screen {
+        inset: 8% 6% 7%;
+        border-radius: 2px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-laptop"] .shoteasy-frame-thumb__device-detail {
+        top: 3px;
+        left: calc(50% - 2px);
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-desktop"] .shoteasy-frame-thumb__surface {
+        width: 69%;
+        height: 64%;
+        margin-top: -12px;
+        border-radius: 5px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-desktop"] .shoteasy-frame-thumb__device-screen {
+        inset: 8% 5% 14%;
+        border-radius: 2px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-desktop"] .shoteasy-frame-thumb__device-detail {
+        bottom: -13px;
+        left: calc(50% - 3px);
+        width: 6px;
+        height: 14px;
+        border-radius: 1px;
+        box-shadow: -13px 13px 0 3px #9aa4af, 13px 13px 0 3px #9aa4af;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-tablet"] .shoteasy-frame-thumb__surface {
+        width: 46%;
+        height: 94%;
+        border-radius: 8px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-tablet"] .shoteasy-frame-thumb__device-screen {
+        inset: 5% 6% 4%;
+        border-radius: 4px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-tablet"] .shoteasy-frame-thumb__device-detail {
+        top: 2px;
+        left: calc(50% - 3px);
+        width: 6px;
+        height: 2px;
+        border-radius: 2px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-phone"] .shoteasy-frame-thumb__surface {
+        width: 28%;
+        height: 96%;
+        border-radius: 10px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-phone"] .shoteasy-frame-thumb__device-screen {
+        inset: 3% 6% 2%;
+        border-radius: 7px;
+    }
+
+    .shoteasy-frame-thumb[data-thumb="generic-phone"] .shoteasy-frame-thumb__device-detail {
+        top: 4px;
+        left: calc(50% - 7px);
+        width: 14px;
+        height: 4px;
+        background: #0d1014;
+        border-radius: 3px;
+    }
+
+    .shoteasy-frame-drawer-shell .ant-drawer-header {
+        min-height: 54px;
+        padding: 10px 12px;
+        background: var(--se-panel);
+        border-color: var(--se-border);
+    }
+
+    .shoteasy-frame-drawer-shell .ant-drawer-body {
+        background: var(--se-panel);
+    }
+
+    .shoteasy-frame-drawer__title > span {
+        display: block;
+        color: var(--se-ink);
+        font-size: 13px;
+        font-weight: 300;
+        line-height: 1.3;
+    }
+
+    .shoteasy-frame-drawer {
+        height: 100%;
+        padding: 0 12px 14px;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+    }
+
+    .shoteasy-frame-section {
+        padding: 16px 0 17px;
+        border-bottom: 1px solid var(--se-border);
+    }
+
+    .shoteasy-frame-section:last-of-type {
+        border-bottom: 0;
+    }
+
+    .shoteasy-frame-section__heading {
+        margin-bottom: 9px;
+    }
+
+    .shoteasy-frame-section__heading .ant-segmented {
+        max-width: 154px;
+        font-size: 10px;
+    }
+
+    .shoteasy-frame-section__heading .ant-segmented-item-label {
+        min-height: 24px;
+        padding-inline: 6px;
+        line-height: 24px;
+    }
+
+    .shoteasy-browser-frame-settings {
+        display: grid;
+        gap: 7px;
+        margin-top: 15px;
+        padding-top: 14px;
+        border-top: 1px solid var(--se-border);
+    }
+
+    .shoteasy-browser-frame-settings__title {
+        color: var(--se-ink);
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.35;
+    }
+
+    .shoteasy-browser-frame-settings > label,
+    .shoteasy-browser-frame-settings__slider-heading label {
+        color: var(--se-muted);
+        font-size: 10px;
+        font-weight: 400;
+        line-height: 1.3;
+    }
+
+    .shoteasy-browser-frame-settings .ant-input {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .shoteasy-browser-frame-settings__slider-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 5px;
+    }
+
+    .shoteasy-browser-frame-settings__slider-heading output {
+        color: var(--se-ink);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .shoteasy-browser-frame-settings .ant-slider {
+        margin: 2px 5px 1px;
+    }
+
+    .shoteasy-frame-device-note {
+        margin-top: 4px;
+        padding: 9px 10px;
+        color: var(--se-muted);
+        background: var(--se-panel-muted);
+        border-radius: var(--radius-control);
+        font-size: 10px;
+        line-height: 1.4;
+    }
+
+    .shoteasy-frame-drawer,
+    .shoteasy-background-drawer,
+    .shoteasy-size-popover {
+        color: var(--se-ink);
+    }
+
+    .shoteasy-background-options .ant-radio-wrapper-checked > span:last-child {
+        border-radius: 7px;
+    }
+
+    .shoteasy-inspector__scroll {
+        scrollbar-gutter: stable;
+    }
+
+    .shoteasy-inspector-section {
+        border-bottom: 1px solid var(--se-border);
+    }
+
+    .shoteasy-layer-panel {
+        display: grid;
+        gap: 9px;
+        padding-bottom: 13px;
+    }
+
+    .shoteasy-layer-list {
+        display: grid;
+        gap: 4px;
+        max-height: 184px;
+        overflow: auto;
+    }
+
+    .shoteasy-layer-list > button {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr) 20px;
+        align-items: center;
+        gap: 7px;
+        width: 100%;
+        padding: 7px;
+        color: var(--se-ink);
+        background: var(--se-panel-muted);
+        border: 1px solid transparent;
+        border-radius: 7px;
+        text-align: left;
+    }
+
+    .shoteasy-layer-list > button.is-selected {
+        border-color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-layer-list strong,
+    .shoteasy-layer-list small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-layer-list strong { font-size: 11px; font-weight: 600; }
+    .shoteasy-layer-list small { color: var(--se-muted); font-size: 9px; }
+
+    .shoteasy-layer-index {
+        color: var(--se-muted);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        text-align: center;
+    }
+
+    .shoteasy-layer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .shoteasy-layer-actions.is-primary { justify-content: space-between; }
+    .shoteasy-layer-actions.is-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .shoteasy-layer-actions.is-grid .ant-btn { width: 100%; padding-inline: 5px; font-size: 10px; }
+
+    /* 分区标题：uppercase 小标签（design.md Inter 700 9-11px 风格的编辑器适配） */
+    .shoteasy-inspector-section__trigger {
+        width: 100%;
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0;
+        color: var(--se-muted);
+        background: transparent;
+        border: 0;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .shoteasy-inspector-section__trigger:hover {
+        color: var(--se-accent);
+    }
+
+    .shoteasy-inspector-section__body {
+        padding-bottom: 12px;
+    }
+
+    .shoteasy-inspector-section__body > div {
+        color: var(--se-ink);
+    }
+
+    .shoteasy-inspector .ant-slider {
+        margin-block: 10px 6px;
+    }
+
+    .shoteasy-inspector-icon-button.ant-btn {
+        width: 32px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0;
+        color: var(--se-control-icon);
+    }
+
+    .shoteasy-inspector-icon-button.is-active,
+    .shoteasy-inspector-icon-button:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-bottom-toolbar {
+        position: absolute;
+        z-index: 10;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        max-width: calc(100% - 180px);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 5px 7px;
+        color: var(--se-control-icon);
+        background: color-mix(in srgb, var(--se-panel-muted) 92%, transparent);
+        border: 1px solid var(--se-border);
+        border-radius: var(--radius-nav);
+        box-shadow: var(--shadow-float);
+        backdrop-filter: blur(8px);
+        overflow-x: auto;
+        scrollbar-width: none;
+        /* 展开进场：淡入 + 从下方浮起（减速曲线） */
+        transition: opacity 200ms ease, transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1);
+    }
+
+    /* 折叠退场：下沉淡出（加速曲线）；visibility 延迟到过渡结束后再隐藏，
+       展开方向用基础规则立即恢复可见与交互 */
+    .shoteasy-bottom-toolbar.is-collapsed {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px) scale(0.96);
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 180ms ease, transform 220ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 220ms;
+    }
+
+    .shoteasy-bottom-toolbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .shoteasy-bottom-toolbar__tools,
+    .shoteasy-bottom-toolbar__controls {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+    }
+
+    .shoteasy-tool-button.ant-btn {
+        width: 30px;
+        min-width: 30px;
+        height: 30px;
+        padding: 0;
+        color: var(--se-control-icon);
+    }
+
+    .shoteasy-tool-button.ant-btn:hover,
+    .shoteasy-tool-button.is-active.ant-btn {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    /* 步骤序号徽标（工具栏预览）：与画布标记同语言 —— squircle 芯片 + 描边 + 柔影 */
+    .shoteasy-step-badge {
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding-bottom: 0.5px;
+        border: 1px solid color-mix(in srgb, var(--se-accent) 68%, transparent);
+        border-radius: 7px;
+        background: var(--se-accent-soft);
+        color: var(--se-accent);
+        box-shadow: 0 1px 2px color-mix(in srgb, var(--se-accent) 18%, transparent);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.04em;
+        line-height: 1;
+    }
+
+    .shoteasy-toolbar-divider {
+        height: 20px;
+        margin-inline: 4px;
+        border-color: var(--se-border);
+    }
+
+    /* 本地图片上传入口（背景）：抽屉里的虚线卡片与初始页上传卡同语言 */
+    .shoteasy-bg-upload-tile {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 12px;
+        border: 1px dashed var(--se-accent);
+        border-radius: var(--radius-card);
+        background: var(--se-accent-soft);
+        color: var(--se-accent);
+        font-size: 12px;
+        cursor: pointer;
+        transition: border-color 160ms ease, background-color 160ms ease;
+    }
+
+    .shoteasy-bg-upload-tile:hover {
+        border-color: color-mix(in srgb, var(--se-accent) 55%, var(--se-border-strong));
+        background: color-mix(in srgb, var(--se-accent-soft) 55%, var(--se-panel-muted));
+    }
+
+    /* 检查器「图片」行的紧凑上传按钮 */
+    .shoteasy-bg-upload-compact {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        color: var(--se-muted);
+        cursor: pointer;
+        transition: color 160ms ease, background-color 160ms ease;
+    }
+
+    .shoteasy-bg-upload-compact:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    /* 收起后的标注工具入口：左下角单按钮，与整条工具栏同语言（玻璃面板 + 描边 + 柔影）；
+       与工具栏互斥显隐，从左侧滑入/滑出 */
+    .shoteasy-bottom-toolbar-collapsed.ant-btn {
+        position: absolute;
+        z-index: 10;
+        left: 12px;
+        bottom: 12px;
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--se-control-icon);
+        background: color-mix(in srgb, var(--se-panel-muted) 92%, transparent);
+        border: 1px solid var(--se-border);
+        border-radius: 50%;
+        box-shadow: var(--shadow-float);
+        backdrop-filter: blur(8px);
+        /* 展开标注时的进场：从左侧滑入（减速曲线） */
+        transition: opacity 200ms ease, transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1), color 160ms ease, background-color 160ms ease;
+    }
+
+    .shoteasy-bottom-toolbar-collapsed.ant-btn:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    /* 工具栏展开时入口退场：向左滑出淡去（加速曲线），visibility 延迟收尾避免抢焦点 */
+    .shoteasy-bottom-toolbar-collapsed.ant-btn.is-hidden {
+        opacity: 0;
+        transform: translateX(-10px) scale(0.8);
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 160ms ease, transform 200ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 200ms;
+    }
+
+    /* 缩放控件固定在工作区右上角（topbar 下方）：底部中央被标注工具栏占据，
+       右下角在窄屏会与之重叠；位置全宽度稳定，不随断点漂移 */
+    .shoteasy-zoom-controls {
+        position: absolute;
+        z-index: 10;
+        right: 12px;
+        top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--se-control-icon);
+    }
+
+    .shoteasy-zoom-controls__group,
+    .shoteasy-zoom-controls__fit {
+        background: color-mix(in srgb, var(--se-panel-muted) 92%, transparent);
+        border: 1px solid var(--se-border);
+        box-shadow: var(--shadow-subtle);
+        backdrop-filter: blur(8px);
+    }
+
+    .shoteasy-zoom-controls__group {
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        border-radius: var(--radius-popover);
+    }
+
+    .shoteasy-zoom-controls__group .ant-btn,
+    .shoteasy-zoom-controls__fit.ant-btn {
+        height: 32px;
+        min-width: 32px;
+        padding: 0 8px;
+        color: var(--se-control-icon);
+    }
+
+    .shoteasy-zoom-controls__fit.ant-btn {
+        width: 32px;
+        padding: 0;
+        border-radius: var(--radius-popover);
+    }
+
+    .shoteasy-zoom-value.ant-btn {
+        min-width: 52px;
+        color: var(--se-ink);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        font-size: 11px;
+    }
+
+    .shoteasy-zoom-controls .ant-btn:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-width-button.ant-btn {
+        width: 30px;
+        min-width: 30px;
+        height: 30px;
+        padding: 0;
+        color: var(--se-control-icon);
+    }
+
+    .shoteasy-width-preview,
+    .shoteasy-width-option {
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .shoteasy-width-preview i,
+    .shoteasy-width-option i {
+        width: 16px;
+        display: block;
+        flex: 0 0 auto;
+        background: var(--se-control-icon);
+        border-radius: 999px;
+        transform: rotate(-45deg);
+    }
+
+    .shoteasy-export-popover {
+        color: var(--se-ink);
+    }
+
+    .ant-radio-wrapper-checked .h-8,
+    .ant-radio-wrapper-checked .h-14 {
+        box-shadow: 0 0 0 2px var(--se-panel), 0 0 0 4px var(--se-accent);
+    }
+
+    .position-block {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, 32px);
+        grid-template-rows: repeat(3, 32px);
+        width: 96px;
+        height: 96px;
+    }
+
+    .position-block::after {
+        position: absolute;
+        z-index: 2;
+        display: block;
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--se-accent);
+        border-radius: var(--radius-control);
+        background: var(--se-accent-soft);
+        content: '';
+        pointer-events: none;
+        transition: inset 160ms ease;
+    }
+
+    .position-block.top-left::after { inset: 0 auto auto 0; }
+    .position-block.top::after { inset: 0 auto auto 32px; }
+    .position-block.top-right::after { inset: 0 0 auto auto; }
+    .position-block.right::after { inset: 32px 0 auto auto; }
+    .position-block.bottom-right::after { inset: auto 0 0 auto; }
+    .position-block.bottom::after { inset: auto auto 0 32px; }
+    .position-block.bottom-left::after { inset: auto auto 0 0; }
+    .position-block.left::after { inset: 32px auto auto 0; }
+    .position-block.center::after { inset: 32px auto auto 32px; }
+
+    .bg-transparent {
+        background-image:
+            linear-gradient(45deg, rgba(0, 0, 0, 0.4) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.4) 75%),
+            linear-gradient(45deg, rgba(0, 0, 0, 0.4) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.4) 75%);
+        background-position: 0 0, 5px 5px;
+        background-size: 10px 10px;
+    }
+
+    .shoteasy-workspace-trigger.ant-btn {
+        height: 34px;
+        padding-inline: 10px;
+        border-radius: var(--radius-control);
+        color: var(--se-control-icon);
+        font-size: 12px;
+    }
+
+    .shoteasy-workspace-trigger.ant-btn:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-batch-trigger.ant-btn {
+        height: 34px;
+        padding-inline: 10px;
+        border-radius: var(--radius-control);
+        color: var(--se-control-icon);
+        font-size: 12px;
+    }
+
+    .shoteasy-batch-trigger.ant-btn:hover {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-batch {
+        display: flex;
+        min-height: 100%;
+        flex-direction: column;
+    }
+
+    .shoteasy-batch-section {
+        padding: 20px;
+        border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+    }
+
+    .shoteasy-batch-section.is-jobs {
+        flex: 1;
+    }
+
+    .shoteasy-batch-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+    }
+
+    .shoteasy-batch-heading > div {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+    }
+
+    .shoteasy-batch-heading strong,
+    .shoteasy-batch-jobs strong {
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .shoteasy-batch-heading small,
+    .shoteasy-batch-jobs small,
+    .shoteasy-batch-note,
+    .shoteasy-batch-summary span {
+        color: color-mix(in srgb, currentColor 62%, transparent);
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .shoteasy-batch-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .shoteasy-batch-section .ant-select {
+        width: 100%;
+    }
+
+    .shoteasy-batch-note {
+        margin: 9px 0 0;
+    }
+
+    .shoteasy-batch-jobs {
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+        border-radius: 10px;
+        list-style: none;
+    }
+
+    .shoteasy-batch-jobs li {
+        display: flex;
+        min-height: 56px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 11px;
+        border-bottom: 1px solid color-mix(in srgb, currentColor 9%, transparent);
+    }
+
+    .shoteasy-batch-jobs li:last-child {
+        border-bottom: 0;
+    }
+
+    .shoteasy-batch-jobs li > div {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+    }
+
+    .shoteasy-batch-jobs strong,
+    .shoteasy-batch-jobs small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-batch-jobs .ant-tag {
+        flex: 0 0 auto;
+        margin-inline-end: 0;
+    }
+
+    .shoteasy-batch-summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 16px 20px 0;
+        padding: 12px;
+        border: 1px solid color-mix(in srgb, var(--se-accent) 32%, transparent);
+        border-radius: 10px;
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-batch-summary strong {
+        margin-right: auto;
+        font-size: 13px;
+    }
+
+    .shoteasy-batch-error {
+        margin: 14px 20px 0;
+        color: #dc2626;
+        font-size: 12px;
+    }
+
+    .shoteasy-batch-actions {
+        position: sticky;
+        bottom: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: auto;
+        padding: 16px 20px;
+        border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+        background: var(--se-panel);
+    }
+
+    .shoteasy-workspace {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+    }
+
+    .shoteasy-workspace-section {
+        padding: 20px;
+        border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+    }
+
+    .shoteasy-workspace-section.is-project {
+        background: color-mix(in srgb, currentColor 3%, transparent);
+    }
+
+    .shoteasy-workspace-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+    }
+
+    .shoteasy-workspace-heading > div {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .shoteasy-workspace-heading span {
+        font-size: 14px;
+        font-weight: 650;
+    }
+
+    .shoteasy-workspace-heading small,
+    .shoteasy-workspace-item small,
+    .shoteasy-workspace-note {
+        color: color-mix(in srgb, currentColor 62%, transparent);
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .shoteasy-workspace-actions,
+    .shoteasy-workspace-preset-create {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .shoteasy-workspace-preset-create .ant-input {
+        flex: 1;
+    }
+
+    .shoteasy-workspace-note {
+        margin: 10px 0 0;
+    }
+
+    .shoteasy-workspace-list {
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+        border-radius: 10px;
+    }
+
+    .shoteasy-workspace-item {
+        display: flex;
+        align-items: center;
+        min-height: 54px;
+        border-bottom: 1px solid color-mix(in srgb, currentColor 9%, transparent);
+    }
+
+    .shoteasy-workspace-item:last-child {
+        border-bottom: 0;
+    }
+
+    .shoteasy-workspace-item > button:first-child {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+        padding: 10px 12px;
+        color: inherit;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+    }
+
+    .shoteasy-workspace-item > button:first-child:hover:not(:disabled) {
+        background: color-mix(in srgb, currentColor 5%, transparent);
+    }
+
+    .shoteasy-workspace-item > button:first-child:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .shoteasy-workspace-item strong {
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-workspace-item__actions {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 2px;
+        padding-right: 8px;
+    }
+
+    .shoteasy-workspace-status-tags {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 4px;
+        flex-direction: row;
+    }
+
+    .shoteasy-workspace-status-tags .ant-tag {
+        margin-inline-end: 0;
+    }
+
+    .shoteasy-suggestion-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .shoteasy-suggestion-grid > button {
+        min-width: 0;
+        border: 1px solid var(--se-border);
+        border-radius: 10px;
+        background: var(--se-panel-muted);
+        color: var(--se-ink);
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .shoteasy-suggestion-grid > button:hover {
+        border-color: var(--se-accent);
+    }
+
+    .shoteasy-suggestion-grid span {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .shoteasy-suggestion-grid strong,
+    .shoteasy-suggestion-grid small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-suggestion-grid small {
+        color: var(--se-muted);
+        font-family: var(--font-mono);
+    }
+
+    .shoteasy-color-swatch,
+    .shoteasy-border-swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        flex: 0 0 auto;
+    }
+
+    .shoteasy-color-swatch {
+        border: 1px solid var(--se-border);
+    }
+
+    .shoteasy-border-swatch {
+        border-width: 3px;
+        border-style: solid;
+        background: #808080;
+    }
+
+    .shoteasy-color-picker-adapter {
+        display: inline-flex;
+        vertical-align: middle;
+    }
+
+    .shoteasy-color-picker-panel {
+        display: grid;
+        width: 248px;
+        gap: 12px;
+        color: inherit;
+    }
+
+    .shoteasy-color-picker-panel__header,
+    .shoteasy-color-picker-panel__row,
+    .shoteasy-color-picker-panel__alpha > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .shoteasy-color-picker-panel__header strong,
+    .shoteasy-color-picker-panel label,
+    .shoteasy-color-picker-panel legend {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .shoteasy-color-picker-panel__row > input[type="color"] {
+        width: 54px;
+        height: 32px;
+        padding: 3px;
+        border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+        border-radius: 7px;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .shoteasy-color-picker-panel__row > input[type="text"] {
+        width: 132px;
+        height: 32px;
+        padding: 0 9px;
+        border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+        border-radius: 7px;
+        outline: none;
+        color: inherit;
+        background: color-mix(in srgb, currentColor 6%, transparent);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        text-transform: lowercase;
+    }
+
+    .shoteasy-color-picker-panel__row > input[type="text"]:focus-visible,
+    .shoteasy-color-picker-panel__row > input[type="color"]:focus-visible,
+    .shoteasy-color-picker-panel__preset:focus-visible {
+        outline: 2px solid #1677ff;
+        outline-offset: 2px;
+    }
+
+    .shoteasy-color-picker-panel__row > input[aria-invalid="true"] {
+        border-color: #ff4d4f;
+    }
+
+    .shoteasy-color-picker-panel__alpha {
+        display: grid;
+        gap: 6px;
+    }
+
+    .shoteasy-color-picker-panel__alpha output {
+        font-family: var(--font-mono);
+        font-size: 12px;
+    }
+
+    .shoteasy-color-picker-panel__alpha input[type="range"] {
+        width: 100%;
+        margin: 0;
+        accent-color: #1677ff;
+    }
+
+    .shoteasy-color-picker-panel__presets {
+        min-width: 0;
+        margin: 0;
+        padding: 10px 0 0;
+        border: 0;
+        border-top: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+    }
+
+    .shoteasy-color-picker-panel__presets > div {
+        display: grid;
+        grid-template-columns: repeat(9, 20px);
+        gap: 6px;
+        margin-top: 7px;
+    }
+
+    .shoteasy-color-picker-panel__preset {
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .shoteasy-color-picker-panel input:disabled,
+    .shoteasy-color-picker-panel button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .shoteasy-storage-meter {
+        overflow: hidden;
+        height: 6px;
+        border-radius: 999px;
+        background: color-mix(in srgb, currentColor 10%, transparent);
+    }
+
+    .shoteasy-storage-meter i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: #2563eb;
+        transition: width 180ms ease;
+    }
+
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(0.5rem); }
+        75% { transform: translateX(-0.5rem); }
+        100% { transform: translateX(0); }
+    }
+
+    .invalid {
+        animation: shake 0.2s ease-in-out 0s 2;
+    }
+}
+
+@media (max-width: 1023px) {
+    .shoteasy-mobile-actions {
+        display: flex;
+    }
+
+    .shoteasy-topbar__divider--meta {
+        display: none;
+    }
+
+    .shoteasy-bottom-toolbar {
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        transform: none;
+    }
+
+    /* 窄屏下基础 transform 为 none，折叠位移不再叠加 translateX */
+    .shoteasy-bottom-toolbar.is-collapsed {
+        transform: translateY(10px) scale(0.96);
+    }
+}
+
+@media (max-width: 640px) {
+    .shoteasy-topbar {
+        gap: 5px;
+        padding-inline: 8px;
+    }
+
+    .shoteasy-topbar__brand {
+        max-width: 90px;
+    }
+
+    .shoteasy-history {
+        display: none;
+    }
+
+    .shoteasy-top-actions {
+        gap: 3px;
+    }
+
+    .shoteasy-workspace-trigger.ant-btn {
+        width: 32px;
+        min-width: 32px;
+        padding: 0;
+        font-size: 0;
+    }
+
+    .shoteasy-batch-trigger.ant-btn {
+        width: 32px;
+        min-width: 32px;
+        padding: 0;
+        font-size: 0;
+    }
+
+    .shoteasy-batch-actions .ant-btn {
+        flex: 1 1 calc(50% - 4px);
+    }
+
+    .shoteasy-top-action.ant-btn {
+        width: 32px;
+        min-width: 32px;
+        height: 32px;
+    }
+
+    /* 文字 pill 入口在窄屏保持自适应宽度，不被上面的 32px 规则压扁 */
+    .shoteasy-top-action--export.ant-btn {
+        width: auto;
+        min-width: 0;
+        padding-inline: 8px;
+        font-size: 11px;
+    }
+
+    .shoteasy-empty-state {
+        align-items: flex-start;
+        padding: 24px 14px;
+    }
+
+    .shoteasy-empty-state__heading {
+        margin-bottom: 14px;
+    }
+
+    .shoteasy-quick-actions .ant-btn {
+        justify-content: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shoteasy-app,
+    .shoteasy-app *,
+    .shoteasy-app *::before,
+    .shoteasy-app *::after,
+    .shoteasy-components,
+    .shoteasy-components *,
+    .shoteasy-components *::before,
+    .shoteasy-components *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-delay: 0s !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+    }
+}

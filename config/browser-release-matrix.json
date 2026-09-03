@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "targets": [
+    {
+      "id": "chrome-111",
+      "browser": "chrome",
+      "webDriverName": "chrome",
+      "acceptedBrowserNames": ["chrome"],
+      "requestedVersion": "111.0",
+      "dockerImage": "selenium/standalone-chrome:111.0@sha256:38bb75fb9c8ad82e1eee6f299b612a09d9c874ecde1d776beddc2eb0bdcb0bea",
+      "version": { "major": 111 }
+    },
+    {
+      "id": "edge-111",
+      "browser": "edge",
+      "webDriverName": "MicrosoftEdge",
+      "acceptedBrowserNames": ["MicrosoftEdge", "msedge"],
+      "requestedVersion": "111.0",
+      "dockerImage": "selenium/standalone-edge:111.0@sha256:0648185233f0adbe286a39ede22befdedc2f9be66db81916d328821b825a855f",
+      "version": { "major": 111 }
+    },
+    {
+      "id": "firefox-128",
+      "browser": "firefox",
+      "webDriverName": "firefox",
+      "acceptedBrowserNames": ["firefox"],
+      "requestedVersion": "128.0",
+      "dockerImage": "selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef",
+      "version": { "major": 128 }
+    },
+    {
+      "id": "safari-macos-14",
+      "browser": "safari",
+      "webDriverName": "safari",
+      "acceptedBrowserNames": ["safari"],
+      "localDriver": true,
+      "sessionCreateRetries": 10,
+      "sessionRetryDelayMs": 100,
+      "expectedRunner": "macos-14",
+      "versionPolicy": "minimum",
+      "version": { "major": 16, "minor": 4 },
+      "requiresTrustedSafari": true
+    }
+  ]
+}

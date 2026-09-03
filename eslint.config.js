@@ -1,0 +1,88 @@
+import js from '@eslint/js';
+import globals from 'globals';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+
+export default [
+    {
+        ignores: [
+            'artifacts/**',
+            'dist/**',
+            'lib/**',
+            'tests/consumer/node_modules/**',
+        ],
+    },
+    js.configs.recommended,
+    {
+        files: ['**/*.{js,jsx,mjs}'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
+        },
+        linterOptions: {
+            reportUnusedDisableDirectives: 'error',
+        },
+    },
+    {
+        files: ['src/**/*.{js,jsx}'],
+        languageOptions: {
+            globals: globals.browser,
+        },
+    },
+    {
+        files: ['scripts/**/*.mjs', '*.{config.js,config.mjs}', 'eslint.config.js'],
+        languageOptions: {
+            globals: globals.node,
+        },
+    },
+    {
+        // Playwright/Vitest 文件既在 Node runner 中执行，也包含传入页面上下文的回调。
+        files: ['tests/**/*.{js,jsx,mjs}'],
+        languageOptions: {
+            globals: {
+                ...globals.browser,
+                ...globals.node,
+            },
+        },
+    },
+    {
+        files: ['**/*.{js,jsx}'],
+        languageOptions: {
+            parserOptions: {
+                ecmaFeatures: { jsx: true },
+            },
+        },
+        plugins: {
+            react,
+            'react-hooks': reactHooks,
+            'react-refresh': reactRefresh,
+        },
+        settings: {
+            react: { version: 'detect' },
+        },
+        rules: {
+            ...react.configs.recommended.rules,
+            ...react.configs['jsx-runtime'].rules,
+            'react/prop-types': 'off',
+            'react/jsx-no-target-blank': 'off',
+            'react-hooks/rules-of-hooks': 'error',
+            'react-hooks/exhaustive-deps': 'warn',
+            'react-refresh/only-export-components': [
+                'warn',
+                { allowConstantExport: true, extraHOCs: ['observer'] },
+            ],
+        },
+    },
+    {
+        // 这些文件管理命令式 Leafer 节点：窄依赖决定节点重建边界，MobX observer
+        // 负责值更新。只在该边界保留例外，其他 React 文件继续检查 exhaustive-deps。
+        files: [
+            'src/components/editor/View.jsx',
+            'src/components/editor/layers/**/*.jsx',
+        ],
+        rules: {
+            'react-hooks/exhaustive-deps': 'off',
+        },
+    },
+];

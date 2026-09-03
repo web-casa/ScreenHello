@@ -1,0 +1,171 @@
+import { useState } from 'react';
+import { observer } from 'mobx-react-lite';
+import { Button, Tooltip, Divider } from 'antd';
+import Icon from '@components/Icon';
+import ColorPicker from '@components/ColorPicker';
+import { WidthDropdown } from '@components/header/WidthDropdown';
+import EmojiSelect from '@components/header/EmojiSelect';
+import { nanoid, cn } from '@utils/utils';
+import useStores from '@stores/useStores';
+import { browserPlatform } from '../../platform/browserPlatform';
+
+const toolList = ['Square', 'SquareFill', 'Circle', 'Slash', 'MoveDownLeft', 'Pencil', 'Magnifier', 'Step', 'text', 'blur', 'mosaic', 'spotlight', 'Smile'];
+const toolLabels = {
+    Square: '矩形',
+    SquareFill: '实心矩形',
+    Circle: '圆形',
+    Slash: '直线',
+    MoveDownLeft: '箭头',
+    Pencil: '画笔',
+    Magnifier: '放大镜',
+    Step: '步骤序号',
+    text: '文字',
+    blur: '模糊',
+    mosaic: '马赛克',
+    spotlight: '聚光',
+    Smile: '表情',
+};
+
+// 收起状态持久化到 localStorage：不常用标注的用户可以一直保持收起，刷新后仍是收起态
+const TOOLBAR_COLLAPSED_KEY = 'SHOTEASY_BOTTOM_TOOLBAR_COLLAPSED';
+
+export default observer(function BottomToolbar() {
+    const stores = useStores();
+    const [isMove, setIsMove] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        return browserPlatform.storage.getPreference(TOOLBAR_COLLAPSED_KEY) === '1';
+    });
+    const toggleCollapsed = () => setIsCollapsed((prev) => {
+        browserPlatform.storage.setPreference(TOOLBAR_COLLAPSED_KEY, prev ? '0' : '1');
+        return !prev;
+    });
+    const selectTool = (type) => {
+        if (!stores.editor.ensureEditing()) return;
+        const { useTool } = stores.editor;
+        stores.editor.setUseTool(useTool === type ? null : type);
+        setIsMove(false);
+        if (type === 'Magnifier' || type === 'blur' || type === 'mosaic') stores.editor.createSnap('init');
+    };
+    const handleSelectEmoji = (emoji) => {
+        if (!stores.editor.ensureEditing()) return;
+        const x = stores.option.frameConf.width / 2 - 24;
+        const y = stores.option.frameConf.height / 2 - 24;
+        stores.editor.setUseTool(null);
+        setIsMove(false);
+        stores.editor.addShape({
+            id: nanoid(),
+            type: 'emoji',
+            text: emoji,
+            zIndex: stores.editor.shapes.size + 1,
+            x,
+            y,
+            editable: true,
+        });
+        stores.history.commit();
+    };
+    const toggleMove = () => {
+        if (!stores.editor.ensureEditing()) return;
+        const is = !isMove;
+        stores.editor.setUseTool(null);
+        setIsMove(is);
+        stores.editor.setMove(is);
+    };
+
+    return (
+        <>
+            <div className={cn('shoteasy-bottom-toolbar', isCollapsed && 'is-collapsed')} aria-label="标注工具">
+            <div className="shoteasy-bottom-toolbar__tools">
+                {toolList.map(item => {
+                    if (item === 'Smile') {
+                        return (
+                            <Tooltip key={item} placement="top" arrow={false} title={toolLabels[item]}>
+                                <EmojiSelect disabled={false} theme={stores.editor.isDark ? 'dark' : 'light'} toSelect={handleSelectEmoji} />
+                            </Tooltip>
+                        );
+                    }
+                    let icon;
+                    if (item === 'Magnifier') {
+                        icon = <Icon.Magnifier size={16} />;
+                    } else if (item === 'Step') {
+                        icon = <span className="shoteasy-step-badge">{stores.editor.nextStep}</span>;
+                    } else if (item === 'text') {
+                        icon = <Icon.Type size={16} />;
+                    } else if (item === 'blur') {
+                        icon = <Icon.Blur size={16} />;
+                    } else if (item === 'mosaic') {
+                        icon = <Icon.Mosaic size={16} />;
+                    } else if (item === 'spotlight') {
+                        icon = <Icon.Spotlight size={16} />;
+                    } else {
+                        const IconComp = Icon[item];
+                        icon = IconComp ? <IconComp size={16} /> : null;
+                    }
+                    return (
+                        <Tooltip key={item} placement="top" arrow={false} title={toolLabels[item]}>
+                            <Button
+                                type="text"
+                                shape="circle"
+                                aria-label={toolLabels[item]}
+                                icon={icon}
+                                className={cn('shoteasy-tool-button', stores.editor.useTool === item && 'is-active')}
+                                onClick={() => selectTool(item)}
+                            />
+                        </Tooltip>
+                    );
+                })}
+            </div>
+            <Divider orientation="vertical" className="shoteasy-toolbar-divider" />
+            <div className="shoteasy-bottom-toolbar__controls">
+                <ColorPicker
+                    aria-label="标注颜色"
+                    size="small"
+                    placement="top"
+                    presets={[{
+                        label: '推荐',
+                        colors: ['#ffffff', '#444444', '#df4b26', '#1677ff', '#52C41A', '#FA8C16', '#FADB14', '#EB2F96', '#722ED1'],
+                    }]}
+                    value={stores.editor.annotateColor}
+                    onChange={(e) => stores.editor.setAnnotateColor(e.toHexString())}
+                />
+                <WidthDropdown
+                    defaultValue={stores.editor.strokeWidth}
+                    onChange={(e) => stores.editor.setStrokeWidth(e)}
+                    placement="top"
+                />
+            </div>
+            <Divider orientation="vertical" className="shoteasy-toolbar-divider" />
+            <Tooltip placement="top" arrow={false} title="移动 / 拖动">
+                <Button
+                    type="text"
+                    shape="circle"
+                    aria-label="移动 / 拖动"
+                    className={cn('shoteasy-tool-button', isMove && 'is-active')}
+                    icon={<Icon.Hand size={16} />}
+                    onClick={toggleMove}
+                />
+            </Tooltip>
+            <Tooltip placement="top" arrow={false} title="收起工具栏">
+                <Button
+                    type="text"
+                    shape="circle"
+                    aria-label="收起工具栏"
+                    className="shoteasy-tool-button"
+                    icon={<Icon.Collapse size={16} />}
+                    onClick={toggleCollapsed}
+                />
+            </Tooltip>
+            </div>
+            {/* 收起后的左下角入口：与工具栏互斥显隐，切换由 CSS 过渡完成顺滑衔接 */}
+            <Tooltip placement="top" arrow={false} title="展开标注工具栏">
+                <Button
+                    type="text"
+                    shape="circle"
+                    aria-label="展开标注工具栏"
+                    className={cn('shoteasy-bottom-toolbar-collapsed', !isCollapsed && 'is-hidden')}
+                    icon={<Icon.Pencil size={16} />}
+                    onClick={toggleCollapsed}
+                />
+            </Tooltip>
+        </>
+    );
+});

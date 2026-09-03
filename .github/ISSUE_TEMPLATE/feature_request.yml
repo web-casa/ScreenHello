@@ -1,0 +1,30 @@
+name: Feature request
+description: 提议一个符合本地优先原则的能力
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: 请描述用户问题，而不只是指定一种实现。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: local_first
+    attributes:
+      label: Local-first contract
+      options:
+        - label: 此提议不要求上传用户图片、项目、草稿或剪贴板内容。
+          required: true

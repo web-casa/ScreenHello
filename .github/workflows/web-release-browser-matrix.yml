@@ -1,0 +1,165 @@
+name: Web Release Browser Matrix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  minimum-browser:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: chrome-111
+            image: selenium/standalone-chrome:111.0@sha256:38bb75fb9c8ad82e1eee6f299b612a09d9c874ecde1d776beddc2eb0bdcb0bea
+          - target: edge-111
+            image: selenium/standalone-edge:111.0@sha256:0648185233f0adbe286a39ede22befdedc2f9be66db81916d328821b825a855f
+          - target: firefox-128
+            image: selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 10.12.1
+          run_install: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Build release candidate
+        run: pnpm build
+
+      - name: Start production preview
+        run: |
+          pnpm preview --host 0.0.0.0 --port 4197 --strictPort > "$RUNNER_TEMP/screenhello-preview.log" 2>&1 &
+          for _ in {1..60}; do
+            curl --fail --silent http://127.0.0.1:4197/ > /dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Start pinned browser
+        run: |
+          docker run -d --rm --name screenhello-release-browser --shm-size=2g \
+            -p 4444:4444 --add-host host.docker.internal:host-gateway "${{ matrix.image }}"
+          for _ in {1..90}; do
+            curl --fail --silent http://127.0.0.1:4444/status | grep -q '"ready" *: *true' && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Run exact minimum-browser smoke
+        env:
+          SELENIUM_REMOTE_URL: http://127.0.0.1:4444
+          SCREENHELLO_BROWSER_TARGET: ${{ matrix.target }}
+          SCREENHELLO_RELEASE_BASE_URL: http://host.docker.internal:4197
+          SCREENHELLO_BROWSER_SOURCE: ${{ matrix.image }}
+          SCREENHELLO_BROWSER_EXECUTION: native-amd64
+          SCREENHELLO_RELEASE_CANDIDATE: ${{ github.sha }}
+        run: pnpm test:release:minimum-browser
+
+      - name: Capture browser diagnostics
+        if: failure()
+        run: docker logs --tail 300 screenhello-release-browser > "$RUNNER_TEMP/selenium.log" 2>&1 || true
+
+      - name: Stop browser
+        if: always()
+        run: docker stop screenhello-release-browser || true
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: web-release-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            artifacts/release/browser-matrix/${{ matrix.target }}.json
+            ${{ runner.temp }}/screenhello-preview.log
+            ${{ runner.temp }}/selenium.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  safari-macos-14:
+    name: safari-macos-14
+    runs-on: macos-14
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 10.12.1
+          run_install: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Build release candidate
+        run: pnpm build
+
+      - name: Start production preview
+        run: |
+          pnpm preview --host 127.0.0.1 --port 4197 --strictPort > "$RUNNER_TEMP/screenhello-preview.log" 2>&1 &
+          for _ in {1..60}; do
+            curl --fail --silent http://127.0.0.1:4197/ > /dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Enable Safari automation
+        run: sudo safaridriver --enable
+
+      - name: Record Apple environment
+        run: echo "SCREENHELLO_SAFARI_ENVIRONMENT=GitHub-hosted macos-14 / macOS $(sw_vers -productVersion)" >> "$GITHUB_ENV"
+
+      - name: Run real Safari smoke
+        env:
+          SCREENHELLO_BROWSER_TARGET: safari-macos-14
+          SCREENHELLO_RELEASE_BASE_URL: http://127.0.0.1:4197
+          SCREENHELLO_BROWSER_SOURCE: github-actions/macos-14/safaridriver
+          SCREENHELLO_BROWSER_EXECUTION: github-hosted-macos
+          SCREENHELLO_RUNNER_LABEL: macos-14
+          SCREENHELLO_TRUSTED_SAFARI: 'true'
+          SCREENHELLO_RELEASE_CANDIDATE: ${{ github.sha }}
+        run: pnpm test:release:minimum-browser
+
+      - name: Capture Safari diagnostics
+        if: failure()
+        run: |
+          mkdir -p "$RUNNER_TEMP/safari-webdriver-logs"
+          if [ -d "$HOME/Library/Logs/com.apple.WebDriver" ]; then
+            cp -R "$HOME/Library/Logs/com.apple.WebDriver/." "$RUNNER_TEMP/safari-webdriver-logs/"
+          fi
+
+      - name: Upload Safari evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: web-release-safari-macos-14-${{ github.sha }}
+          path: |
+            artifacts/release/browser-matrix/safari-macos-14.json
+            ${{ runner.temp }}/screenhello-preview.log
+            ${{ runner.temp }}/safari-webdriver-logs
+          if-no-files-found: warn
+          retention-days: 30

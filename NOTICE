@@ -1,0 +1,13 @@
+ScreenHello
+Copyright (c) 2026 ScreenHello contributors
+
+ScreenHello is a modified and extended work based on Shoteasy:
+https://github.com/ricocc/shoteasy
+
+The original Shoteasy copyright notice is:
+Copyright (c) 2024 Chenliwen
+
+The original MIT License is retained in LICENSE. Third-party software and
+redistributed codec notices are listed in THIRD_PARTY_NOTICES.md. Visual asset
+sources and the code-native replacement policy are recorded in
+ASSET_PROVENANCE.md.
