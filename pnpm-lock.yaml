@@ -95,8 +95,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       cropperjs:
-        specifier: ^1.6.2
-        version: 1.6.2
+        specifier: ^2.2.0
+        version: 2.2.0
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -736,6 +736,39 @@ packages:
 
   '@bazel/runfiles@6.5.0':
     resolution: {integrity: sha512-RzahvqTkfpY2jsDxo8YItPX+/iZ6hbiikw1YhE0bA9EKBR5Og8Pa6FHn9PO9M0zaXRVsr0GFQLKbB/0rzy9SzA==}
+
+  '@cropper/element-canvas@2.2.0':
+    resolution: {integrity: sha512-H0Ay2ZSZrxWLP/8fSudH9hghsgIJh9fCgEmpfzD7MnQbE8HdQKljnoRxbrjuFT7Y0rmf405Sp9PmNA6T4twegw==}
+
+  '@cropper/element-crosshair@2.2.0':
+    resolution: {integrity: sha512-RXNhlsCd7lPTTjR2rfUEYghaL5bkqiU70qojJCUz1EIKfLriToDztjlsw3TZKJUBHYA+JOnmTBDFTnizoMUN1w==}
+
+  '@cropper/element-grid@2.2.0':
+    resolution: {integrity: sha512-1hxHLi7Jrek/xxeG12a9+TO18Ot4pCG4V9Zh+A0GMLsfFjrd2k/kl0wOq0x1isNNrP3kkIw47FdID2iWR8A48A==}
+
+  '@cropper/element-handle@2.2.0':
+    resolution: {integrity: sha512-+WPzHWF96RtLTAtotIcQQ6Sx3zVLQdK+qbaM2yKa841Iz60gQ3qKk7Jl5ndy2OgkEfxZaJI/3lWyf1RMGs/TEw==}
+
+  '@cropper/element-image@2.2.0':
+    resolution: {integrity: sha512-J0zBFMEfW6yuAmXoP6S+ZdNJy5J2duVsUS0N2o3D/HxHiVo4Vm3jrSexasu/Vfvwe4Lv0nmZ/10KW3RxhrvDCQ==}
+
+  '@cropper/element-selection@2.2.0':
+    resolution: {integrity: sha512-ATtWeEb1J/scQ98ins2jy4YbVOqz13F54jDk4Mm7OCpG0fzDseOujSLoIP8y26gtY7XGQXvn8WiFBbIZbeSgxQ==}
+
+  '@cropper/element-shade@2.2.0':
+    resolution: {integrity: sha512-fiurnjecablA8+17GoOjiNrzKWe85Q6h9JLbPJkxKCQxcxqpjEsOdGu3YlRxaBYcYvr6wH9tghufOlUfYJS9nw==}
+
+  '@cropper/element-viewer@2.2.0':
+    resolution: {integrity: sha512-w6uO7m7PwBWKynMwj8DYkJHFXrHC6Xxvcp5Y+tSxhfcNtOvw92FDncqRLYv+xHQoCDXEvfCqJyrTx9nIiZgiLQ==}
+
+  '@cropper/element@2.2.0':
+    resolution: {integrity: sha512-Kckk7TiWt3Cf9MvSfmMx7ZOIuN1rzIUIwIPQSqSj0Sl6gj6opo+CPax+fREvyvVKEzAug7L0sQFZ0TL4H5LsNw==}
+
+  '@cropper/elements@2.2.0':
+    resolution: {integrity: sha512-OQiVvEjIQUbMAUGpFrI/L95elHNIXjdlSxxzeywbU6C93PdPypXeGQfOSLQ43zUYmFutWNb7jTrHvgb3JaE+VQ==}
+
+  '@cropper/utils@2.2.0':
+    resolution: {integrity: sha512-wTrpZl+F4Kr2hzovqjztSexWUU+EVK1CxPymbYgFYoAS/NZXwCDsrvikJQn+HYZVxjqyo/ClnFxA0fG+tFy6Hw==}
 
   '@ctrl/tinycolor@4.2.0':
     resolution: {integrity: sha512-kzyuwOAQnXJNLS9PSyrk0CWk35nWJW/zl/6KvnTBMFK65gm7U1/Z5BqjxeapjZCIhQcM/DsrEmcbRwDyXyXK4A==}
@@ -2120,8 +2153,11 @@ packages:
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
 
-  cropperjs@1.6.2:
-    resolution: {integrity: sha512-nhymn9GdnV3CqiEHJVai54TULFAE3VshJTXSqSJKa8yXAKyBKDWdhHarnlIPrshJ0WMFTGuFvG02YjLXfPiuOA==}
+  cropperjs@1.6.3:
+    resolution: {integrity: sha512-BRb0PRIzjbfM5n+i6L2D85pSbXI/w6cnnwb9W9cRKgAmbiP+OjDeq+Irhd86IujZDXm/7JWECfscllFIdrlmfw==}
+
+  cropperjs@2.2.0:
+    resolution: {integrity: sha512-7egO+tXxt3jGHQcO6x4k1CVoMIlEu+4Klixc6ejspKOAns7onlC/lEi5tRi3qbuHVcATK7rqaZyp8LzynPz6Cg==}
 
   cross-env@10.1.0:
     resolution: {integrity: sha512-GsYosgnACZTADcmEyJctkJIoqAhHjttw7RsFrVoJNXbsWWqaq6Ym+7kZjq6mS45O0jij6vtiReppKQEtqWy6Dw==}
@@ -3027,6 +3063,10 @@ packages:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
     engines: {node: '>=12'}
 
+  picomatch@4.0.7:
+    resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
+    engines: {node: '>=12'}
+
   playwright-core@1.62.1:
     resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
     engines: {node: '>=20'}
@@ -3260,6 +3300,10 @@ packages:
 
   string.prototype.matchall@4.0.12:
     resolution: {integrity: sha512-6CC9uyBL+/48dYizRf7H7VAYCMCNTBeM78x/VTUe9bFEaxBepPJDa1Ow99LqI/1yF7kuy7Q3cQsYMrcjGUcskA==}
+    engines: {node: '>= 0.4'}
+
+  string.prototype.matchall@4.1.0:
+    resolution: {integrity: sha512-tHNHTxInrYLCga9O9YGxWA3G9/nnzQw8UGAyqGx3Ar1pSTTzIuM4woFSq4SowkXCjJIwq5sIiQvEfRI9tCH1qQ==}
     engines: {node: '>= 0.4'}
 
   string.prototype.repeat@1.0.0:
@@ -4357,6 +4401,72 @@ snapshots:
 
   '@bazel/runfiles@6.5.0': {}
 
+  '@cropper/element-canvas@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-crosshair@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-grid@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-handle@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-image@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/element-canvas': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-selection@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/element-canvas': 2.2.0
+      '@cropper/element-image': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-shade@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/element-canvas': 2.2.0
+      '@cropper/element-selection': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element-viewer@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/element-canvas': 2.2.0
+      '@cropper/element-image': 2.2.0
+      '@cropper/element-selection': 2.2.0
+      '@cropper/utils': 2.2.0
+
+  '@cropper/element@2.2.0':
+    dependencies:
+      '@cropper/utils': 2.2.0
+
+  '@cropper/elements@2.2.0':
+    dependencies:
+      '@cropper/element': 2.2.0
+      '@cropper/element-canvas': 2.2.0
+      '@cropper/element-crosshair': 2.2.0
+      '@cropper/element-grid': 2.2.0
+      '@cropper/element-handle': 2.2.0
+      '@cropper/element-image': 2.2.0
+      '@cropper/element-selection': 2.2.0
+      '@cropper/element-shade': 2.2.0
+      '@cropper/element-viewer': 2.2.0
+
+  '@cropper/utils@2.2.0': {}
+
   '@ctrl/tinycolor@4.2.0': {}
 
   '@emoji-mart/data@1.2.1': {}
@@ -5322,7 +5432,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.9
       estree-walker: 2.0.2
-      picomatch: 4.0.5
+      picomatch: 4.0.7
     optionalDependencies:
       rollup: 4.63.1
 
@@ -5476,7 +5586,7 @@ snapshots:
       ejs: 3.1.10
       json5: 2.2.3
       magic-string: 0.30.21
-      string.prototype.matchall: 4.0.12
+      string.prototype.matchall: 4.1.0
 
   '@types/chai@5.2.3':
     dependencies:
@@ -5806,7 +5916,12 @@ snapshots:
 
   core-util-is@1.0.3: {}
 
-  cropperjs@1.6.2: {}
+  cropperjs@1.6.3: {}
+
+  cropperjs@2.2.0:
+    dependencies:
+      '@cropper/elements': 2.2.0
+      '@cropper/utils': 2.2.0
 
   cross-env@10.1.0:
     dependencies:
@@ -6798,6 +6913,8 @@ snapshots:
 
   picomatch@4.0.5: {}
 
+  picomatch@4.0.7: {}
+
   playwright-core@1.62.1: {}
 
   playwright@1.62.1:
@@ -6832,7 +6949,7 @@ snapshots:
 
   react-cropper@2.3.3(react@19.2.8):
     dependencies:
-      cropperjs: 1.6.2
+      cropperjs: 1.6.3
       react: 19.2.8
 
   react-dom@19.2.8(react@19.2.8):
@@ -7100,6 +7217,22 @@ snapshots:
   string-convert@0.2.1: {}
 
   string.prototype.matchall@4.0.12:
+    dependencies:
+      call-bind: 1.0.9
+      call-bound: 1.0.4
+      define-properties: 1.2.1
+      es-abstract: 1.24.2
+      es-errors: 1.3.0
+      es-object-atoms: 1.1.2
+      get-intrinsic: 1.3.0
+      gopd: 1.2.0
+      has-symbols: 1.1.0
+      internal-slot: 1.1.0
+      regexp.prototype.flags: 1.5.4
+      set-function-name: 2.0.2
+      side-channel: 1.1.1
+
+  string.prototype.matchall@4.1.0:
     dependencies:
       call-bind: 1.0.9
       call-bound: 1.0.4
