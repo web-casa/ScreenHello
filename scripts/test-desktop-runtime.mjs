@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawn } from 'node:child_process';
 import { Builder, By, Capabilities, until } from 'selenium-webdriver';
+import { stopDesktopAutomation } from './desktop-process-tree.mjs';
 
 const root = process.cwd();
 const applicationName = process.platform === 'win32' ? 'screenhello-desktop.exe' : 'screenhello-desktop';
@@ -62,39 +63,6 @@ const waitForPort = async (targetPort, processHandle, timeoutMs = 20_000) => {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new Error('desktop-automation-start-timeout');
-};
-
-const stopDriverTree = async (processHandle) => {
-    const processGroupId = processHandle.pid;
-    if (!processGroupId) return;
-
-    const signalTree = (signal) => {
-        try {
-            if (process.platform === 'win32') processHandle.kill(signal);
-            else process.kill(-processGroupId, signal);
-            return true;
-        } catch (error) {
-            if (error?.code === 'ESRCH') return false;
-            throw error;
-        }
-    };
-    const treeIsRunning = () => {
-        try {
-            if (process.platform === 'win32') return processHandle.exitCode === null;
-            process.kill(-processGroupId, 0);
-            return true;
-        } catch (error) {
-            if (error?.code === 'ESRCH') return false;
-            throw error;
-        }
-    };
-
-    signalTree('SIGTERM');
-    const deadline = Date.now() + shutdownGraceMs;
-    while (treeIsRunning() && Date.now() < deadline) await delay(50);
-    if (treeIsRunning()) signalTree('SIGKILL');
-    processHandle.stdout.destroy();
-    processHandle.stderr.destroy();
 };
 
 const waitForChildExit = (child, timeoutMs = 10_000) => new Promise((resolve, reject) => {
@@ -402,13 +370,14 @@ try {
     throw error;
 } finally {
     if (secondInstance?.exitCode === null) secondInstance.kill('SIGKILL');
-    // On Linux tauri-driver can exit before Selenium's DELETE request returns,
-    // leaving both driver.quit() and the spawned application alive indefinitely.
-    // The driver owns a dedicated process group, so terminate that bounded tree
-    // after the assertions instead of relying on an unbounded protocol cleanup.
+    // The embedded provider is the application itself, so its ChildProcess handle
+    // is the lifetime owner. The Linux official driver owns a dedicated process
+    // group so its native driver and application descendants are also bounded.
     if ((useEmbeddedDriver || process.platform === 'win32') && driver) {
         await Promise.race([driver.quit().catch(() => {}), delay(shutdownGraceMs)]);
     }
-    await stopDriverTree(automationProcess);
+    await stopDesktopAutomation(automationProcess, {
+        useProcessGroup: !useEmbeddedDriver && process.platform !== 'win32',
+    });
     await rm(runtimeRoot, { recursive: true, force: true });
 }

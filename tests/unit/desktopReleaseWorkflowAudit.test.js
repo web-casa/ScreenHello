@@ -4,6 +4,7 @@ import { auditDesktopReleaseWorkflow } from '../../scripts/audit-desktop-release
 
 const workflow = await readFile(new URL('../../.github/workflows/desktop-release-gate.yml', import.meta.url), 'utf8');
 const matrix = JSON.parse(await readFile(new URL('../../config/desktop-release-matrix.json', import.meta.url), 'utf8'));
+const workflowLf = workflow.replace(/\r\n?/gu, '\n');
 
 describe('desktop release workflow audit', () => {
     it('accepts the read-only three-platform candidate gate', () => {
@@ -11,7 +12,7 @@ describe('desktop release workflow audit', () => {
     });
 
     it('accepts the same workflow after a Windows CRLF checkout', () => {
-        expect(auditDesktopReleaseWorkflow(workflow.replaceAll('\n', '\r\n'), matrix)).toEqual([]);
+        expect(auditDesktopReleaseWorkflow(workflowLf.replaceAll('\n', '\r\n'), matrix)).toEqual([]);
     });
 
     it.each([

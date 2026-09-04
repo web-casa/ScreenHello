@@ -12,11 +12,13 @@ on:
       - scripts/audit-desktop-poc.mjs
       - scripts/audit-desktop-release-evidence.mjs
       - scripts/collect-desktop-release-evidence.mjs
+      - scripts/desktop-process-tree.mjs
       - scripts/generate-desktop-sbom.mjs
       - scripts/test-desktop-runtime.mjs
       - src-tauri/**
       - src/desktop/**
       - src/platform/desktopPlatform.js
+      - tests/unit/desktopProcessTree.test.js
       - tests/unit/desktopReleaseEvidenceAudit.test.js
       - vite.config.js
 
