@@ -1,6 +1,6 @@
 # Web Release Gate
 
-> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；前两轮公共 CI/矩阵暴露了导出 Drawer 生命周期和弹层 axe 稳定态缺口，第三候选的同 SHA CI 与四浏览器可信证据仍待复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
+> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；第三矩阵已推进到 3/4，Firefox 128 产品修复后的第四候选仍待同 SHA CI 与四浏览器复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
 
 ## 0. Phase 8.5 当前候选
 
@@ -12,8 +12,10 @@
 - 首轮公开候选 `f021abcc...` 的原生矩阵证明 Chrome 111 / Edge 111 通过，并暴露 minimum-browser runner 的跨浏览器时序缺口：下载记录可能早于导出 Drawer 完全关闭。第一修复让 runner 等待 dialog 隐藏，并增强空 WebDriver message 与原始宽度诊断；未降低移动验收标准。
 - 第二候选 `ea16da1...` 的 dependency audit 已恢复并通过；matrix 仍为 Chrome/Edge 2/4。Firefox 128.0.3 明确记录 `document clientWidth=450 / scrollWidth=1280`、`topbar=450/450`，SafariDriver 再次确认下一轮顶部导出点击被仍在退出的遮罩拦截。因此第三候选将同步点收紧为 `.shoteasy-export-drawer` 节点彻底卸载，并在失败时枚举实际越界元素。
 - 第二候选 public CI 的唯一失败是 Firefox axe 扫描 Ant Design menu/Drawer 入场中间帧，取样到 3.58～3.67 的瞬时对比度。第三候选在弹层可见后等待有限 Web Animations 全部结束并跨两个 animation frame，再执行完整 WCAG A/AA 扫描；没有关闭 contrast 规则、增加固定 sleep 或改变产品色板。
+- 第三候选 `a03bb3b...` 的 Chrome 111、Edge 111 和 Safari 26.6 / macOS 14.8.9 已通过；Firefox 128.0.3 在 AVIF 后等待 20 秒仍未卸载 Drawer。已安装的 `@rc-component/drawer@1.4.2` 源码表明 `destroyOnHidden` 依赖 CSSMotion 关闭回调；应用现改为由自有 `open` 状态直接条件挂载/卸载导出 Drawer，避免旧 Firefox 的第三方动画回调永久留下隐藏节点。
+- 同类 review 也修复了帮助 Modal 的关闭焦点所有权：HelpCenter 由自有 `topic` 状态条件挂载，关闭后显式归还原触发器，不再只依赖第三方 `afterOpenChange(false)`。WebKit CI 模式的首屏/菜单两种入口连续 10 次通过。
 
-公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。第三修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得混用前两轮旧 SHA 的单项成功证据。
+公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。第四修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得混用前三轮旧 SHA 的单项成功证据。
 
 ## 1. 判定规则
 

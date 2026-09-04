@@ -60,17 +60,15 @@ export default observer(function ExportPanel() {
     const width = Number(stores.option.frameConf.width) || 0;
     const height = Number(stores.option.frameConf.height) || 0;
 
+    if (!open) return null;
+
     return (
         <Drawer
             title="导出图片"
             placement="right"
             size={420}
-            open={open}
+            open
             onClose={close}
-            afterOpenChange={(nextOpen) => {
-                if (!nextOpen) restoreReturnFocus();
-            }}
-            destroyOnHidden
             keyboard={!busy}
             focusable={{ trap: true, focusTriggerAfterClose: false }}
             closable={{ disabled: busy }}

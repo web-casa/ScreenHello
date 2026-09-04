@@ -48,6 +48,14 @@ async function runMenuCommand(page, menuName, commandName) {
     await item.click();
 }
 
+async function waitForVisualStability(page) {
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((animation) => (
+        animation.playState === 'running'
+        && animation.effect?.getComputedTiming().iterations !== Infinity
+    )).length), { timeout: 5_000 }).toBe(0);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
 test('[Phase 8.5.3] initial workspace states the local promise and opens a reversible quick start', async ({ page }) => {
     const externalRequests = [];
     page.on('request', (request) => {
@@ -65,11 +73,13 @@ test('[Phase 8.5.3] initial workspace states the local promise and opens a rever
     const dialog = page.getByRole('dialog', { name: '快速入门' });
     await expect(dialog).toContainText('添加图片');
     await page.getByTestId('help-close').click();
+    await expect(page.locator('.shoteasy-help-modal')).toHaveCount(0);
     await expect(quickStart).toBeFocused();
 
     await runMenuCommand(page, '帮助', /快速入门/);
     await expect(dialog).toBeVisible();
     await page.getByTestId('help-close').click();
+    await expect(page.locator('.shoteasy-help-modal')).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: '帮助', exact: true })).toBeFocused();
     expect(externalRequests).toEqual([]);
 });
@@ -221,7 +231,11 @@ test('[Phase 8.5.3] layer thumbnails, summary, drag, keyboard, and buttons share
         mimeType: 'application/vnd.screenhello.project+zip',
         buffer: projectBytes,
     });
-    await page.getByRole('button', { name: '不保存并继续' }).click();
+    const discard = page.getByRole('button', { name: '不保存并继续' });
+    await expect(discard).toBeVisible();
+    await waitForVisualStability(page);
+    await discard.click();
+    await expect(page.locator('.shoteasy-workspace-guard')).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => (
         window.__shoteasyStores.imageStore.list.map((layer) => layer.name)
     ))).toEqual(savedOrder);
@@ -233,7 +247,7 @@ test('[Phase 8.5.3] layer thumbnails, summary, drag, keyboard, and buttons share
     expect(activeObjectUrlTypes.filter((type) => type.startsWith('image/'))).toHaveLength(imageObjectUrls);
     expect(activeObjectUrlTypes.filter((type) => type === 'application/vnd.screenhello.project+zip')).toHaveLength(1);
     expect(await page.evaluate(() => window.__screenhelloObjectUrls.size)).toBe(objectUrls + 1);
-    await expect(page.locator('.shoteasy-workspace-guard')).toHaveCount(0);
+    await waitForVisualStability(page);
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(axe.violations).toEqual([]);
 });

@@ -466,10 +466,14 @@ test('[Phase 8.5.1] dirty standalone workspace installs a standard beforeunload 
 test('[Phase 8.5.1] whole-project deletion cannot bypass the workspace guard', async ({ page }) => {
     await openOffline(page);
     await importFixture(page);
+    const fileMenu = page.getByRole('menubar', { name: '应用菜单' })
+        .getByRole('menuitem', { name: '文件', exact: true });
     await runMenuCommand(page, '文件', /^新建项目/);
 
     await expect(page.getByRole('button', { name: '不保存并继续' })).toBeVisible();
     await page.getByRole('button', { name: /取\s*消/ }).click();
+    await expect(page.locator('.shoteasy-workspace-guard')).toHaveCount(0);
+    await expect(fileMenu).toBeFocused();
     await expect(page.locator('.shoteasy-editor-canvas')).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(1);
 });

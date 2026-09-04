@@ -538,7 +538,7 @@ try {
         await waitForHiddenSelector('.shoteasy-export-drawer [role="dialog"]',
             `${format} export panel did not close after download`);
         await waitForRemovedSelector('.shoteasy-export-drawer',
-            `${format} export drawer was not destroyed after closing`);
+            `${format} export drawer was not unmounted after closing`);
     }
 
     const mobileWeb = await checkMobileWeb();

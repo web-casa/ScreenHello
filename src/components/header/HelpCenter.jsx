@@ -83,28 +83,32 @@ export default function HelpCenter({ returnFocus }) {
         return () => [...internal, ...external].forEach((cleanup) => cleanup());
     }, [stores]);
 
-    const close = () => setTopic(null);
+    const restoreReturnFocus = () => {
+        const target = returnTarget.current;
+        returnTarget.current = null;
+        if (target?.isConnected) target.focus({ preventScroll: true });
+        else returnFocus?.();
+    };
+
+    const close = () => {
+        setTopic(null);
+        requestAnimationFrame(restoreReturnFocus);
+    };
     const content = topic ? CONTENT[topic] : null;
+
+    if (!content) return null;
 
     return (
         <Modal
             rootClassName="shoteasy-help-modal"
             zIndex={1100}
-            title={content?.title}
-            open={Boolean(content)}
+            title={content.title}
+            open
             onCancel={close}
-            afterOpenChange={(isOpen) => {
-                if (isOpen) return;
-                const target = returnTarget.current;
-                returnTarget.current = null;
-                if (target?.isConnected) target.focus({ preventScroll: true });
-                else returnFocus?.();
-            }}
-            destroyOnHidden
             focusable={{ focusTriggerAfterClose: false }}
             footer={<Button type="primary" data-testid="help-close" onClick={close}>关闭</Button>}
         >
-            <div className="shoteasy-help-content">{content?.body}</div>
+            <div className="shoteasy-help-content">{content.body}</div>
         </Modal>
     );
 }
