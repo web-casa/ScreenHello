@@ -72,8 +72,120 @@ expectEqual(capability.permissions, expectedPermissions, 'desktop-capability-per
 if ('remote' in capability) failures.push('desktop-capability-allows-remote-origin');
 expectEqual(config.app?.windows?.[0]?.dragDropEnabled, false, 'desktop-html-drag-drop-not-preserved');
 expectEqual(config.bundle?.active, false, 'desktop-bundling-must-remain-disabled-in-poc');
-expectEqual(config.bundle?.icon, ['../public/pwa-512x512.png'], 'desktop-icon-source-invalid');
+expectEqual(config.bundle?.icon, [
+    'icons/32x32.png',
+    'icons/128x128.png',
+    'icons/128x128@2x.png',
+    'icons/icon.icns',
+    'icons/icon.ico',
+], 'desktop-icon-source-invalid');
 expectEqual(releaseConfig, { bundle: { active: true } }, 'desktop-release-config-must-only-enable-bundling');
+
+const pngIconSpecifications = [
+    ['src-tauri/icons/32x32.png', 32],
+    ['src-tauri/icons/64x64.png', 64],
+    ['src-tauri/icons/128x128.png', 128],
+    ['src-tauri/icons/128x128@2x.png', 256],
+    ['src-tauri/icons/StoreLogo.png', 50],
+    ['src-tauri/icons/Square30x30Logo.png', 30],
+    ['src-tauri/icons/Square44x44Logo.png', 44],
+    ['src-tauri/icons/Square71x71Logo.png', 71],
+    ['src-tauri/icons/Square89x89Logo.png', 89],
+    ['src-tauri/icons/Square107x107Logo.png', 107],
+    ['src-tauri/icons/Square142x142Logo.png', 142],
+    ['src-tauri/icons/Square150x150Logo.png', 150],
+    ['src-tauri/icons/Square284x284Logo.png', 284],
+    ['src-tauri/icons/Square310x310Logo.png', 310],
+    ['src-tauri/icons/icon.png', 512],
+];
+const [pngIcons, macIcon, windowsIcon] = await Promise.all([
+    Promise.all(pngIconSpecifications.map(([repositoryPath]) => (
+        readFile(path.join(root, repositoryPath)).catch(() => null)
+    ))),
+    readFile(path.join(root, 'src-tauri/icons/icon.icns')).catch(() => null),
+    readFile(path.join(root, 'src-tauri/icons/icon.ico')).catch(() => null),
+]);
+const isPngOfSize = (buffer, expectedSize) => (
+    buffer
+    && buffer.byteLength >= 24
+    && buffer.subarray(0, 8).toString('hex') === '89504e470d0a1a0a'
+    && buffer.readUInt32BE(16) === expectedSize
+    && buffer.readUInt32BE(20) === expectedSize
+);
+for (let index = 0; index < pngIconSpecifications.length; index += 1) {
+    const [repositoryPath, expectedSize] = pngIconSpecifications[index];
+    const pngIcon = pngIcons[index];
+    if (!isPngOfSize(pngIcon, expectedSize)) {
+        failures.push(`desktop-png-icon-invalid:${repositoryPath}`);
+    }
+}
+const validateMacIcon = (buffer) => {
+    if (!buffer
+        || buffer.byteLength < 16
+        || buffer.subarray(0, 4).toString('ascii') !== 'icns'
+        || buffer.readUInt32BE(4) !== buffer.byteLength) return false;
+    const expectedPngTypes = new Map([
+        ['ic11', 32],
+        ['ic12', 64],
+        ['ic07', 128],
+        ['ic08', 256],
+        ['ic09', 512],
+        ['ic10', 1024],
+    ]);
+    const validPngTypes = new Set();
+    let hasLegacy16Rgb = false;
+    let hasLegacy16Mask = false;
+    let offset = 8;
+    while (offset < buffer.byteLength) {
+        if (offset + 8 > buffer.byteLength) return false;
+        const type = buffer.subarray(offset, offset + 4).toString('ascii');
+        const length = buffer.readUInt32BE(offset + 4);
+        if (length < 8 || offset + length > buffer.byteLength) return false;
+        const payload = buffer.subarray(offset + 8, offset + length);
+        const expectedSize = expectedPngTypes.get(type);
+        if (expectedSize !== undefined) {
+            if (validPngTypes.has(type) || !isPngOfSize(payload, expectedSize)) return false;
+            validPngTypes.add(type);
+        }
+        if (type === 'is32') hasLegacy16Rgb = payload.byteLength > 0;
+        if (type === 's8mk') hasLegacy16Mask = payload.byteLength === 16 * 16;
+        offset += length;
+    }
+    return offset === buffer.byteLength
+        && hasLegacy16Rgb
+        && hasLegacy16Mask
+        && [...expectedPngTypes.keys()].every((type) => validPngTypes.has(type));
+};
+if (!validateMacIcon(macIcon)) {
+    failures.push('desktop-macos-icon-invalid');
+}
+const validateWindowsIcon = (buffer) => {
+    if (!buffer
+        || buffer.byteLength < 22
+        || buffer.readUInt16LE(0) !== 0
+        || buffer.readUInt16LE(2) !== 1) return false;
+    const count = buffer.readUInt16LE(4);
+    const directoryEnd = 6 + count * 16;
+    if (count < 1 || directoryEnd > buffer.byteLength) return false;
+    const sizes = new Set();
+    for (let index = 0; index < count; index += 1) {
+        const offset = 6 + index * 16;
+        const width = buffer[offset] || 256;
+        const height = buffer[offset + 1] || 256;
+        const bytes = buffer.readUInt32LE(offset + 8);
+        const imageOffset = buffer.readUInt32LE(offset + 12);
+        if (width !== height
+            || bytes < 24
+            || imageOffset < directoryEnd
+            || imageOffset + bytes > buffer.byteLength
+            || !isPngOfSize(buffer.subarray(imageOffset, imageOffset + bytes), width)) return false;
+        sizes.add(width);
+    }
+    return [16, 24, 32, 48, 64, 256].every((size) => sizes.has(size));
+};
+if (!validateWindowsIcon(windowsIcon)) {
+    failures.push('desktop-windows-icon-invalid');
+}
 
 const cspRequiredDirectives = [
     "default-src 'self'",
