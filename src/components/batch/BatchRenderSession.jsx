@@ -9,7 +9,6 @@ import useStores from '@stores/useStores';
 import { RenderTaskTracker } from '@stores/renderTaskTracker';
 import { prepareWorkspaceImage } from '@utils/imageValidation';
 import { getDefaultFrameSize } from '@utils/utils';
-import { browserPlatform } from '../../platform/browserPlatform';
 import FrameBox from '@components/editor/layers/FrameBox';
 import Screenshot from '@components/editor/layers/Screenshot';
 import Watermark from '@components/editor/layers/Watermark';
@@ -122,9 +121,13 @@ class BatchRenderSession {
         await this.clear();
         this._assert(signal);
         this.runtime.option.restoreFromDocument(this.baseOption);
-        const prepared = await prepareWorkspaceImage(file, { retainObjectUrl: true, role: 'batch-image' });
+        const prepared = await prepareWorkspaceImage(file, {
+            retainObjectUrl: true,
+            role: 'batch-image',
+            platform: this.runtime.platform,
+        });
         if (signal?.aborted || this.disposed) {
-            browserPlatform.file.revokeObjectURL(prepared.url);
+            this.runtime.platform.file.revokeObjectURL(prepared.url);
             throw batchError('batch-cancelled');
         }
         if (this.runtime.option.size.type === 'auto') {
@@ -148,7 +151,7 @@ class BatchRenderSession {
                 _ownsObjectUrl: true,
             });
         } catch (error) {
-            browserPlatform.file.revokeObjectURL(prepared.url);
+            this.runtime.platform.file.revokeObjectURL(prepared.url);
             throw error;
         }
     }
@@ -192,17 +195,24 @@ class BatchRenderSession {
     }
 }
 
-export async function createBatchRenderSession({ style, signal }) {
+export async function createBatchRenderSession({ root, style, signal }) {
     if (!globalThis.document?.body) throw batchError('batch-render-unavailable');
     if (signal?.aborted) throw batchError('batch-cancelled');
     const tracker = new RenderTaskTracker();
-    const runtime = createScreenHelloRuntime({ renderTaskTracker: tracker, batchEnabled: false });
+    const runtime = createScreenHelloRuntime({
+        renderTaskTracker: tracker,
+        batchEnabled: false,
+        platform: root?.platform,
+    });
     let container = null;
     let reactRoot = null;
     try {
         const option = structuredClone(style.option);
         if (style.backgroundBlob) {
-            await prepareWorkspaceImage(style.backgroundBlob, { role: 'batch-background-image' });
+            await prepareWorkspaceImage(style.backgroundBlob, {
+                role: 'batch-background-image',
+                platform: runtime.platform,
+            });
             if (signal?.aborted) throw batchError('batch-cancelled');
             const asset = runtime.assetStore.add(style.backgroundBlob);
             if (!asset) throw batchError('batch-background-unavailable');

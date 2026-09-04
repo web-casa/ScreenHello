@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Button, Drawer, Empty, Input, Modal, Popconfirm, Tabs, Tag, Tooltip } from 'antd';
 import Icon from '@components/Icon';
@@ -45,7 +45,7 @@ export default observer(function WorkspacePanel() {
         void workspace.refreshStorage();
     }, [open, workspace]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const cleanups = [
             stores.commands.registerUiAction('file.openLibrary', () => { setOpen(true); return true; }),
             stores.commands.registerUiAction('file.selectProjectFile', () => { projectInput.current?.click(); return true; }),

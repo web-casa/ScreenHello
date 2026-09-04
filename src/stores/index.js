@@ -10,6 +10,7 @@ import { Option } from './option';
 import { WorkspaceStore } from './workspaceStore';
 import { BatchStore } from './batchStore';
 import { CommandService } from './commandService';
+import { browserPlatform } from '../platform/browserPlatform';
 
 let runtimeSequence = 0;
 let activeRuntime = null;
@@ -19,15 +20,16 @@ let activeRuntime = null;
  * Store 只通过这个 root 引用同一实例内的兄弟 Store，禁止回退到模块单例。
  */
 export class ScreenHelloRuntime {
-    constructor({ draftDatabaseName, renderTaskTracker = null, batchEnabled = true } = {}) {
+    constructor({ draftDatabaseName, renderTaskTracker = null, batchEnabled = true, platform = browserPlatform } = {}) {
         runtimeSequence += 1;
         this.id = `screenhello-${runtimeSequence}`;
         this._disposeTimer = null;
         this._disposed = false;
         this.renderTaskTracker = renderTaskTracker;
+        this.platform = platform;
 
-        this.assetStore = new AssetStore();
-        this.draftStore = new DraftStore({ databaseName: draftDatabaseName });
+        this.assetStore = new AssetStore({ platform: this.platform });
+        this.draftStore = new DraftStore({ databaseName: draftDatabaseName, storage: this.platform.storage });
         this.baseSnapshot = new BaseSnapshotService(this);
         this.imageStore = new ImageStore(this);
         this.editor = new Editor(this);
@@ -35,8 +37,8 @@ export class ScreenHelloRuntime {
         this.option = new Option(this);
         this.draftService = new DraftService(this);
         this.workspace = new WorkspaceStore(this);
-        this.exportService = new ExportService(this);
-        this.batch = batchEnabled ? new BatchStore(this) : null;
+        this.exportService = new ExportService(this, { platform: this.platform });
+        this.batch = batchEnabled ? new BatchStore(this, { platform: this.platform }) : null;
         this.commands = new CommandService(this);
     }
 

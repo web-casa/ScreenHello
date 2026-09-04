@@ -1,6 +1,5 @@
 import { makeAutoObservable, reaction, runInAction } from 'mobx';
 import { validateDocument } from '@utils/projectDocument';
-import { browserPlatform } from '../platform/browserPlatform';
 import { prepareWorkspaceImage } from '@utils/imageValidation';
 
 const AUTOSAVE_DEBOUNCE = 750;
@@ -297,6 +296,7 @@ export class DraftService {
                 const prepared = await prepareWorkspaceImage(imageFile, {
                     retainObjectUrl: true,
                     role: `draft-image-${index + 1}`,
+                    platform: this.root.platform,
                 });
                 const runtimeImage = {
                     src: prepared.url,
@@ -330,7 +330,10 @@ export class DraftService {
                 const backgroundFile = new File([backgroundRecord.blob], backgroundRecord.name || 'background', {
                     type: backgroundRecord.type || backgroundRecord.blob.type,
                 });
-                await prepareWorkspaceImage(backgroundFile, { role: 'draft-background-image' });
+                await prepareWorkspaceImage(backgroundFile, {
+                    role: 'draft-background-image',
+                    platform: this.root.platform,
+                });
                 if (!this._isCurrent(key, generation) || this.root.editor.img?.src) return false;
                 backgroundRestored = this.root.assetStore.restore(backgroundAssetId, backgroundFile, {
                     name: backgroundRecord.name,
@@ -369,7 +372,7 @@ export class DraftService {
             if (!committed) {
                 if (imagesInstalled) this.root.imageStore.clearAll({ release: true });
                 else new Set(preparedImages.map((image) => image.src))
-                    .forEach((src) => browserPlatform.file.revokeObjectURL(src));
+                    .forEach((src) => this.root.platform.file.revokeObjectURL(src));
                 if (backgroundRestored) this.root.assetStore.release(backgroundRestored.id);
             }
         }

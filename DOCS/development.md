@@ -32,9 +32,17 @@ pnpm dev
 | `pnpm test:consumer` | 打包 tarball，在独立 package 安装后分别验证 Vite 开发态、生产 build/preview、延迟资源、双实例和卸载重挂 | `artifacts/`（包、consumer production build 与失败证据） |
 | `pnpm size:report` | 输出 Web/library 体积与内联图片统计 | 标准输出 |
 | `pnpm preview` | 预览站点构建 | 需要先有 `dist/` |
+| `pnpm desktop:web:build` | 构建 Tauri 专用前端，不注册 PWA | `dist-desktop/` |
+| `pnpm desktop:check` | locked Cargo check | `src-tauri/target/` |
+| `pnpm desktop:test:rust` | Rust payload、文件/截图边界、系统事件与原子写入单测 | `src-tauri/target/` |
+| `pnpm desktop:build` | Tauri release build，显式不生成安装包 | `src-tauri/target/release/screenhello-desktop`（Linux） |
+| `pnpm desktop:test:runtime` | Linux Xvfb/WebKitWebDriver 的区域 PNG/导入、剪贴板、快捷键/托盘状态与单实例 smoke | 无提交产物 |
+| `pnpm audit:desktop` | capability/CSP/version/双产物隔离审计 | 无 |
 | `pnpm release` | 发布 npm 包 | 外部副作用，只有明确发布时运行 |
 
 首次运行浏览器测试前执行 `pnpm exec playwright install --with-deps chromium firefox webkit`。CI/本地完整门禁应依次覆盖 frozen strict-peer install、`pnpm ignored-builds`、low-severity 依赖审计、typecheck、零 warning lint、unit、当前浏览器 E2E/golden、Web/PWA build 与审计、当前 release suite、library build、清洁 tarball consumer 和体积预算。最新阶段证据见 [Phase 7 Web P2](./phase-7-web-p2.md) 与 [Web Release Gate](./web-release-gate.md)。
+
+桌面 PoC 的 Linux 构建除 Tauri 前置外还需要 `libclang-dev`、`libpipewire-0.3-dev` 和 `libgbm-dev`；runtime smoke 要求 PATH 中存在 `cargo`、`tauri-driver`、`WebKitWebDriver`、`xvfb-run` 和 `dbus-run-session`。先执行 `pnpm desktop:build`，再执行 `pnpm desktop:test:runtime`；它在隔离 XDG 目录中驱动真实 Tauri release binary，验证 640×480 区域 PNG、编辑器导入、图片剪贴板、快捷键/托盘状态和第二实例退出，不等同于普通浏览器 mock。WebDriver 无法可靠控制操作系统文件对话框或真实托盘点击，原生 picker、托盘视觉与多平台权限仍需手工/9.3 真机检查。完整边界见 [Phase 9 桌面 PoC](./phase-9-desktop-poc.md)。
 
 最低版本证据不能从 Playwright 当前 bundled engines 推断。仓库提供手工触发的原生 amd64 workflow，固定 Chrome 111、Edge 111 和 Firefox 128 Selenium 镜像并以返回的 capabilities 为准；ARM64 上模拟 Chrome/Edge amd64 只作诊断。Safari 16.4 必须来自 Apple 设备原生会话或记录了系统/设备的可信云会话，Playwright WebKit 不可代替。可信云通过 `SCREENHELLO_BROWSER_VERSION`、`SCREENHELLO_BROWSER_PLATFORM` 和只含 provider namespaced options 的 `SCREENHELLO_WEBDRIVER_CAPABILITIES_JSON` 配置；不得把凭据写进仓库或证据。四份证据必须对应同一 40 位候选 commit，最后运行 `pnpm audit:release:browsers`。
 

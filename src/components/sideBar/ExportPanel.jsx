@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Button, Drawer, Segmented } from 'antd';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
@@ -23,7 +23,7 @@ export default observer(function ExportPanel() {
         if (target?.isConnected) target.focus({ preventScroll: true });
     };
 
-    useEffect(() => stores.commands.registerUiAction('file.openExport', (options = {}) => {
+    useLayoutEffect(() => stores.commands.registerUiAction('file.openExport', (options = {}) => {
         const HTMLElementConstructor = globalThis.HTMLElement;
         returnFocusRef.current = typeof HTMLElementConstructor === 'function'
             && options.returnFocus instanceof HTMLElementConstructor

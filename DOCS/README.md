@@ -18,6 +18,8 @@
 - [Phase 6 Web P1 多图片与专业布局](./phase-6-web-p1.md)：ProjectDocument v2、多图层、布局、迁移、资源预算与验收。
 - [Phase 7 Web P2](./phase-7-web-p2.md)：统一导出、批量、AVIF、矢量设备框、PWA 与逐波验收记录。
 - [Web Release Gate](./web-release-gate.md)：Phase 8.5 当前候选状态、最低浏览器可信证据方法、可访问性结果和复现命令。
+- [Phase 9 桌面 PoC](./phase-9-desktop-poc.md)：Tauri 2 独立入口、原生文件/图片剪贴板、安全 capability/CSP、Linux runtime 证据与未验证边界。
+- [ADR 0001：Tauri 2 桌面框架](./adr/0001-tauri-desktop-framework.md)：框架选择、三平台退出门、测试 driver 隔离和正式分发前置条件。
 - [组件 API](./component-api.md)：npm 库入口、`ImageBeautifier` 属性和集成限制。
 
 ## 快速定位
@@ -25,6 +27,7 @@
 | 目标 | 主要文件 |
 | --- | --- |
 | 应用入口 | `src/main.jsx`、`src/App.jsx` |
+| Tauri 桌面入口、平台适配与 Rust 壳 | `desktop/index.html`、`src/desktop/`、`src/platform/desktopPlatform.js`、`src-tauri/` |
 | npm 库入口 | `src/index.js` |
 | 编辑器运行时状态 | `src/stores/editor.js` |
 | 图片资源与图层状态 | `src/stores/imageStore.js` |

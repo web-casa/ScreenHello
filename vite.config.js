@@ -13,14 +13,25 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const libraryPeerPatterns = libraryPeers.map((dependency) => new RegExp(`^${escapeRegExp(dependency)}(?:/|$)`));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const browserTargets = ['chrome111', 'edge111', 'firefox128', 'safari16.4'];
-
 const resolve = (url) => path.resolve(__dirname, url);
 const type = process.env.NODE_TYPE;
+const desktopMode = process.env.SCREENHELLO_TARGET === 'desktop';
+const tauriDevHost = process.env.TAURI_DEV_HOST;
 const webBase = normalizeWebBase(process.env.SCREENHELLO_BASE_PATH || '/');
 const buildConf = {
-    base: type === 'lib' ? './' : webBase,
+    base: type === 'lib' || desktopMode ? './' : webBase,
     build: { target: browserTargets },
 };
+
+if (desktopMode) {
+    buildConf.root = resolve('./desktop');
+    buildConf.publicDir = false;
+    buildConf.build = {
+        ...buildConf.build,
+        outDir: resolve('./dist-desktop'),
+        emptyOutDir: true,
+    };
+}
 
 // Vite library mode emits `new URL("assets/...", import.meta.url)` for `?no-inline`
 // assets. A consumer's dependency optimizer may relocate that JS chunk without the
@@ -97,6 +108,7 @@ if (type === 'lib') {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    clearScreen: desktopMode ? false : undefined,
     optimizeDeps: {
         // 根应用只扫描自己的入口；tests/consumer 是独立安装、独立启动的真实包消费端。
         entries: ['index.html'],
@@ -120,12 +132,25 @@ export default defineConfig({
         // Release browsers run in a sibling Docker container and reach the host through this explicit gateway name.
         allowedHosts: ['host.docker.internal'],
     },
+    server: {
+        watch: { ignored: ['**/src-tauri/**'] },
+        ...(desktopMode ? {
+            port: 1420,
+            strictPort: true,
+            host: tauriDevHost || false,
+            hmr: tauriDevHost ? {
+                protocol: 'ws',
+                host: tauriDevHost,
+                port: 1421,
+            } : undefined,
+        } : {}),
+    },
     plugins: [
         tailwindcss(),
         react(),
         ...(type === 'lib'
             ? [preserveLibraryAssetImports()]
-            : [VitePWA(createPwaOptions(webBase))]),
+            : (desktopMode ? [] : [VitePWA(createPwaOptions(webBase))])),
     ],
     ...buildConf
 });

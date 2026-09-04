@@ -15,12 +15,11 @@ import useSetImg from '@hooks/useSetImg';
 import useKeyboardShortcuts from '@hooks/useKeyboardShortcuts';
 import WorkspaceGuardDialog from '@components/workspace/WorkspaceGuardDialog';
 import { cn } from '@utils/utils';
-import { browserPlatform } from './platform/browserPlatform';
 import '@style/main.css';
 
-const readPreferredTheme = (isDark) => {
+const readPreferredTheme = (isDark, platform) => {
   if (isDark != null) return isDark ? 'dark' : 'light';
-  return browserPlatform.storage.getPreference('SHOTEASY_BEAUTIFIER_THEME') === 'light' ? 'light' : 'dark';
+  return platform.storage.getPreference('SHOTEASY_BEAUTIFIER_THEME') === 'light' ? 'light' : 'dark';
 };
 
 export const AppContent = observer(function AppContent({ defaultImg, headLeft, headRight, isDark, boxClassName = '', onClear, persistence = false, workspace = false }) {
@@ -45,7 +44,7 @@ export const AppContent = observer(function AppContent({ defaultImg, headLeft, h
   }, [onClear, stores]);
 
   useEffect(() => {
-    stores.editor.setTheme(readPreferredTheme(isDark));
+    stores.editor.setTheme(readPreferredTheme(isDark, stores.platform));
   }, [isDark, stores]);
 
   useEffect(() => {

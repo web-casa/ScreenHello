@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Button, Modal } from 'antd';
 import { version as packageVersion } from '../../../package.json';
 import { NO_CSS_TRANSITION_NAME } from '@components/overlayMotion';
@@ -65,7 +65,7 @@ export default function HelpCenter({ returnFocus }) {
     const [topic, setTopic] = useState(null);
     const returnTarget = useRef(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const internal = Object.keys(CONTENT).map((id) => (
             stores.commands.registerUiAction(id, () => {
                 const activeElement = globalThis.document?.activeElement;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Button, Tooltip } from 'antd';
 import Icon from '@components/Icon';
@@ -45,7 +45,7 @@ export default observer(function ImageLayersPanel() {
     const ungroupCommand = stores.commands.get('edit.ungroupSelection');
     const lockCommand = stores.commands.get('edit.toggleSelectionLock');
 
-    useEffect(() => stores.commands.registerUiAction('file.selectImages', () => {
+    useLayoutEffect(() => stores.commands.registerUiAction('file.selectImages', () => {
         input.current?.click();
         return true;
     }), [stores]);

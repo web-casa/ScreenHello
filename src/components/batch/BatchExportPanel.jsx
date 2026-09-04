@@ -94,7 +94,8 @@ export default observer(function BatchExportPanel({ open, onClose }) {
 
     const download = async () => {
         const ok = await batch.download();
-        stores.editor.message?.[ok ? 'success' : 'error']?.(ok ? 'ZIP 下载已开始' : 'ZIP 下载失败');
+        if (ok) stores.editor.message?.success?.('ZIP 下载已开始');
+        else if (batch.errorCode) stores.editor.message?.error?.('ZIP 下载失败');
     };
 
     const presetOptions = [

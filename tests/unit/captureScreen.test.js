@@ -24,7 +24,7 @@ const setupCapture = ({ drawError = null } = {}) => {
                 if (drawError) throw drawError;
             },
         }),
-        toDataURL: () => 'data:image/png;base64,fixture',
+        toBlob: (callback) => callback(new Blob(['fixture'], { type: 'image/png' })),
     };
     vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: vi.fn().mockResolvedValue(stream) } });
     vi.stubGlobal('document', { createElement: (tag) => (tag === 'video' ? video : canvas) });
@@ -36,8 +36,13 @@ describe('captureScreen resource lifecycle', () => {
     it('stops capture tracks after a successful screenshot', async () => {
         const { canvas, stop, video } = setupCapture();
 
-        await expect(captureScreen()).resolves.toBe('data:image/png;base64,fixture');
+        await expect(captureScreen()).resolves.toMatchObject({
+            name: 'ScreenHello-capture.png',
+            type: 'image/png',
+            size: 7,
+        });
         expect(canvas).toMatchObject({ width: 64, height: 48 });
+        expect(video).toMatchObject({ muted: true, playsInline: true });
         expect(stop).toHaveBeenCalledOnce();
         expect(video.srcObject).toBeNull();
         expect(video.onplaying).toBeNull();
@@ -49,5 +54,18 @@ describe('captureScreen resource lifecycle', () => {
         await expect(captureScreen()).resolves.toBeNull();
         expect(stop).toHaveBeenCalledOnce();
         expect(video.srcObject).toBeNull();
+    });
+
+    it('uses the injected runtime platform and rejects oversized frames before canvas allocation', async () => {
+        const { stop, video } = setupCapture();
+        video.videoWidth = 7681;
+        video.videoHeight = 4320;
+        const platform = {
+            capture: { getDisplayMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] }) },
+        };
+
+        await expect(captureScreen(platform)).resolves.toBeNull();
+        expect(platform.capture.getDisplayMedia).toHaveBeenCalledOnce();
+        expect(stop).toHaveBeenCalledOnce();
     });
 });

@@ -85,10 +85,11 @@ async function readDownload(download) {
 
 async function runMenuCommand(page, menuName, commandName) {
     const menubar = page.getByRole('menubar', { name: '应用菜单' });
-    await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
+    const trigger = menubar.getByRole('menuitem', { name: menuName, exact: true });
+    await trigger.click();
     const item = page.getByRole('menuitem', { name: commandName }).last();
-    await expect(item).toBeVisible();
     await item.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 }
 
 test('loads without external services, imports, edits, undoes, and redoes', async ({ page }) => {
@@ -368,6 +369,7 @@ test('uses the Chromium file-system picker before generating and writing a proje
     await expect.poll(() => page.evaluate(() => window.__workspacePickerEvents)).toEqual(['picker', 'write', 'close']);
 
     await page.evaluate(() => window.__shoteasyStores.option.setPadding(88));
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.workspace.isDirty)).toBe(true);
     await runMenuCommand(page, '文件', /^打开项目/);
     await page.getByRole('button', { name: '不保存并继续' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(0);

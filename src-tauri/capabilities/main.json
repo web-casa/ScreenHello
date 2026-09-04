@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-desktop",
+  "description": "Minimum permissions for the bundled ScreenHello main window.",
+  "windows": ["main"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": [
+    "allow-desktop-environment",
+    "allow-desktop-pick-files",
+    "allow-desktop-read-file",
+    "allow-desktop-choose-save-file",
+    "allow-desktop-write-file",
+    "allow-desktop-release-file",
+    "allow-desktop-list-capture-sources",
+    "allow-desktop-capture-source",
+    "allow-desktop-capture-primary",
+    "allow-desktop-release-capture-sources",
+    "allow-desktop-system-status",
+    "allow-desktop-subscribe-system-events",
+    "allow-desktop-unsubscribe-system-events",
+    "core:image:allow-from-bytes",
+    "core:resources:allow-close",
+    "clipboard-manager:allow-write-image"
+  ]
+}

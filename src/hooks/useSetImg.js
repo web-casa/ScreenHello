@@ -4,7 +4,7 @@ import { prepareRuntimeImage, releaseRuntimeImage } from '@utils/runtimeImage';
 
 export default (stores) => {
     return useCallback(async (file, type = 'blob', options = {}) => {
-        const nextImage = await prepareRuntimeImage(file, { type, role: 'image' });
+        const nextImage = await prepareRuntimeImage(file, { type, role: 'image', platform: stores.platform });
         try {
             if (options.replace) {
                 stores.editor.replaceImg(nextImage);
@@ -14,7 +14,7 @@ export default (stores) => {
                 stores.editor.setImg(nextImage);
             }
         } catch (error) {
-            releaseRuntimeImage(nextImage);
+            releaseRuntimeImage(nextImage, stores.platform);
             throw error;
         }
         if (!options.append && stores.option.size.type === 'auto') {

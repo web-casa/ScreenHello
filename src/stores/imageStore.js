@@ -1,6 +1,5 @@
 import { makeAutoObservable } from 'mobx';
 import { MAX_PROJECT_IMAGES, normalizeProjectImage } from '@utils/projectDocument';
-import { browserPlatform } from '../platform/browserPlatform';
 
 export const MAX_PROJECT_IMAGE_PIXELS = 120_000_000;
 const SNAP_THRESHOLD = 8;
@@ -12,9 +11,9 @@ const createId = (prefix) => {
     return `${prefix}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const revoke = (resource) => {
+const revoke = (resource, platform) => {
     if (resource?._ownsObjectUrl && typeof resource.src === 'string' && resource.src.startsWith('blob:')) {
-        browserPlatform.file.revokeObjectURL(resource.src);
+        platform.file.revokeObjectURL(resource.src);
     }
 };
 
@@ -178,7 +177,7 @@ export class ImageStore {
             type: resource.type,
             name: resource.name,
         }));
-        if (!shared && previous?.src !== resource.src) revoke(previous);
+        if (!shared && previous?.src !== resource.src) revoke(previous, this.root.platform);
         this.resourceRevision += 1;
         this.baselineRevision += 1;
         return this.layers.get(active.id);
@@ -266,7 +265,7 @@ export class ImageStore {
         this.resourceRevision += 1;
         this.baselineRevision += 1;
         this.select(this.list[0] ? [this.list[0].id] : []);
-        previousResources.forEach(revoke);
+        previousResources.forEach((resource) => revoke(resource, this.root.platform));
     }
 
     restoreLayers(images) {
@@ -619,7 +618,7 @@ export class ImageStore {
         const referenced = retainedAssetIds || new Set(this.list.map((layer) => layer.assetId));
         this.resources.forEach((resource, assetId) => {
             if (!referenced.has(assetId)) {
-                revoke(resource);
+                revoke(resource, this.root.platform);
                 this.resources.delete(assetId);
             }
         });
@@ -635,7 +634,7 @@ export class ImageStore {
     }
 
     clearAll({ release = true, incrementBaseline = true } = {}) {
-        if (release) this.resources.forEach(revoke);
+        if (release) this.resources.forEach((resource) => revoke(resource, this.root.platform));
         this.resources.clear();
         this.layers.clear();
         this.geometry.clear();

@@ -108,6 +108,7 @@ export default observer(function AppMenuBar() {
             divider('file-divider-images'),
             commandItem('file.addImages'),
             commandItem('file.replaceActiveImage'),
+            commandItem('file.captureScreen'),
             divider('file-divider-export'),
             commandItem('file.openExport'),
             commandItem('file.quickExport'),

@@ -22,6 +22,7 @@
 - 独立站支持 1～12 张本地图片套用当前风格或本地预设，串行处理后下载一个安全 ZIP；支持失败隔离、取消与重试
 - 独立站支持 PWA 安装与分层离线缓存；核心编辑器离线可启动，AVIF 等重资源在线成功使用一次后可离线复用
 - 深色/浅色主题和键盘快捷键
+- Tauri 2 桌面 PoC 已在 Linux aarch64/WebKitGTK 接入原生项目文件、图片剪贴板、显示器/窗口/区域截图、主屏快捷键、托盘与单实例；三平台真机 Gate、安装包与发布仍属后续阶段
 
 默认运行链路不请求 Google Fonts、Unsplash 或其他远程素材；内置背景由代码绘制，不打包或请求第三方背景图。
 
@@ -55,6 +56,11 @@ Vite 默认在 <http://localhost:5173> 启动开发服务器。
 | `pnpm audit:licenses` | 逐字核对已归档的第三方许可证正文 |
 | `pnpm test:consumer` | 将库打成 tarball，在独立项目中验证开发态及生产构建/预览 |
 | `pnpm size:report` | 检查 Web/library 体积和资源内联预算 |
+| `pnpm desktop:build` | 构建无安装包的 Tauri release 可执行文件 |
+| `pnpm desktop:test:runtime` | 在 Linux WebKitGTK/Xvfb 中验证真实窗口、区域截图/导入、PNG 系统剪贴板、快捷键/托盘状态与单实例 |
+| `pnpm audit:desktop` | 审计 capability、CSP、版本 pin 与 Web/桌面产物隔离 |
+| `pnpm audit:desktop:workflow` | 审计三平台桌面 Gate 的只读权限、固定 runner/action、测试 driver 隔离与禁止发布边界 |
+| `pnpm audit:desktop:release` | 汇总同一公开候选的三平台 evidence，并复算产物/SBOM 摘要；人工项未完成时保持非发布就绪 |
 
 当前遗留 npm 名仍为 `rico-screenshot`，仅用于 library/consumer 验证。公共包名称、首个 SemVer 和 trusted publishing 流程尚未确认，因此 `package.json` 保持 `private: true`，发布命令会主动失败；不要将当前版本号理解为已承诺的公共 npm 版本。
 
@@ -63,6 +69,7 @@ Vite 默认在 <http://localhost:5173> 启动开发服务器。
 - React 19、Vite 8、vite-plugin-pwa/Workbox、TypeScript checkJs/JSDoc
 - MobX 7、LeaferJS 2.2、Ant Design 6、Tailwind CSS 4
 - fflate ZIP 容器、jSquash AVIF/WebP 本地编码、Vitest、Playwright、Node.js 24、pnpm 10
+- Tauri 2.11 / Rust、xcap 桌面壳与系统能力适配；Phase 9.3 使用固定 GitHub-hosted 三平台候选 Gate，正式分发仍需人工权限、签名与公证门禁
 
 完整架构、组件 API、开发约束和阶段验收记录见 [DOCS](DOCS/README.md)。贡献方式见 [CONTRIBUTING](CONTRIBUTING.md)，安全问题请遵循 [SECURITY](SECURITY.md)。
 

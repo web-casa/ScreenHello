@@ -3422,7 +3422,29 @@
     .shoteasy-components,
     .shoteasy-components *,
     .shoteasy-components *::before,
-    .shoteasy-components *::after {
+    .shoteasy-components *::after,
+    :where(
+        .shoteasy-overlay-drawer,
+        .shoteasy-compact-panel-drawer,
+        .shoteasy-mobile-menu-drawer,
+        .shoteasy-mobile-annotation-drawer,
+        .shoteasy-help-modal,
+        .shoteasy-cropper-modal,
+        .shoteasy-workspace-modal,
+        .shoteasy-workspace-guard,
+        .shoteasy-frame-drawer-shell
+    ),
+    :where(
+        .shoteasy-overlay-drawer,
+        .shoteasy-compact-panel-drawer,
+        .shoteasy-mobile-menu-drawer,
+        .shoteasy-mobile-annotation-drawer,
+        .shoteasy-help-modal,
+        .shoteasy-cropper-modal,
+        .shoteasy-workspace-modal,
+        .shoteasy-workspace-guard,
+        .shoteasy-frame-drawer-shell
+    ) :where(*, *::before, *::after) {
         scroll-behavior: auto !important;
         animation-duration: 0.01ms !important;
         animation-delay: 0s !important;

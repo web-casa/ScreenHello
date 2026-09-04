@@ -4,6 +4,7 @@ const read = async (path) => (await readFile(path, 'utf8')).replaceAll('\r\n', '
 const fail = (message) => { throw new Error(`third-party-notice-audit:${message}`); };
 
 const notice = await read('THIRD_PARTY_NOTICES.md');
+const cargoLock = await read('src-tauri/Cargo.lock');
 
 const extract = (name) => {
     const startMarker = `<!-- license:${name}:start -->`;
@@ -13,6 +14,63 @@ const extract = (name) => {
     if (start < 0 || end < 0 || end <= start) fail(`missing-${name}-markers`);
     return notice.slice(start + startMarker.length, end).trim();
 };
+
+const tauriMitLicense = await read('node_modules/@tauri-apps/api/LICENSE_MIT');
+if (extract('tauri-mit') !== tauriMitLicense) fail('tauri-mit-license-mismatch');
+if (!notice.includes('## Tauri 2') || !notice.includes('Rust application runtime')) {
+    fail('tauri-notice-invalid');
+}
+const clipboardPackage = JSON.parse(await read('node_modules/@tauri-apps/plugin-clipboard-manager/package.json'));
+const clipboardSpdx = await read('node_modules/@tauri-apps/plugin-clipboard-manager/LICENSE.spdx');
+if (clipboardPackage.version !== '2.3.3' || clipboardPackage.license !== 'MIT OR Apache-2.0') {
+    fail('tauri-clipboard-package-license-invalid');
+}
+if (!clipboardSpdx.includes('PackageLicenseDeclared: MIT')
+    || !clipboardSpdx.includes('The Tauri Programme in the Commons Conservancy')) {
+    fail('tauri-clipboard-spdx-invalid');
+}
+if (!notice.includes('`tauri-plugin-dialog` 2.7.3')
+    || !notice.includes('`tauri-plugin-clipboard-manager` 2.3.3')
+    || !notice.includes('`tauri-plugin-global-shortcut` 2.3.2')
+    || !notice.includes('`tauri-plugin-single-instance` 2.4.4')) {
+    fail('tauri-plugin-notice-invalid');
+}
+
+const hasLockedCargoPackage = (name, version) => new RegExp(
+    `\\[\\[package\\]\\]\\nname = "${name}"\\nversion = "${version.replaceAll('.', '\\.')}"(?:\\n|$)`,
+    'u',
+).test(cargoLock);
+if (!hasLockedCargoPackage('tauri-plugin-dialog', '2.7.3')
+    || !hasLockedCargoPackage('tauri-plugin-clipboard-manager', '2.3.3')
+    || !hasLockedCargoPackage('tauri-plugin-global-shortcut', '2.3.2')
+    || !hasLockedCargoPackage('tauri-plugin-single-instance', '2.4.4')) {
+    fail('tauri-plugin-lock-version-invalid');
+}
+const getrandomLicense = extract('getrandom-mit');
+if (!hasLockedCargoPackage('getrandom', '0.3.4')
+    || !getrandomLicense.startsWith('Copyright (c) 2018-2025 The rust-random Project Developers')
+    || !getrandomLicense.includes('Copyright (c) 2014 The Rust Project Developers')
+    || !getrandomLicense.endsWith('DEALINGS IN THE SOFTWARE.')) {
+    fail('getrandom-mit-license-mismatch');
+}
+if (!notice.includes('## getrandom 0.3.4') || !notice.includes('opaque, process-local screenshot source tokens')) {
+    fail('getrandom-notice-invalid');
+}
+if (!hasLockedCargoPackage('xcap', '0.9.8')
+    || !notice.includes('## xcap 0.9.8')
+    || !notice.includes('Copyright 2024 nashaofu')
+    || !notice.includes('The Apache License 2.0 terms are reproduced once')) {
+    fail('xcap-apache-notice-invalid');
+}
+const tempfileLicense = extract('tempfile-mit');
+if (!hasLockedCargoPackage('tempfile', '3.27.0')
+    || !tempfileLicense.startsWith('Copyright (c) 2015 Steven Allen')
+    || !tempfileLicense.endsWith('DEALINGS IN THE SOFTWARE.')) {
+    fail('tempfile-mit-license-mismatch');
+}
+if (!notice.includes('## tempfile 3.27.0') || !notice.includes('atomic same-directory')) {
+    fail('tempfile-notice-invalid');
+}
 
 const vitePluginLicense = await read('node_modules/vite-plugin-pwa/LICENSE');
 if (extract('vite-plugin-pwa') !== vitePluginLicense) fail('vite-plugin-pwa-license-mismatch');
@@ -63,6 +121,11 @@ if (!notice.includes('## libwebp codec bundled by @jsquash/webp 1.5.0')) {
 
 console.log(JSON.stringify({
     licenses: [
+        '@tauri-apps/api@2.11.1 / tauri@2.11.5 (MIT selected)',
+        'tauri-plugin-dialog@2.7.3 / tauri-plugin-clipboard-manager@2.3.3 / tauri-plugin-global-shortcut@2.3.2 / tauri-plugin-single-instance@2.4.4 (MIT selected)',
+        'getrandom@0.3.4 (MIT selected)',
+        'tempfile@3.27.0 (MIT selected)',
+        'xcap@0.9.8 (Apache-2.0)',
         'vite-plugin-pwa@1.3.0',
         ...workboxPackages,
         'selenium-webdriver@4.48.0 (development only)',
