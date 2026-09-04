@@ -57,6 +57,7 @@ async function exportFormat(page, format) {
     await page.getByTestId('export-download').click();
     const download = await downloadPromise;
     await expect(page.getByRole('dialog', { name: '导出图片' })).toBeHidden();
+    await expect(page.locator('.shoteasy-export-drawer')).toHaveCount(0);
     return download;
 }
 

@@ -154,6 +154,12 @@ const waitForHiddenSelector = async (selector, message) => driver.wait(async () 
     return style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0;
 }, selector), 20_000, `${target.id}: ${message}`);
 
+const waitForRemovedSelector = async (selector, message) => driver.wait(
+    async () => driver.executeScript((value) => !document.querySelector(value), selector),
+    20_000,
+    `${target.id}: ${message}`,
+);
+
 const waitForStablePopup = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
     const element = document.querySelector(value);
     if (!element) return false;
@@ -189,15 +195,36 @@ const checkMobileWeb = async () => {
             return rect ? Math.min(rect.width, rect.height) : 0;
         });
         const topbar = document.querySelector('.shoteasy-topbar');
+        const viewportWidth = document.documentElement.clientWidth;
         const horizontalMetrics = {
             document: {
-                clientWidth: document.documentElement.clientWidth,
+                clientWidth: viewportWidth,
                 scrollWidth: document.documentElement.scrollWidth,
             },
             topbar: {
                 clientWidth: topbar?.clientWidth || 0,
                 scrollWidth: topbar?.scrollWidth || 0,
             },
+            overflowingElements: [...document.body.querySelectorAll('*')].map((element) => {
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return {
+                    className: typeof element.className === 'string' ? element.className : '',
+                    display: style.display,
+                    position: style.position,
+                    rect: {
+                        left: Math.round(rect.left),
+                        right: Math.round(rect.right),
+                        width: Math.round(rect.width),
+                    },
+                    tagName: element.tagName.toLowerCase(),
+                };
+            }).filter(({ display, position, rect }) => (
+                display !== 'none'
+                && position !== 'fixed'
+                && rect.width > 0
+                && (rect.left < -1 || rect.right > viewportWidth + 1)
+            )).slice(0, 20),
         };
         return {
             viewport: { width: innerWidth, height: innerHeight },
@@ -510,6 +537,8 @@ try {
         assert.equal(validSignature(format, record.hex), true, `${target.id}: invalid ${format} signature`);
         await waitForHiddenSelector('.shoteasy-export-drawer [role="dialog"]',
             `${format} export panel did not close after download`);
+        await waitForRemovedSelector('.shoteasy-export-drawer',
+            `${format} export drawer was not destroyed after closing`);
     }
 
     const mobileWeb = await checkMobileWeb();

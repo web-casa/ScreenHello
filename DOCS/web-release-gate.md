@@ -1,18 +1,19 @@
 # Web Release Gate
 
-> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；首轮公共 CI/矩阵暴露并修复 runner 时序缺口，修复后的同 SHA CI 和四浏览器可信证据仍待复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
+> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；前两轮公共 CI/矩阵暴露了导出 Drawer 生命周期和弹层 axe 稳定态缺口，第三候选的同 SHA CI 与四浏览器可信证据仍待复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
 
 ## 0. Phase 8.5 当前候选
 
-- 当前 Chromium/Firefox/WebKit 94 passed / 20 expected skipped，production release 9/9，PWA 5/5，26 files / 188 unit tests，以及 library consumer dev/preview 均通过。
+- 当前 Chromium/Firefox/WebKit 97 passed / 20 expected skipped，production release 9/9，PWA 5/5，26 files / 188 unit tests，以及 library consumer dev/preview 均通过；新增用例覆盖完成导出并卸载 Drawer 后由桌面缩到移动宽度。
 - 390/430/768/1024/1440 深浅主题 10 组为 0 axe violation、0 页面/顶栏横向溢出、0 外网请求、0 page error；390/430 没有小于 44 px 的可见目标，代表截图已人工复核。
 - 终审修复了关闭态 ColorPicker 悬空 `aria-controls`、toolbar/file input 语义，以及真正 `role=tab` 节点只有 28×22 px 的移动触控问题。
 - minimum-browser evidence 升为 schema v2：四份同 SHA 证据必须额外包含小于等于 640 px 的实际 viewport、三项顶栏动作、四菜单、标注/缩放入口、最小 44 px 目标与无横向溢出。
 - digest-pinned Chrome 111 和 Edge 111 的本地仿真增强 smoke 已通过，但审计器会拒绝这种执行环境；它们只证明脚本可运行，不是正式证据。
-- 首轮公开候选 `f021abcc...` 的原生矩阵证明 Chrome 111 / Edge 111 通过，并暴露 minimum-browser runner 的跨浏览器时序缺口：下载记录可能早于导出 Drawer 完全关闭，Safari 下一轮点击会被遮罩拦截，Firefox 缩到移动视口时会把残留 Drawer 计入横向溢出。runner 现已在每次下载后等待 dialog 隐藏，并在空 WebDriver message 时保留 error name、在溢出失败时记录原始宽度；未降低移动验收标准。
-- 同一首轮候选的 public CI 只因 npm Registry audit API 连续 `ERR_SOCKET_TIMEOUT` 失败，没有返回 advisory。CI 保持 fail-closed；修复候选仍须重跑完整 CI，不能把网络失败或首轮 2/4 矩阵记为通过。
+- 首轮公开候选 `f021abcc...` 的原生矩阵证明 Chrome 111 / Edge 111 通过，并暴露 minimum-browser runner 的跨浏览器时序缺口：下载记录可能早于导出 Drawer 完全关闭。第一修复让 runner 等待 dialog 隐藏，并增强空 WebDriver message 与原始宽度诊断；未降低移动验收标准。
+- 第二候选 `ea16da1...` 的 dependency audit 已恢复并通过；matrix 仍为 Chrome/Edge 2/4。Firefox 128.0.3 明确记录 `document clientWidth=450 / scrollWidth=1280`、`topbar=450/450`，SafariDriver 再次确认下一轮顶部导出点击被仍在退出的遮罩拦截。因此第三候选将同步点收紧为 `.shoteasy-export-drawer` 节点彻底卸载，并在失败时枚举实际越界元素。
+- 第二候选 public CI 的唯一失败是 Firefox axe 扫描 Ant Design menu/Drawer 入场中间帧，取样到 3.58～3.67 的瞬时对比度。第三候选在弹层可见后等待有限 Web Animations 全部结束并跨两个 animation frame，再执行完整 WCAG A/AA 扫描；没有关闭 contrast 规则、增加固定 sleep 或改变产品色板。
 
-公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得复用首轮旧 SHA 的单项成功证据。
+公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。第三修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得混用前两轮旧 SHA 的单项成功证据。
 
 ## 1. 判定规则
 

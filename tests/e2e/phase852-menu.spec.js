@@ -23,6 +23,14 @@ async function importFixture(page) {
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(1);
 }
 
+async function waitForVisualStability(page) {
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((animation) => (
+        animation.playState === 'running'
+        && animation.effect?.getComputedTiming().iterations !== Infinity
+    )).length), { timeout: 5_000 }).toBe(0);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
 test('[Phase 8.5.2] desktop menubar supports pointer, arrows, Escape, and focus restoration', async ({ page }) => {
     await openOffline(page);
     const menubar = page.getByRole('menubar', { name: '应用菜单' });
@@ -187,12 +195,16 @@ test('[Phase 8.5.2] menus and open panels add no axe A/AA violations', async ({ 
     const help = page.getByRole('menuitem', { name: '帮助' });
     const quickStart = page.getByRole('menuitem', { name: /快速入门/ });
     await help.click();
+    await expect(quickStart).toBeVisible();
+    await waitForVisualStability(page);
     const menuResults = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(menuResults.violations).toEqual([]);
     await page.keyboard.press('Escape');
     await expect(help).toHaveAttribute('aria-expanded', 'false');
     await expect(quickStart).toBeHidden();
     await page.getByRole('button', { name: '导出图片' }).click();
+    await expect(page.getByRole('dialog', { name: '导出图片' })).toBeVisible();
+    await waitForVisualStability(page);
     const drawerResults = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(drawerResults.violations).toEqual([]);
 });

@@ -307,3 +307,62 @@ test('[Phase 8.5.4] annotation presentation follows editor width without changin
         await context.close();
     }
 });
+
+test('[Phase 8.5.5] an edited desktop session can shrink to a phone viewport without document overflow', async ({ browser, baseURL }) => {
+    const context = await browser.newContext({
+        baseURL,
+        viewport: { width: 1280, height: 800 },
+        colorScheme: 'dark',
+        reducedMotion: 'reduce',
+        locale: 'zh-CN',
+    });
+    const page = await context.newPage();
+    try {
+        await openOffline(page);
+        await importFixture(page);
+        await page.getByRole('button', { name: '导出图片' }).click();
+        const downloadPromise = page.waitForEvent('download');
+        await page.getByTestId('export-download').click();
+        await downloadPromise;
+        await expect(page.getByRole('dialog', { name: '导出图片' })).toBeHidden();
+        await expect(page.locator('.shoteasy-export-drawer')).toHaveCount(0);
+        await page.setViewportSize({ width: 450, height: 800 });
+        await expect(page.getByRole('button', { name: '打开应用菜单' })).toBeVisible();
+
+        const metrics = await page.evaluate(() => {
+            const viewportWidth = document.documentElement.clientWidth;
+            const overflowingElements = [...document.body.querySelectorAll('*')].map((element) => {
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return {
+                    className: typeof element.className === 'string' ? element.className : '',
+                    clientWidth: element.clientWidth,
+                    display: style.display,
+                    overflowX: style.overflowX,
+                    position: style.position,
+                    rect: {
+                        left: Math.round(rect.left),
+                        right: Math.round(rect.right),
+                        width: Math.round(rect.width),
+                    },
+                    scrollWidth: element.scrollWidth,
+                    tagName: element.tagName.toLowerCase(),
+                };
+            }).filter(({ display, position, rect }) => (
+                display !== 'none'
+                && position !== 'fixed'
+                && rect.width > 0
+                && (rect.left < -1 || rect.right > viewportWidth + 1)
+            )).slice(0, 20);
+            return {
+                clientWidth: viewportWidth,
+                overflowingElements,
+                scrollWidth: document.documentElement.scrollWidth,
+            };
+        });
+
+        expect(metrics.scrollWidth, JSON.stringify(metrics, null, 2)).toBeLessThanOrEqual(metrics.clientWidth);
+    } finally {
+        await context.close();
+    }
+});
