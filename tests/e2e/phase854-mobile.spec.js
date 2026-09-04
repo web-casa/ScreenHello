@@ -326,6 +326,7 @@ test('[Phase 8.5.5] an edited desktop session can shrink to a phone viewport wit
         await downloadPromise;
         await expect(page.getByRole('dialog', { name: '导出图片' })).toBeHidden();
         await expect(page.locator('.shoteasy-export-drawer')).toHaveCount(0);
+        await expect(page.locator('.ant-tooltip').filter({ hasText: '选择格式与倍率并导出' })).toHaveCount(0);
         await page.setViewportSize({ width: 450, height: 800 });
         await expect(page.getByRole('button', { name: '打开应用菜单' })).toBeVisible();
 

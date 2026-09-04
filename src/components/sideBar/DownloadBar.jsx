@@ -158,17 +158,16 @@ export default observer(function DownloadBar() {
                         onClick={() => { void copyCommand.execute(); }}
                     />
                 </Tooltip>
-                <Tooltip placement="bottom" arrow={false} title={exportCommand.disabledReason || '选择格式与倍率并导出'}>
-                    <Button
-                        type="primary"
-                        size="middle"
-                        className="shoteasy-export-primary"
-                        disabled={!exportCommand.enabled}
-                        icon={<Icon.Download size={17} />}
-                        aria-label="导出图片"
-                        onClick={() => { void exportCommand.execute(); }}
-                    >导出</Button>
-                </Tooltip>
+                <Button
+                    type="primary"
+                    size="middle"
+                    className="shoteasy-export-primary"
+                    disabled={!exportCommand.enabled}
+                    icon={<Icon.Download size={17} />}
+                    aria-label="导出图片"
+                    title={exportCommand.disabledReason || '选择格式与倍率并导出'}
+                    onClick={() => { void exportCommand.execute(); }}
+                >导出</Button>
                 <ExportPanel />
             </ConfigProvider>
         </div>
