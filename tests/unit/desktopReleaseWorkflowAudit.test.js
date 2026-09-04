@@ -10,6 +10,10 @@ describe('desktop release workflow audit', () => {
         expect(auditDesktopReleaseWorkflow(workflow, matrix)).toEqual([]);
     });
 
+    it('accepts the same workflow after a Windows CRLF checkout', () => {
+        expect(auditDesktopReleaseWorkflow(workflow.replaceAll('\n', '\r\n'), matrix)).toEqual([]);
+    });
+
     it.each([
         ['a write permission', (source) => source.replace('contents: read', 'contents: write')],
         ['a floating runner', (source) => source.replace('runner: ubuntu-24.04', 'runner: ubuntu-latest')],

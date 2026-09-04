@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { autorun } from 'mobx';
 import { browserPlatform } from '../../src/platform/browserPlatform.js';
 import { createScreenHelloRuntime } from '../../src/stores/index.js';
+import { modKey } from '../../src/utils/utils.js';
 
 const runtimes = [];
 const createRuntime = (options) => {
@@ -170,7 +171,7 @@ describe('CommandService', () => {
             enabled: false,
             busy: false,
             disabledReason: '请先添加图片',
-            shortcut: 'Ctrl+S',
+            shortcut: `${modKey}+S`,
         });
 
         runtime.editor.replaceImg(image());

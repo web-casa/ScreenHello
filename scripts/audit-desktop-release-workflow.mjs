@@ -8,6 +8,7 @@ const exactActionSha = /^[ \t]*uses:\s+[^\s@]+@[0-9a-f]{40}(?:\s+#.*)?$/u;
 const count = (source, value) => source.split(value).length - 1;
 
 export const auditDesktopReleaseWorkflow = (source, matrix) => {
+    source = source.replace(/\r\n?/gu, '\n');
     const failures = [];
     const requireText = (value, id) => {
         if (!source.includes(value)) failures.push(id);
