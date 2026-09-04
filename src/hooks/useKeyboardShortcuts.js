@@ -1,31 +1,34 @@
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { tinykeys } from "tinykeys"
 import { isEditableTarget } from '@utils/domEvents';
 
-export default function useKeyboardShortcuts(toSave, toCopy, runtime) {
-    const save = useRef(toSave);
-    const copy = useRef(toCopy);
-
+export default function useKeyboardShortcuts(runtime) {
     useEffect(() => {
-        save.current = toSave;
-        copy.current = toCopy;
-    });
-
-    useEffect(() => {
+        const invoke = (id, { workspaceOnly = false } = {}) => (event) => {
+            if (!runtime.isActive || isEditableTarget(event.target)) return;
+            if (workspaceOnly && !runtime.workspace.enabled) return;
+            event.preventDefault();
+            void runtime.commands.execute(id);
+        };
         const unsubscribe = tinykeys(window, {
             "$mod+KeyS": event => {
                 if (!runtime.isActive || isEditableTarget(event.target)) return;
-                event.preventDefault()
-                save.current && save.current();
+                event.preventDefault();
+                if (runtime.workspace.enabled) void runtime.commands.execute('file.saveProject');
+                else void runtime.commands.downloadCurrentImage();
             },
-            "$mod+KeyC": event => {
-                if (!runtime.isActive || isEditableTarget(event.target)) return;
-                event.preventDefault()
-                copy.current && copy.current();
-            }
-        })
-        return () => {
-            unsubscribe();
-        }
+            '$mod+Shift+KeyS': invoke('file.saveProjectAs', { workspaceOnly: true }),
+            '$mod+KeyO': invoke('file.openProject', { workspaceOnly: true }),
+            '$mod+Shift+KeyE': invoke('file.openExport', { workspaceOnly: true }),
+            '$mod+KeyC': invoke('file.copyFinalImage'),
+            '$mod+KeyZ': invoke('edit.undo'),
+            '$mod+Shift+KeyZ': invoke('edit.redo'),
+            'Backspace': invoke('edit.deleteSelection'),
+            'Delete': invoke('edit.deleteSelection'),
+            '$mod+Minus': invoke('view.zoomOut'),
+            '$mod+Equal': invoke('view.zoomIn'),
+            '$mod+Digit0': invoke('view.fitCanvas'),
+        });
+        return unsubscribe;
     }, [runtime]);
 }

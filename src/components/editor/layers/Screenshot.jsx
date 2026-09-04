@@ -11,6 +11,10 @@ const addBefore = (parent, node, reference) => {
     parent.add(node, Number.isInteger(index) && index >= 0 ? index : undefined);
 };
 
+// 图片层保持在 0～1 之间：按 ProjectDocument zIndex 排序，同时继续位于
+// zIndex>=1 的标注/上层水印之下，并让 zIndex=-1 的下层水印保持在图片之后。
+const imageLayerZIndex = (zIndex) => Math.max(0, Number(zIndex) || 0) / 100;
+
 export default observer(function Screenshot({ parent, layer }) {
     const stores = useStores();
     const runtimeImage = stores.imageStore.resolve(layer);
@@ -29,6 +33,7 @@ export default observer(function Screenshot({ parent, layer }) {
             editable: true,
             hittable: true,
             cursor: 'grab',
+            zIndex: imageLayerZIndex(layer.zIndex),
             editConfig: {
                 moveable: true,
                 resizeable: true,
@@ -103,6 +108,11 @@ export default observer(function Screenshot({ parent, layer }) {
         container.editable = !layer.locked;
         container.cursor = layer.locked ? 'not-allowed' : 'grab';
     }, [container, layer.locked]);
+
+    useEffect(() => {
+        container.zIndex = imageLayerZIndex(layer.zIndex);
+        createSnap();
+    }, [container, createSnap, layer.zIndex]);
 
     useEffect(() => {
         box.fill = stores.option.padding === 0 && !isDeviceFrame(stores.option.frame)

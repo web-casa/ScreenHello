@@ -26,7 +26,6 @@ export default observer(function PwaController() {
     const [showIosSteps, setShowIosSteps] = useState(false);
     const [offlineReady, setOfflineReady] = useState(false);
     const [offlineDismissed, setOfflineDismissed] = useState(false);
-    const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [statusError, setStatusError] = useState(null);
 
@@ -48,6 +47,9 @@ export default observer(function PwaController() {
         updateServiceWorker,
     } = useRegisterSW({
         immediate: true,
+        onNeedReload: () => {
+            stores.commands.runApprovedPageUnload(() => window.location.reload());
+        },
         onOfflineReady: () => { void confirmOfflineReady(); },
         onRegisteredSW: (_scriptUrl, registration) => { void confirmOfflineReady(registration); },
         onRegisterError: () => setStatusError('离线模式暂未启用，在线编辑不受影响。'),
@@ -83,10 +85,9 @@ export default observer(function PwaController() {
 
     const updateMessage = useMemo(() => {
         if (updateBlockReason === 'busy') return '正在处理本地任务，完成后再更新。';
-        if (updateBlockReason === 'dirty' && confirmDiscard) return '确认放弃未保存更改并载入新版本？';
         if (updateBlockReason === 'dirty') return '新版本已下载，当前项目还有未保存更改。';
         return '新版本已下载，可以安全刷新。';
-    }, [confirmDiscard, updateBlockReason]);
+    }, [updateBlockReason]);
 
     const dismissOffline = () => {
         setOfflineDismissed(true);
@@ -95,7 +96,6 @@ export default observer(function PwaController() {
 
     const dismissUpdate = () => {
         setNeedRefresh(false);
-        setConfirmDiscard(false);
         setStatusError(null);
     };
 
@@ -105,19 +105,24 @@ export default observer(function PwaController() {
             setStatusError('本地任务仍在处理中，请完成或取消任务后再更新。');
             return;
         }
-        if (currentBlock === 'dirty' && !confirmDiscard) {
-            setConfirmDiscard(true);
-            return;
-        }
-        setUpdating(true);
-        setStatusError(null);
-        try {
-            await updateServiceWorker();
-        } catch {
-            if (mounted.current) {
-                setUpdating(false);
-                setStatusError('新版本激活失败，请稍后重试。');
+        const activateUpdate = async () => {
+            setUpdating(true);
+            setStatusError(null);
+            try {
+                await updateServiceWorker();
+                return true;
+            } catch {
+                if (mounted.current) {
+                    setUpdating(false);
+                    setStatusError('新版本激活失败，请稍后重试。');
+                }
+                return false;
             }
+        };
+        if (currentBlock === 'dirty') {
+            await stores.commands.requestWorkspaceReplacement(activateUpdate, { label: '载入新版本' });
+        } else {
+            await activateUpdate();
         }
     };
 
@@ -153,16 +158,10 @@ export default observer(function PwaController() {
                                 >
                                     {updating
                                         ? '正在更新…'
-                                        : (updateBlockReason === 'dirty'
-                                            ? (confirmDiscard ? '确认更新' : '放弃更改并更新')
-                                            : '立即更新')}
+                                        : (updateBlockReason === 'dirty' ? '处理更改并更新' : '立即更新')}
                                 </button>
                             )}
-                            {confirmDiscard ? (
-                                <button type="button" className="shoteasy-pwa-action" onClick={() => setConfirmDiscard(false)}>返回</button>
-                            ) : (
-                                <button type="button" className="shoteasy-pwa-action" onClick={dismissUpdate}>稍后</button>
-                            )}
+                            <button type="button" className="shoteasy-pwa-action" onClick={dismissUpdate}>稍后</button>
                         </div>
                     </div>
                 </section>

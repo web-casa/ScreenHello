@@ -25,10 +25,10 @@ React View → Leafer App → Frame（最终画布）
 1. `StoreProvider` 为每次挂载创建独立 `ScreenHelloRuntime`，通过 Context 下发给子组件。
 2. effect 创建 Ant Design message 上下文、宿主清理回调、主题、默认图片和可选草稿服务；render 阶段不写 Store/localStorage。
 3. `editor.img.src` 存在时显示 `Editor`，否则显示 `Init`。
-4. 始终显示 `Header` 和 `SideBar`；无图片时，命令式 `ensureEditing()` 会提示先添加图片。
+4. 始终显示 `Header` 和 `SideBar`；无图片时，命令的 `enabled/disabledReason` 与底层 `ensureEditing()` 一起阻止无效编辑/导出。
 5. Error Boundary 包在 Provider 外层，捕获 render/lifecycle 错误并给出本地重试界面；错误会卸载当前 Provider/runtime，重试时创建全新实例。
 
-独立站额外传入 `workspace`，启用项目中心；library 的该属性默认 `false`，不会改变既有消费端 UI 或存储行为。
+独立站额外传入 `workspace`，启用应用菜单、项目状态与本地资料库；library 的该属性默认 `false`，不会改变既有消费端 UI 或存储行为。
 
 ## 状态模型
 
@@ -56,6 +56,8 @@ React View → Leafer App → Frame（最终画布）
 
 单项目最多 12 个图片图层，唯一资源总预算 1.2 亿像素。复制图层共享资源；对副本裁剪时 copy-on-write。删除后资源在历史仍可能引用时暂留，在引用它的历史快照被淘汰、History 重建基线或 runtime 销毁时清理。
 
+图层面板把当前选择作为保持内部顺序的块执行 top/up/down/bottom 或目标上/下方移动。`canReorderSelected()` 只在复制的派生列表上预演，不得修改 MobX computed `list`；只有真实顺序变化才重建连续 zIndex 并提交一次 `image:order` 历史。DOM 缩略图直接读取现有 resource src，不创建第二份 object URL。
+
 `BaseSnapshotService` 以全部图片图层的资源、几何、层序和会影响底图外观的项目样式生成 revision，120 ms 防抖后只导出背景、所有图片及外框；标注、水印与区域效果会在导出期间临时隐藏。放大镜直接复用原始快照，模糊/马赛克按 `revision + 参数` 缓存变体。
 
 ### `option`：画面配置
@@ -69,9 +71,19 @@ React View → Leafer App → Frame（最终画布）
 
 ### `workspace`：项目、预设与本地建议
 
-`src/stores/workspaceStore.js` 只在 `workspace` 开启时工作，负责项目名/脏状态、项目打开与保存、最近项目、草稿列表、风格预设、导出设置、存储状态和样式建议。项目/预设容器工具通过动态 `import()` 加载，因此 ZIP 编解码不会进入未使用项目中心的初始执行链路。
+`src/stores/workspaceStore.js` 只在 `workspace` 开启时工作，负责项目名/脏状态、项目打开与保存、最近项目、草稿列表、风格预设、导出设置、存储状态和样式建议。项目/预设容器工具通过动态 `import()` 加载，因此 ZIP 编解码不会进入未使用本地资料库的初始执行链路。
 
-项目中心复用实例自己的 Editor、Option、History、AssetStore 和 DraftStore，不建立第二套编辑状态。它不会自动应用建议；背景色、内描边和外框分别提交到现有 Option action，并进入现有历史链路。
+独立站的四组应用菜单、移动四分区菜单、项目状态、本地资料库和导出 Drawer 都复用实例自己的 Editor、Option、History、AssetStore、DraftStore、ExportService 与命令层，不建立第二套编辑状态。资料库仅承载最近项目、恢复草稿、风格预设和存储；文件动作位于文件菜单，格式/倍率先保存在导出面板临时状态，只有确认下载才写回最近导出设置。样式建议仍不会自动应用；`ContextSuggestion` 在背景、内描边和外框的真实控制区读取同一个 WorkspaceStore 结果，重试和应用继续复用既有本地分析与 Option setter。
+
+### `commands`：实例级命令编排
+
+`src/stores/commandService.js` 由每个 `ScreenHelloRuntime` 单独构造，为文件、编辑、视图和帮助动作派生 `visible/enabled/disabledReason/busy/checked/shortcut`，并在 `execute()` 前再次校验 active runtime 与当前条件。UI 选择器/面板只通过实例内注册动作接入；ZIP、图片校验、导出、History 和 Store 仍是真正业务层。命令对象不是模块单例，也不是 library 公共 API。桌面 menubar 显式管理顶级左右切换、弹层内上下移动和 Escape 焦点恢复，不依赖组件名称推断浏览器行为。
+
+移动 `AppMenuBar` 只把相同 command descriptors 放入 Drawer/Tabs/inline Menu；命令切换前先关闭旧 Drawer，并把稳定的菜单按钮作为后继导出/帮助面板的 return-focus target。移动标注 Sheet 复用 Editor、History、ColorPicker 和 WidthDropdown；缩放菜单调用同一组 `view.*` 命令。响应式只改变呈现，不改变命令或项目数据模型。
+
+编辑区使用命名 CSS container 判断标注工具的实际可用宽度，而不是只按整页宽度猜测：≤600 px 使用 Sheet，宽度足够时保留完整工具栏。应用高度为 `100vh` 回退加 `100dvh`，viewport/safe-area 负责移动浏览器和 PWA 安装态边缘。叠层 token 从画布控件、顶栏、PWA、Drawer/Sheet、嵌套 popup 到 Modal 逐级固定，避免局部组件各自提高 z-index。
+
+会替换整个 workspace 的动作共用三选一 guard，并在受控切换前 flush 草稿；浏览器关闭只使用标准 `beforeunload`，不在 unload 链路写 IndexedDB。项目文件状态与 DraftService 草稿状态保持正交。
 
 ### `batch`：隔离批量处理
 
@@ -90,7 +102,7 @@ standalone runtime 拥有实例级 `BatchStore`；只有 `workspace` 开启时�
 - `ScrollBar` 提供滚动条。
 - 容器尺寸变化或画布尺寸变化时自动执行 `zoom('fit', 100)`；若画布本身小于可用区域，则回到 100%。
 - 指针/拖拽事件按 `editor.useTool` 创建标注，并持续把几何信息写回 `editor.shapes`。
-- 选择、删除和缩放快捷键直接操作 LeaferJS 实例。
+- 选择、删除和缩放快捷键通过当前 runtime 的命令层路由到 History/ImageStore/LeaferJS，不在 React 组件中复制算法。
 
 组件卸载时会移除尺寸监听，取消 debounce/RAF/timeout，并同步销毁旧 Leafer App。React Strict Mode 的模拟 cleanup 使用可取消的零延时 teardown，紧随其后的 setup 会复用 Store 状态但销毁残留画布；真实卸载则完成整个 runtime 的释放。
 
@@ -111,6 +123,8 @@ standalone runtime 拥有实例级 `BatchStore`；只有 `workspace` 开启时�
 - `image`：实际图片填充、翻转与适配模式。
 
 `container` 承载平面旋转、缩放和位置偏移；独立 `innerBorder` 在图片可见区域内侧渲染，可与外框并存。旧草稿中的 `rotationX`/`rotationY`/`perspective` 字段会在文档规范化时移除，不再作为当前功能。
+
+React 以稳定 layer id 保留每个 Screenshot/Leafer container，层序变化只原位更新映射到 0～1 区间的 Leafer zIndex，不因 zIndex 改变而卸载节点或丢失选择。层序 effect 同时请求既有防抖底图快照更新，使放大镜、模糊和马赛克与最终导出使用相同图片顺序。
 
 Leafer Editor 原生维护单选/多选；节点上的稳定 layer id 把 move/scale/rotate 结果回写 ImageStore。逻辑编组会扩展选择范围，锁定层在画布上不可编辑。当前 LeaferJS 2.2.9 没有项目已安装的吸附 API，因此由 ImageStore 在单图手势结束时完成画布/其他图片边缘和中心吸附。
 
@@ -153,7 +167,7 @@ Leafer Editor 原生维护单选/多选；节点上的稳定 layer id 把 move/s
 
 `.screenhello` 和 `.screenhello-preset` 都是版本化 ZIP 容器。项目使用 `ProjectDocument v2/images[]`，每个图片 descriptor 都有独立大小和 SHA-256；读取仍兼容 V1 的 `assets.image`。读取与创建两端都限制压缩包 64 MiB、单入口 48 MiB、解压声明总量 96 MiB，并拒绝 manifest 未引用的额外入口。项目最多 12 图，因此入口上限为 14（manifest、12 图、可选背景）。
 
-IndexedDB 数据库当前为 v2：`projects` 保存草稿文档，`assets` 保存草稿资源，`presets` 保存完整风格预设，`recentProjects` 保存便携项目副本。二进制资源统一以 `Uint8Array` 写入、读取时恢复 Blob，同时兼容早期直接保存 Blob 的记录；最近项目按更新时间保留 12 条。IndexedDB 不可用、配额不足或记录损坏时，编辑与普通导出仍可继续，项目中心显示降级状态。
+IndexedDB 数据库当前为 v2：`projects` 保存草稿文档，`assets` 保存草稿资源，`presets` 保存完整风格预设，`recentProjects` 保存便携项目副本。二进制资源统一以 `Uint8Array` 写入、读取时恢复 Blob，同时兼容早期直接保存 Blob 的记录；最近项目按更新时间保留 12 条。IndexedDB 不可用、配额不足或记录损坏时，编辑与普通导出仍可继续，本地资料库显示降级状态。
 
 本地建议由 `imageSuggestions.js` 在最大边长 64px 的 Canvas 采样上计算边缘平均色和亮度，再按方向给出外框候选。该链路没有网络请求、模型下载或自动应用。
 
@@ -174,7 +188,7 @@ Leafer 2.2.9 的 `export('canvas')` 返回 `IExportResult`，其中 `result.data
 
 文件/object URL、File System Access、存储估算/持久化请求、偏好存储、IndexedDB、剪贴板、屏幕捕获和下载统一经 `src/platform/browserPlatform.js` 调用。项目保存会先在用户手势中取得文件 handle，再执行异步 ZIP 编码；不支持系统 picker 时退回 `<input type=file>` 和下载。该边界来自现有真实调用点，用于隔离浏览器实现并为未来桌面适配保留替换位置；它不虚构当前不存在的桌面接口。
 
-快捷键为 `Cmd/Ctrl+S` 下载、`Cmd/Ctrl+C` 复制；只有最近激活的实例响应，焦点位于输入框/文本域/下拉/可编辑内容时保留浏览器原生行为。
+独立站的 `Cmd/Ctrl+S` 保存 `.screenhello` 项目，`Cmd/Ctrl+O`、`Shift+S`、`Shift+E`、`C`、undo/redo/delete/zoom 也通过命令 ID 路由；`workspace=false` library 仍保持 `Cmd/Ctrl+S` 下载图片。只有最近激活的实例响应，焦点位于输入框/文本域/下拉/可编辑内容时保留浏览器原生行为。
 
 ## 重要架构约束
 

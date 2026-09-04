@@ -19,6 +19,7 @@ export const WidthDropdown = ({ defaultValue, onChange, placement = 'bottom' }) 
             menu={{ items, onClick: handleClick, selectedKeys: [defaultValue] }}
             trigger={['click']}
             placement={placement}
+            rootClassName="shoteasy-annotation-popup"
         >
             <Button
                 type="text"

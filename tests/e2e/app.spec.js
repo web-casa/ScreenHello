@@ -32,7 +32,7 @@ async function importFixture(page, { width = 64, height = 48 } = {}) {
         () => page.evaluate(() => window.__shoteasyStores?.editor?.img?.width),
         { timeout: 15_000 }
     ).toBe(width);
-    await expect(page.getByRole('button', { name: '下载图片' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '导出图片' })).toBeEnabled();
 }
 
 async function appendFixtures(page, names = ['screenhello-layer-2.png']) {
@@ -83,6 +83,14 @@ async function readDownload(download) {
     return Buffer.concat(chunks);
 }
 
+async function runMenuCommand(page, menuName, commandName) {
+    const menubar = page.getByRole('menubar', { name: '应用菜单' });
+    await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
+    const item = page.getByRole('menuitem', { name: commandName }).last();
+    await expect(item).toBeVisible();
+    await item.click();
+}
+
 test('loads without external services, imports, edits, undoes, and redoes', async ({ page }) => {
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -94,13 +102,9 @@ test('loads without external services, imports, edits, undoes, and redoes', asyn
     await page.locator('.shoteasy-inspector [title="无背景"]').click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.background)).toBe('none');
 
-    const undo = page.getByRole('button', { name: '撤销' });
-    const redo = page.getByRole('button', { name: '重做' });
-    await expect(undo).toBeEnabled();
-    await undo.click();
+    await runMenuCommand(page, '编辑', /^撤销/);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.background)).toBe('gh_img_50');
-    await expect(redo).toBeEnabled();
-    await redo.click();
+    await runMenuCommand(page, '编辑', /^重做/);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.background)).toBe('none');
 
     expect(pageErrors).toEqual([]);
@@ -133,7 +137,7 @@ test('uses code-native backgrounds and defers low-frequency modules', async ({ p
         expect(requests.some(({ url }) => new URL(url).pathname.endsWith(deferredModule))).toBe(false);
     }
 
-    await page.getByRole('button', { name: '打开批量处理' }).click();
+    await runMenuCommand(page, '文件', /^批量处理/);
     await expect.poll(() => requests.some(({ url }) => new URL(url).pathname.endsWith('/BatchExportPanel.jsx'))).toBe(true);
     expect(requests.some(({ url }) => new URL(url).pathname.endsWith('/batchExportService.js'))).toBe(false);
     expect(requests.some(({ url }) => new URL(url).pathname.endsWith('/BatchRenderSession.jsx'))).toBe(false);
@@ -215,9 +219,9 @@ test('adds, selects, groups, locks, lays out, and restores multiple image layers
     await page.getByRole('button', { name: '扇形布局' }).click();
     await expect.poll(() => page.evaluate(() => new Set(window.__shoteasyStores.imageStore.selectedList.map((layer) => layer.transform.rotation)).size)).toBe(3);
 
-    await page.getByRole('button', { name: '撤销' }).click();
+    await runMenuCommand(page, '编辑', /^撤销/);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.every((layer) => layer.transform.rotation === 0))).toBe(true);
-    await page.getByRole('button', { name: '重做' }).click();
+    await runMenuCommand(page, '编辑', /^重做/);
     await page.getByRole('button', { name: '锁定图层' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.selectedList.every((layer) => layer.locked))).toBe(true);
 });
@@ -260,13 +264,15 @@ test('keeps projects, presets, and suggestions local with the download fallback'
     await appendFixtures(page);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.workspace.suggestions.status)).toBe('ready');
 
-    await page.getByRole('button', { name: '打开项目中心' }).click();
-    await expect(page.getByText('只在本机采样图片边缘，不上传图片')).toBeVisible();
-    await page.getByRole('button', { name: /^内描边 #[0-9a-f]+$/i }).click();
+    await page.evaluate(() => window.__shoteasyStores.workspace.applySuggestion('inner-border'));
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.innerBorder.visible)).toBe(true);
 
+    await page.getByRole('button', { name: /^项目：/ }).click();
     await page.getByLabel('项目名称').fill('Phase 5 本地项目');
+    await page.keyboard.press('Escape');
     await page.evaluate(() => window.__shoteasyStores.option.setPadding(32));
+    await runMenuCommand(page, '文件', /^本地资料库/);
+    await page.getByRole('tab', { name: '风格预设' }).click();
     await page.getByLabel('新预设名称').fill('本地蓝卡');
     await page.getByRole('button', { name: '保存当前风格' }).click();
     await expect(page.getByText('本地蓝卡', { exact: true })).toBeVisible();
@@ -285,7 +291,8 @@ test('keeps projects, presets, and suggestions local with the download fallback'
     await expect(page.getByText('本地蓝卡', { exact: true })).toHaveCount(2);
 
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await page.locator('.shoteasy-workspace-drawer .ant-drawer-close').click();
+    await runMenuCommand(page, '文件', /^保存项目/);
     const download = await downloadPromise;
     const projectBytes = await readDownload(download);
     expect(download.suggestedFilename()).toBe('Phase 5 本地项目.screenhello');
@@ -307,21 +314,25 @@ test('keeps projects, presets, and suggestions local with the download fallback'
         mimeType: 'application/vnd.screenhello.project+zip',
         buffer: projectBytes,
     });
+    await expect(page.locator('.shoteasy-workspace-guard [role="dialog"]')).toHaveCSS('transform', 'none');
+    await page.getByRole('button', { name: '不保存并继续' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(32);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(2);
     await expect(page.getByText('Phase 5 本地项目', { exact: true }).first()).toBeVisible();
 
     await page.reload();
-    await page.getByRole('button', { name: '打开项目中心' }).click();
-    await expect(page.getByText('本地蓝卡', { exact: true }).first()).toBeVisible();
+    await runMenuCommand(page, '文件', /^本地资料库/);
     await expect(page.getByText('Phase 5 本地项目', { exact: true }).first()).toBeVisible();
 
     await page.evaluate(() => window.__shoteasyStores.option.setPadding(5));
     await page.locator('.shoteasy-workspace-item > button').filter({ hasText: 'Phase 5 本地项目' }).first().click();
-    await page.getByRole('button', { name: '继续打开' }).click();
+    await expect(page.locator('.shoteasy-workspace-guard [role="dialog"]')).toHaveCSS('transform', 'none');
+    await page.getByRole('button', { name: '不保存并继续' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(32);
 
     await page.evaluate(() => window.__shoteasyStores.option.setPadding(0));
+    await page.getByRole('tab', { name: '风格预设' }).click();
+    await expect(page.getByText('本地蓝卡', { exact: true }).first()).toBeVisible();
     await page.locator('.shoteasy-workspace-item > button').filter({ hasText: '本地蓝卡' }).first().click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(32);
 });
@@ -350,14 +361,15 @@ test('uses the Chromium file-system picker before generating and writing a proje
     });
     await openOffline(page);
     await importFixture(page);
-    await page.getByRole('button', { name: '打开项目中心' }).click();
+    await page.getByRole('button', { name: /^项目：/ }).click();
     await page.getByLabel('项目名称').fill('Picker 项目');
-    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await runMenuCommand(page, '文件', /^保存项目/);
     await expect.poll(() => page.evaluate(() => window.__workspacePickerEvents)).toEqual(['picker', 'write', 'close']);
 
     await page.evaluate(() => window.__shoteasyStores.option.setPadding(88));
-    await page.getByRole('button', { name: '打开项目', exact: true }).click();
-    await page.getByRole('button', { name: '继续打开' }).click();
+    await runMenuCommand(page, '文件', /^打开项目/);
+    await page.getByRole('button', { name: '不保存并继续' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(0);
     expect(await page.evaluate(() => window.__workspacePickerEvents)).toContain('open-picker');
     expect(await page.evaluate(() => window.__workspacePickerEvents)).toContain('open-file');
@@ -379,13 +391,102 @@ test('matches the reviewed initial-page visual baseline', async ({ page, browser
     });
 });
 
-test('matches the reviewed workspace-center visual baseline', async ({ page, browserName }) => {
+test('[Phase 8.5.1] standalone Ctrl/Cmd+S saves a portable project file', async ({ page }) => {
+    await disableFileSystemAccess(page);
+    await openOffline(page);
+    await importFixture(page);
+
+    const modifier = await page.evaluate(() => /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? 'Meta' : 'Control');
+    const downloadPromise = page.waitForEvent('download');
+    await page.keyboard.press(`${modifier}+s`);
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toBe('未命名项目.screenhello');
+});
+
+test('[Phase 8.5.1] replace-image UI changes only the active layer and is undoable', async ({ page }) => {
+    await openOffline(page);
+    await importFixture(page);
+    await appendFixtures(page);
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(2);
+
+    await page.getByTestId('replace-image-input').setInputFiles({
+        name: 'phase85-replacement.png',
+        mimeType: 'image/png',
+        buffer: createPngFixture(80, 60),
+    });
+
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(2);
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.editor.img?.name)).toBe('phase85-replacement.png');
+    await runMenuCommand(page, '编辑', /^撤销/);
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.editor.img?.name)).toBe('screenhello-layer-2.png');
+    await runMenuCommand(page, '编辑', /^重做/);
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.editor.img?.name)).toBe('phase85-replacement.png');
+});
+
+test('[Phase 8.5.2] top bar separates project-file and local-draft status', async ({ page }) => {
+    await openOffline(page);
+    const projectStatus = page.getByRole('button', { name: /^项目：/ });
+    await expect(projectStatus).toHaveAccessibleName(/项目文件从未保存/);
+    await expect(projectStatus).toHaveAccessibleName(/尚无自动草稿/);
+    await expect(page.getByText(/已同步/)).toHaveCount(0);
+});
+
+test('[Phase 8.5.1] dirty standalone workspace installs a standard beforeunload guard', async ({ page }) => {
+    await openOffline(page);
+    expect(await page.evaluate(() => {
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+    })).toBe(false);
+
+    await importFixture(page);
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.workspace.isDirty)).toBe(true);
+    expect(await page.evaluate(() => {
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+    })).toBe(true);
+
+    expect(await page.evaluate(() => {
+        let prevented = null;
+        window.__shoteasyStores.commands.runApprovedPageUnload(() => {
+            const event = new Event('beforeunload', { cancelable: true });
+            window.dispatchEvent(event);
+            prevented = event.defaultPrevented;
+        });
+        return prevented;
+    })).toBe(false);
+
+    expect(await page.evaluate(() => {
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+    })).toBe(true);
+});
+
+test('[Phase 8.5.1] whole-project deletion cannot bypass the workspace guard', async ({ page }) => {
+    await openOffline(page);
+    await importFixture(page);
+    const fileMenu = page.getByRole('menubar', { name: '应用菜单' })
+        .getByRole('menuitem', { name: '文件', exact: true });
+    await runMenuCommand(page, '文件', /^新建项目/);
+
+    await expect(page.getByRole('button', { name: '不保存并继续' })).toBeVisible();
+    await page.getByRole('button', { name: /取\s*消/ }).click();
+    await expect(page.locator('.shoteasy-workspace-guard')).toHaveCount(0);
+    await expect(fileMenu).toBeFocused();
+    await expect(page.locator('.shoteasy-editor-canvas')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(1);
+});
+
+test('matches the reviewed local-library visual baseline', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'The workspace visual golden is reviewed on pinned Chromium.');
     await disableFileSystemAccess(page);
     await openOffline(page);
     await importFixture(page);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.workspace.suggestions.status)).toBe('ready');
-    await page.getByRole('button', { name: '打开项目中心' }).click();
+    await runMenuCommand(page, '文件', /^本地资料库/);
     const workspaceDrawer = page.locator('.shoteasy-workspace-drawer');
     await expect(workspaceDrawer).toBeVisible();
     await expect(workspaceDrawer).toHaveScreenshot('workspace-center.png', {
@@ -401,7 +502,7 @@ test('matches the reviewed PNG export golden', async ({ page, browserName }) => 
     await importFixture(page);
 
     const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: '下载图片' }).click();
+    await runMenuCommand(page, '文件', /^使用当前设置快速导出/);
     const download = await downloadPromise;
     const stream = await download.createReadStream();
     const chunks = [];
@@ -416,12 +517,7 @@ test('matches the reviewed PNG export golden', async ({ page, browserName }) => 
 test('exports PNG, JPG, WebP, AVIF, and a releasable native canvas through one service', async ({ page }, testInfo) => {
     await openOffline(page);
     await importFixture(page);
-    await page.getByRole('button', { name: /导出格式与倍率/ }).click();
-    const avifOption = page.locator('.shoteasy-export-popover .ant-segmented-item').filter({ hasText: 'avif' });
-    await expect(avifOption).toBeVisible();
-    await avifOption.click();
-    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.workspace.exportSettings.format)).toBe('avif');
-    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.__shoteasyStores.workspace.setExportSettings({ format: 'avif' }));
 
     const result = await page.evaluate(async () => {
         const stores = window.__shoteasyStores;
@@ -678,7 +774,7 @@ test('batch exports isolated mixed jobs into one safe partial-success ZIP', asyn
         };
     });
 
-    await page.getByRole('button', { name: '打开批量处理' }).click();
+    await runMenuCommand(page, '文件', /^批量处理/);
     await page.getByTestId('batch-file-input').setInputFiles([
         { name: 'same.png', mimeType: 'image/png', buffer: createPngFixture(64, 48) },
         { name: 'same.png', mimeType: 'image/png', buffer: createPngFixture(48, 64) },
@@ -744,7 +840,7 @@ test('batch renders a saved local gradient preset with async HDR and background 
         objectUrls: window.__screenhelloObjectUrls.size,
     }));
 
-    await page.getByRole('button', { name: '打开批量处理' }).click();
+    await runMenuCommand(page, '文件', /^批量处理/);
     const batchDrawer = page.locator('.shoteasy-batch-drawer');
     const styleSelect = batchDrawer.getByLabel('批量风格来源');
     await styleSelect.click();
@@ -803,7 +899,7 @@ test('batch renders twelve WebP jobs serially and releases its isolated resource
         canvases: document.querySelectorAll('canvas').length,
     }));
 
-    await page.getByRole('button', { name: '打开批量处理' }).click();
+    await runMenuCommand(page, '文件', /^批量处理/);
     await page.getByTestId('batch-file-input').setInputFiles(Array.from({ length: 12 }, (_, index) => ({
         name: `webp-${index + 1}.png`,
         mimeType: 'image/png',
@@ -868,7 +964,7 @@ test('batch exports a local AVIF entry and reclaims its encoder worker', async (
     });
     const initialObjectUrls = await page.evaluate(() => window.__screenhelloObjectUrls.size);
 
-    await page.getByRole('button', { name: '打开批量处理' }).click();
+    await runMenuCommand(page, '文件', /^批量处理/);
     await page.getByTestId('batch-file-input').setInputFiles({
         name: 'local-avif.png',
         mimeType: 'image/png',

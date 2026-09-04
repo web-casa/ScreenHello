@@ -27,7 +27,7 @@ pnpm dev
 | `pnpm test:unit:watch` | 本地监听单元测试 | 无 |
 | `pnpm test:e2e` | 运行当前 Chromium/Firefox/WebKit smoke/E2E；重型导出 benchmark 默认跳过 | `artifacts/`（失败时） |
 | `pnpm test:release:current` | 在 production preview 运行当前三引擎格式、本地优先、键盘、axe 与 reduced-motion 发布检查 | `artifacts/release/playwright/`（失败时） |
-| `pnpm test:release:minimum-browser` | 连接显式配置的 Selenium/WebDriver，核对精确版本并生成单目标证据 | `artifacts/release/browser-matrix/*.json` |
+| `pnpm test:release:minimum-browser` | 连接显式配置的 Selenium/WebDriver，核对版本并生成含桌面/移动闭环的 schema v2 单目标证据 | `artifacts/release/browser-matrix/*.json` |
 | `pnpm audit:release:browsers` | fail-closed 合并审计 Chrome/Edge 111、Firefox 128、Safari 16.4 的同一候选提交证据 | 无 |
 | `pnpm test:consumer` | 打包 tarball，在独立 package 安装后分别验证 Vite 开发态、生产 build/preview、延迟资源、双实例和卸载重挂 | `artifacts/`（包、consumer production build 与失败证据） |
 | `pnpm size:report` | 输出 Web/library 体积与内联图片统计 | 标准输出 |

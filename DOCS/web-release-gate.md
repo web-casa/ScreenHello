@@ -1,10 +1,30 @@
 # Web Release Gate
 
-> 评估日期：2026-09-03。当前结论：**GO，Phase 7.6 发布门通过**。工程门禁、颜色面板可访问性修复和同一候选提交的四浏览器可信证据均已通过；进入 Phase 8 仍需单独启动，不由本结论自动执行。
+> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；第六矩阵仍为 3/4，并确认 Firefox 128 的移动 Drawer 停在屏幕下方。第七产品修复已通过本地精确 Firefox 128 amd64 仿真，仍待 clean-room、同 SHA CI 与四浏览器复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
+
+## 0. Phase 8.5 当前候选
+
+- 当前 Chromium/Firefox/WebKit 97 passed / 20 expected skipped，production release 9/9，PWA 5/5，26 files / 188 unit tests，以及 library consumer dev/preview 均通过；新增用例覆盖完成导出并卸载 Drawer 后由桌面缩到移动宽度。
+- 390/430/768/1024/1440 深浅主题 10 组为 0 axe violation、0 页面/顶栏横向溢出、0 外网请求、0 page error；390/430 没有小于 44 px 的可见目标，代表截图已人工复核。
+- 终审修复了关闭态 ColorPicker 悬空 `aria-controls`、toolbar/file input 语义，以及真正 `role=tab` 节点只有 28×22 px 的移动触控问题。
+- minimum-browser evidence 升为 schema v2：四份同 SHA 证据必须额外包含小于等于 640 px 的实际 viewport、三项顶栏动作、四菜单、标注/缩放入口、最小 44 px 目标与无横向溢出。
+- digest-pinned Chrome 111 和 Edge 111 的本地仿真增强 smoke 已通过，但审计器会拒绝这种执行环境；它们只证明脚本可运行，不是正式证据。
+- 首轮公开候选 `f021abcc...` 的原生矩阵证明 Chrome 111 / Edge 111 通过，并暴露 minimum-browser runner 的跨浏览器时序缺口：下载记录可能早于导出 Drawer 完全关闭。第一修复让 runner 等待 dialog 隐藏，并增强空 WebDriver message 与原始宽度诊断；未降低移动验收标准。
+- 第二候选 `ea16da1...` 的 dependency audit 已恢复并通过；matrix 仍为 Chrome/Edge 2/4。Firefox 128.0.3 明确记录 `document clientWidth=450 / scrollWidth=1280`、`topbar=450/450`，SafariDriver 再次确认下一轮顶部导出点击被仍在退出的遮罩拦截。因此第三候选将同步点收紧为 `.shoteasy-export-drawer` 节点彻底卸载，并在失败时枚举实际越界元素。
+- 第二候选 public CI 的唯一失败是 Firefox axe 扫描 Ant Design menu/Drawer 入场中间帧，取样到 3.58～3.67 的瞬时对比度。第三候选在弹层可见后等待有限 Web Animations 全部结束并跨两个 animation frame，再执行完整 WCAG A/AA 扫描；没有关闭 contrast 规则、增加固定 sleep 或改变产品色板。
+- 第三候选 `a03bb3b...` 的 Chrome 111、Edge 111 和 Safari 26.6 / macOS 14.8.9 已通过；Firefox 128.0.3 在 AVIF 后等待 20 秒仍未卸载 Drawer。已安装的 `@rc-component/drawer@1.4.2` 源码表明 `destroyOnHidden` 依赖 CSSMotion 关闭回调；应用现改为由自有 `open` 状态直接条件挂载/卸载导出 Drawer，避免旧 Firefox 的第三方动画回调永久留下隐藏节点。
+- 同类 review 也修复了帮助 Modal 的关闭焦点所有权：HelpCenter 由自有 `topic` 状态条件挂载，关闭后显式归还原触发器，不再只依赖第三方 `afterOpenChange(false)`。WebKit CI 模式的首屏/菜单两种入口连续 10 次通过。
+- 第四候选 `c4f6ba8...` 的 Chrome 111、Edge 111、Safari 26.6 / macOS 14.8.9 通过；Firefox 128.0.3 已完成四格式并成功卸载 Drawer，但导出按钮的 AntD Tooltip 停在 `leave-start` 和原桌面坐标，把 450 px 文档撑回 1280 px。该有文字按钮现改用原生 `title` 并保留稳定 `aria-label`，从结构上移除这个不必要的 portal；没有隐藏 overflow 或放宽移动断言。
+- 第五候选 `fb3a705...` 的 Chrome 111、Edge 111、Safari 26.5 / macOS 14 通过；Firefox 128.0.3 已消除横向溢出并把移动菜单实际打开，失败只发生在 runner 对 opacity/transform 的固定文本等值等待，旧证据未记录最后的 computed value，因此不进一步猜测具体字符串。稳定态现改为要求弹层可见、opacity 到位、没有 running/pending Web Animation，并连续两次采样成立；失败报告同时记录最终视觉/动画状态。菜单分区、44 px 目标和无溢出断言保持不变。
+- 第六候选 `263caec...` 的 Chrome 111、Edge 111、Safari 26.5 / macOS 14 通过；Firefox 128.0.3 证据显示菜单 wrapper 没有活动 animation，却稳定停在 `opacity=.7 / translateY=635.7px`。因此这不是 runner 文本比较问题，而是移动 Drawer 的真实兼容故障；第七修复不再依赖该 CSSMotion 入场状态机。
+- 移动应用菜单和标注 Sheet 现在由应用 `open` 状态条件挂载，使用 Ant Design 公开的 `motion`/`maskMotion` 接口禁用动画，并在关闭时直接卸载和归还焦点。移动缩放 Dropdown 也使用公开的受控 `open`、`destroyOnHidden`、`transitionName` 完成无动画关闭；菜单/命令/44 px/无溢出标准不变。当前三引擎移动专项 15/15 和本地精确 Firefox 128.0.3 amd64 仿真完整 smoke 已通过。
+- review 同时复现 WebKit 对快速入门 Modal 的第二次关闭 click 偶发丢失；条件卸载无法处理“入场动画中的命中区域移动”。快速入门和数据替换确认这两个关键 Modal 现使用公开 `transitionName` / `maskTransitionName` 禁用装饰动画，测试冻结实际 dialog transform；WebKit 零 retry 连续 10 轮共 20/20 通过。
+
+公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。第七修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得混用前六轮旧 SHA 的单项成功证据。
 
 ## 1. 判定规则
 
-ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目标、当前引擎回归、构建/许可/体积门、核心用户链路、本地优先与可访问性必须同时有证据。缺文件、版本不精确、候选提交不一致、非可信执行环境或把 Playwright WebKit 当成 Safari，都会判定失败。
+ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目标、当前引擎回归、构建/许可/体积门、核心用户链路、本地优先、移动 Web 与可访问性必须同时有证据。缺文件、版本不精确、候选提交不一致、移动证据不完整、非可信执行环境或把 Playwright WebKit 当成 Safari，都会判定失败。
 
 最低支持范围仍为 Chrome 111+、Edge 111+、Firefox 128+、Safari 16.4+。Chrome/Edge/Firefox 使用返回的 WebDriver capabilities 核对真实浏览器名和完整版本；Safari 接受 Apple 设备、可信浏览器云或用户确认的 GitHub `macos-14` 原生 Safari，并记录 runner、平台与实际版本。`macos-14` 采用“实际 Safari 版本不低于 16.4”的策略，不伪称精确重放 Safari 16.4。四份证据必须对应同一个 40 位 Git commit SHA。
 
@@ -21,7 +41,7 @@ ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目�
 
 这些本地结果与下一节的真实浏览器矩阵是两层独立证据；Playwright WebKit 本身仍不被当作 Safari。
 
-## 3. 最低浏览器证据状态
+## 3. Phase 7.6 历史最低浏览器证据
 
 | 目标 | 可信执行环境 | 实测版本 | 当前状态 |
 | --- | --- | --- | --- |
@@ -30,7 +50,7 @@ ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目�
 | Firefox 128 | GitHub `ubuntu-24.04` 原生 amd64 + digest-pinned Selenium | 128.0.3 | 通过 |
 | Safari 16.4+ | GitHub `macos-14` + 系统 SafariDriver | Safari 26.5 / macOS 14 | 通过用户确认的 hosted-current 验收；未精确重放 16.4 |
 
-候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四份证据均通过导入、编辑、撤销/重做、PNG/JPEG/WebP/AVIF 签名、MIME、非空输出及同源请求检查，汇总审计 `failures` 为空。Safari 会话第一次尝试即成功；其原生 WebP 探测明确记录 `observedMimeType: image/png`，最终软件回退输出 `image/webp`。
+候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四份 schema v1 历史证据均通过导入、编辑、撤销/重做、PNG/JPEG/WebP/AVIF 签名、MIME、非空输出及同源请求检查，汇总审计 `failures` 为空。Safari 会话第一次尝试即成功；其原生 WebP 探测明确记录 `observedMimeType: image/png`，最终软件回退输出 `image/webp`。它没有 Phase 8.5 移动检查，因此不能作为当前候选证据。
 
 首次公开前通过的 browser matrix 同时执行三个原生 amd64 目标和 `macos-14` Safari。正式公共候选仍须运行仓库内同一 workflow 并保留公开 run/evidence。精确 Safari 16.4 仍是未覆盖的历史下界风险；当前接受的是 `macos-14` hosted-current Safari，不应改写成“已精确验证 16.4”。
 
@@ -77,11 +97,13 @@ workflow 在 `macos-14` 上执行系统 `safaridriver --enable`，由 Selenium �
 SCREENHELLO_RELEASE_CANDIDATE='<same 40-character commit SHA>' pnpm audit:release:browsers
 ```
 
-证据默认写入忽略提交的 `artifacts/release/browser-matrix/`。provider options 只从环境读取，报告只记录 capability key，不记录其值；runner 还会从 source、错误和浏览器日志中清除 WebDriver endpoint 及已识别的 username/password/access-key/token/secret。审计器会拒绝失败记录、错误版本/MIME、非可信架构、非固定原生镜像、候选提交不一致、缺失 Safari 环境说明以及任何标记为 Playwright WebKit 的 Safari 结果。
+证据默认写入忽略提交的 `artifacts/release/browser-matrix/`。provider options 只从环境读取，报告只记录 capability key，不记录其值；runner 还会从 source、错误和浏览器日志中清除 WebDriver endpoint 及已识别的 username/password/access-key/token/secret。当前审计器只接受 schema v2，并会拒绝失败记录、错误版本/MIME、移动 Web 字段不完整、非可信架构、非固定原生镜像、候选提交不一致、缺失 Safari 环境说明以及任何标记为 Playwright WebKit 的 Safari 结果。
 
-## 6. 结论与后续边界
+## 6. 历史结论与当前边界
 
-在用户接受 `macos-14` hosted-current Safari 作为 Apple 验收环境后，候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四浏览器证据和 fail-closed 汇总审计均通过，Phase 7.6 与整个 Phase 7 可以标记 complete。
+在用户接受 `macos-14` hosted-current Safari 作为 Apple 验收环境后，候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四浏览器证据和 fail-closed 汇总审计均通过，因此 Phase 7.6 与整个 Phase 7 已 complete。
+
+Phase 8.5 的本地结果已经 GO，候选分支/PR 与 workflow 权限也已获得并执行；修复后的公开候选仍须通过完整公共 CI 和 schema v2 浏览器矩阵。完成前保持远端 HOLD，不能合并 `main`、创建 tag/release、部署 Web 或发布 npm。
 
 本结论不自动授权 deploy、npm publish、正式公开仓库晋级、桌面版或 Chrome/Edge 扩展，也不把 Safari 26.5 结果夸大为精确 Safari 16.4 证据。下一阶段应在新的 Phase 8 启动指令和范围 review 后进行。
 

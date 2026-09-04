@@ -17,7 +17,7 @@
 - [Phase 5 Web P0 保存与复用](./phase-5-web-p0.md)：项目/预设容器、最近项目、草稿管理、本地建议、异常降级与验收。
 - [Phase 6 Web P1 多图片与专业布局](./phase-6-web-p1.md)：ProjectDocument v2、多图层、布局、迁移、资源预算与验收。
 - [Phase 7 Web P2](./phase-7-web-p2.md)：统一导出、批量、AVIF、矢量设备框、PWA 与逐波验收记录。
-- [Web Release Gate](./web-release-gate.md)：当前发布判定、最低浏览器可信证据方法、颜色面板可访问性结果和复现命令。
+- [Web Release Gate](./web-release-gate.md)：Phase 8.5 当前候选状态、最低浏览器可信证据方法、可访问性结果和复现命令。
 - [组件 API](./component-api.md)：npm 库入口、`ImageBeautifier` 属性和集成限制。
 
 ## 快速定位
@@ -36,9 +36,12 @@
 | 右侧配置栏 | `src/components/sideBar/RightInspector.jsx` |
 | 左侧栏目 | `src/components/sideBar/LeftRail.jsx` |
 | 导出内核、队列与资源所有权 | `src/stores/exportService.js` |
-| 导出与复制 UI | `src/components/sideBar/DownloadBar.jsx` |
+| 导出与复制 UI | `src/components/sideBar/DownloadBar.jsx`、`src/components/sideBar/ExportPanel.jsx` |
 | 批量队列、ZIP 与隔离 renderer | `src/stores/batchStore.js`、`src/stores/batchExportService.js`、`src/components/batch/`、`src/utils/batchExport.js` |
-| 项目中心 | `src/components/workspace/WorkspacePanel.jsx`、`src/stores/workspaceStore.js` |
+| 桌面/移动应用菜单与项目状态 | `src/components/header/AppMenuBar.jsx`、`src/components/header/ProjectStatus.jsx`、`src/components/header/HelpCenter.jsx` |
+| 响应式标注与缩放 | `src/components/editor/BottomToolbar.jsx`、`src/components/editor/Zoom.jsx`、`src/style/main.css` |
+| 本地资料库 | `src/components/workspace/WorkspacePanel.jsx`、`src/stores/workspaceStore.js` |
+| 实例级命令/替换保护 | `src/stores/commandService.js`、`src/components/workspace/WorkspaceGuardDialog.jsx` |
 | 项目/预设容器 | `src/utils/workspaceArchive.js`、`src/utils/workspaceFormat.js` |
 | 本地持久化 | `src/stores/draftStore.js`、`src/stores/draftService.js` |
 | 图片安全验证/本地建议 | `src/utils/imageValidation.js`、`src/utils/imageSuggestions.js` |

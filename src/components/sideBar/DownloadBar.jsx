@@ -1,112 +1,51 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
-import { Button, Tooltip, Popover, Segmented, ConfigProvider, Popconfirm, Upload } from 'antd';
+import { Button, Tooltip, Popover, Segmented, ConfigProvider, Popconfirm } from 'antd';
 import useStores from '@stores/useStores';
-import { isExportCancelled } from '@stores/exportService';
-import { supportImg, nanoid, modKey } from '@utils/utils';
-import useKeyboardShortcuts from '@hooks/useKeyboardShortcuts';
-import useSetImg from '@hooks/useSetImg';
+import { supportImg, modKey } from '@utils/utils';
+import ExportPanel from './ExportPanel';
 
 const BatchExportPanel = lazy(() => import('@components/batch/BatchExportPanel'));
 
 export default observer(function DownloadBar() {
     const stores = useStores();
-    const [loading, setLoading] = useState(false);
-    const [open, setOpen] = useState(false);
+    const [libraryOptionsOpen, setLibraryOptionsOpen] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
-    const mounted = useRef(true);
-    const operation = useRef(null);
+    const replacementInput = useRef(null);
     const { format, ratio } = stores.workspace.exportSettings;
     const hasImage = Boolean(stores.editor.img?.src);
-    const getFile = useSetImg(stores);
-    const failureMessage = (error, action, effectiveFormat = format) => {
-        if (error?.code === 'export-avif-size-too-large') return 'AVIF 最多导出约 420 万像素，请降低倍率或画布尺寸';
-        if (effectiveFormat === 'avif') return `AVIF ${action}失败，请改用 PNG 或 WebP`;
-        if (error?.code === 'export-size-too-large') return `${action}尺寸过大，请降低像素倍率或画布尺寸`;
-        return `${action}失败`;
-    };
+    const loading = stores.exportService.isBusy || stores.commands.imageBusy;
+    const replaceCommand = stores.commands.get('file.replaceActiveImage');
+    const downloadCommand = stores.commands.get('file.quickExport');
+    const exportCommand = stores.commands.get('file.openExport');
+    const copyCommand = stores.commands.get('file.copyFinalImage');
+    const newProjectCommand = stores.commands.get('file.newProject');
 
     useEffect(() => {
-        mounted.current = true;
-        return () => {
-            mounted.current = false;
-            operation.current?.abort();
-            operation.current = null;
-        };
-    }, []);
+        const cleanups = [
+            stores.commands.registerUiAction('file.openBatch', () => { setBatchOpen(true); return true; }),
+            stores.commands.registerUiAction('file.selectReplacementImage', () => { replacementInput.current?.click(); return true; }),
+        ];
+        return () => cleanups.forEach((cleanup) => cleanup());
+    }, [stores]);
 
-    const replaceImage = async (file) => {
-        try {
-            await getFile(file, 'blob', { replace: true });
-        } catch {
-            stores.editor.message?.error?.('图片加载失败，请选择有效图片');
-        }
-        return Upload.LIST_IGNORE;
+    const replaceImage = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        if (stores.workspace.enabled) await stores.commands.execute('file.replaceActiveImage', { file });
+        else await stores.commands.replaceAllImage(file);
     };
 
-    const toDownload = async () => {
-        if (!stores.editor.ensureEditing() || operation.current) return;
-        const controller = new AbortController();
-        operation.current = controller;
-        const key = nanoid();
-        setLoading(true);
-        stores.editor.message.open({ key, type: 'loading', content: '正在下载…' });
-        try {
-            await stores.exportService.downloadImage({ format, ratio, signal: controller.signal });
-            if (mounted.current && !controller.signal.aborted) {
-                stores.editor.message.open({ key, type: 'success', content: '下载成功' });
-            }
-        } catch (error) {
-            if (mounted.current && !isExportCancelled(error)) {
-                stores.editor.message?.open?.({
-                    key,
-                    type: 'error',
-                    content: failureMessage(error, '导出'),
-                });
-            }
-        } finally {
-            if (operation.current === controller) operation.current = null;
-            if (mounted.current) setLoading(false);
-        }
-    };
-
-    const toCopy = async () => {
-        if (!stores.editor.ensureEditing() || operation.current) return;
-        const controller = new AbortController();
-        operation.current = controller;
-        const key = nanoid();
-        setLoading(true);
-        stores.editor.message.open({ key, type: 'loading', content: '正在复制…' });
-        try {
-            await stores.exportService.copyImage({ ratio, signal: controller.signal });
-            if (mounted.current && !controller.signal.aborted) {
-                stores.editor.message.open({ key, type: 'success', content: '复制成功' });
-            }
-        } catch (error) {
-            if (mounted.current && !isExportCancelled(error)) {
-                stores.editor.message?.open?.({
-                    key,
-                    type: 'error',
-                    content: failureMessage(error, '复制', 'png'),
-                });
-            }
-        } finally {
-            if (operation.current === controller) operation.current = null;
-            if (mounted.current) setLoading(false);
-        }
-    };
-
-    const confirm = () => {
+    const clearLibraryImage = () => {
         stores.editor.destroy();
         stores.editor.clearImg();
         stores.workspace.resetProject();
         stores.editor.clearFun && stores.editor.clearFun();
     };
 
-    useKeyboardShortcuts(() => toDownload(), () => toCopy(), stores);
-
-    const content = (
+    const libraryExportOptions = (
         <div className="shoteasy-export-popover">
             <div className="p-3 [&_.ant-segmented]:w-full [&_.ant-segmented-item]:flex-1">
                 <div className="text-xs font-medium text-[var(--se-muted)] mb-2">格式</div>
@@ -135,51 +74,127 @@ export default observer(function DownloadBar() {
         </div>
     );
 
-    return (
+    const themeProvider = {
+        components: {
+            Button: {
+                colorPrimary: stores.editor.isDark ? '#0066ff' : '#2563eb',
+                algorithm: true,
+            },
+        },
+    };
+
+    if (stores.workspace.enabled) return (
         <div className="shoteasy-top-actions">
-            <ConfigProvider
-                theme={{
-                    components: {
-                        Button: {
-                            colorPrimary: stores.editor.isDark ? '#0066ff' : '#2563eb',
-                            algorithm: true,
-                        },
-                    },
-                }}
-            >
-                {stores.workspace.enabled && (
+            <input
+                ref={replacementInput}
+                hidden
+                type="file"
+                accept={supportImg.join(',')}
+                onChange={replaceImage}
+                data-testid="replace-image-input"
+            />
+            <ConfigProvider theme={themeProvider}>
+                <div className="shoteasy-workspace-mobile-only">
                     <Tooltip placement="bottom" arrow={false} title="批量套用同一风格并导出 ZIP">
                         <Button
                             type="text"
                             className="shoteasy-batch-trigger"
                             icon={<Icon.ImageDown size={16} />}
-                            onClick={() => setBatchOpen(true)}
+                            onClick={() => { void stores.commands.execute('file.openBatch'); }}
                             aria-label="打开批量处理"
                         >批量</Button>
                     </Tooltip>
-                )}
+                    <Tooltip placement="bottom" arrow={false} title={replaceCommand.disabledReason || '替换当前图片'}>
+                        <Button
+                            type="default"
+                            size="middle"
+                            className="shoteasy-top-action"
+                            disabled={!replaceCommand.enabled}
+                            icon={<Icon.ImagePlus size={17} />}
+                            aria-label="更换图片"
+                            onClick={() => { void replaceCommand.execute(); }}
+                        />
+                    </Tooltip>
+                    <Tooltip placement="bottom" arrow={false} title={downloadCommand.disabledReason || `使用当前设置快速导出 · ${ratio}x ${format.toUpperCase()}`}>
+                        <Button
+                            type="default"
+                            size="middle"
+                            className="shoteasy-top-action"
+                            loading={loading}
+                            disabled={!downloadCommand.enabled}
+                            icon={<Icon.Download size={17} />}
+                            aria-label="使用当前设置快速导出"
+                            onClick={() => { void downloadCommand.execute(); }}
+                        />
+                    </Tooltip>
+                    {hasImage && (
+                        <Tooltip placement="bottom" arrow={false} title={newProjectCommand.disabledReason || '清空当前项目'}>
+                            <Button
+                                size="middle"
+                                danger
+                                className="shoteasy-top-action"
+                                icon={<Icon.Trash2 size={17} />}
+                                disabled={!newProjectCommand.enabled}
+                                aria-label="删除截图"
+                                onClick={() => { void newProjectCommand.execute(); }}
+                            />
+                        </Tooltip>
+                    )}
+                </div>
                 {batchOpen && (
                     <Suspense fallback={null}>
                         <BatchExportPanel open onClose={() => setBatchOpen(false)} />
                     </Suspense>
                 )}
-                <Upload
-                    accept={supportImg.join(',')}
-                    showUploadList={false}
-                    beforeUpload={replaceImage}
-                    disabled={!hasImage || loading}
-                >
-                    <Tooltip placement="bottom" arrow={false} title="更换图片">
-                        <Button
-                            type="default"
-                            size="middle"
-                            className="shoteasy-top-action"
-                            disabled={!hasImage || loading}
-                            icon={<Icon.ImagePlus size={17} />}
-                            aria-label="更换图片"
-                        />
-                    </Tooltip>
-                </Upload>
+                <Tooltip placement="bottom" arrow={false} title={`复制 ${modKey} + C`}>
+                    <Button
+                        type="default"
+                        size="middle"
+                        className="shoteasy-top-action shoteasy-copy-action"
+                        icon={<Icon.Copy size={17} />}
+                        loading={loading}
+                        disabled={!copyCommand.enabled}
+                        aria-label="复制图片"
+                        onClick={() => { void copyCommand.execute(); }}
+                    />
+                </Tooltip>
+                <Button
+                    type="primary"
+                    size="middle"
+                    className="shoteasy-export-primary"
+                    disabled={!exportCommand.enabled}
+                    icon={<Icon.Download size={17} />}
+                    aria-label="导出图片"
+                    title={exportCommand.disabledReason || '选择格式与倍率并导出'}
+                    onClick={() => { void exportCommand.execute(); }}
+                >导出</Button>
+                <ExportPanel />
+            </ConfigProvider>
+        </div>
+    );
+
+    return (
+        <div className="shoteasy-top-actions">
+            <input
+                ref={replacementInput}
+                hidden
+                type="file"
+                accept={supportImg.join(',')}
+                onChange={replaceImage}
+                data-testid="replace-image-input"
+            />
+            <ConfigProvider theme={themeProvider}>
+                <Tooltip placement="bottom" arrow={false} title="更换图片">
+                    <Button
+                        type="default"
+                        size="middle"
+                        className="shoteasy-top-action shoteasy-copy-action"
+                        disabled={!hasImage || loading}
+                        icon={<Icon.ImagePlus size={17} />}
+                        aria-label="更换图片"
+                        onClick={() => replacementInput.current?.click()}
+                    />
+                </Tooltip>
                 <Tooltip placement="bottom" arrow={false} title={`下载 ${modKey} + S · ${ratio}x ${format.toUpperCase()}`}>
                     <Button
                         type="primary"
@@ -189,7 +204,7 @@ export default observer(function DownloadBar() {
                         disabled={!hasImage}
                         icon={<Icon.Download size={17} />}
                         aria-label="下载图片"
-                        onClick={toDownload}
+                        onClick={() => { void stores.commands.downloadCurrentImage(); }}
                     />
                 </Tooltip>
                 <Tooltip placement="bottom" arrow={false} title={`复制 ${modKey} + C`}>
@@ -199,19 +214,19 @@ export default observer(function DownloadBar() {
                         className="shoteasy-top-action"
                         icon={<Icon.Copy size={17} />}
                         loading={loading}
-                        disabled={!hasImage}
+                        disabled={!copyCommand.enabled}
                         aria-label="复制图片"
-                        onClick={toCopy}
+                        onClick={() => { void copyCommand.execute(); }}
                     />
                 </Tooltip>
                 <Popover
-                    content={content}
+                    content={libraryExportOptions}
                     trigger="click"
                     arrow={false}
                     placement="bottomRight"
-                    open={open}
+                    open={libraryOptionsOpen}
                     styles={{ root: { width: '320px' } }}
-                    onOpenChange={setOpen}
+                    onOpenChange={setLibraryOptionsOpen}
                 >
                     <Tooltip placement="bottom" arrow={false} title="导出格式与倍率">
                         <Button
@@ -229,7 +244,7 @@ export default observer(function DownloadBar() {
                         title="删除截图"
                         description="确定要删除当前截图吗？"
                         placement="bottomRight"
-                        onConfirm={confirm}
+                        onConfirm={clearLibraryImage}
                         okText="确定"
                         cancelText="取消"
                     >

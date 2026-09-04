@@ -1,5 +1,5 @@
 import '@leafer-in/export';
-import { observable } from 'mobx';
+import { observable, runInAction } from 'mobx';
 import { browserPlatform } from '../platform/browserPlatform';
 import { EXPORT_FORMATS, EXPORT_RATIOS, normalizeWorkspaceName } from '@utils/stylePreset';
 
@@ -233,7 +233,7 @@ export class ExportService {
     _enqueue(task, signal) {
         const context = { generation: this._generation, signal };
         this._pendingOperations += 1;
-        this._busyState.set(true);
+        runInAction(() => this._busyState.set(true));
         const operation = this._tail
             .catch(() => undefined)
             .then(async () => {
@@ -242,7 +242,7 @@ export class ExportService {
             });
         const trackedOperation = operation.finally(() => {
             this._pendingOperations = Math.max(0, this._pendingOperations - 1);
-            this._busyState.set(this._pendingOperations > 0);
+            runInAction(() => this._busyState.set(this._pendingOperations > 0));
         });
         this._tail = trackedOperation.then(() => undefined, () => undefined);
         return trackedOperation;

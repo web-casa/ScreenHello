@@ -184,6 +184,38 @@ export class ImageStore {
         return this.layers.get(active.id);
     }
 
+    /**
+     * 只替换指定的当前图层资源，并把动作作为一步历史提交。
+     * 新资源使用新的 assetId；旧资源由 History 在最后一个引用快照淘汰后统一回收。
+     */
+    replaceActiveResource(value, { targetId = this.activeId, commit = true } = {}) {
+        if (this.root.isDisposed) throw Object.assign(new Error('runtime-disposed'), { code: 'runtime-disposed' });
+        const target = targetId ? this.layers.get(targetId) : null;
+        if (!target) throw Object.assign(new Error('image-target-missing'), { code: 'image-target-missing' });
+
+        const assetId = createId('asset');
+        const resource = this._resourceFrom(value, assetId);
+        const nextResources = new Map(this.resources);
+        nextResources.set(assetId, resource);
+        this._assertBudget(this.layers.size, nextResources);
+
+        this.resources = nextResources;
+        this.layers.set(target.id, normalizeProjectImage({
+            ...target,
+            assetId,
+            width: resource.width,
+            height: resource.height,
+            type: resource.type,
+            name: resource.name,
+        }));
+        this.resourceRevision += 1;
+        this.root.editor.snap = null;
+        this.root.baseSnapshot.invalidate();
+        if (target.id === this.activeId) this._syncOptionFromActive();
+        if (commit) this.root.history?.commit?.('image:replace-active');
+        return this.layers.get(target.id);
+    }
+
     replaceAll(value) {
         if (this.root.isDisposed) throw Object.assign(new Error('runtime-disposed'), { code: 'runtime-disposed' });
         const assetId = value.assetId || createId('asset');
@@ -239,6 +271,7 @@ export class ImageStore {
 
     restoreLayers(images) {
         const current = this.list;
+        const previousActiveId = this.activeId;
         const next = images.map((raw, index) => {
             const assetId = raw.assetId || current[index]?.assetId;
             if (!assetId || !this.resources.has(assetId)) {
@@ -249,7 +282,10 @@ export class ImageStore {
         this._assertBudget(next.length, this.resources);
         this.layers = new Map(clampOrder(next).map((layer) => [layer.id, layer]));
         const retainedSelection = this.selectedIds.filter((id) => this.layers.has(id));
-        this.select(retainedSelection.length ? retainedSelection : (this.list[0] ? [this.list[0].id] : []));
+        const fallbackId = previousActiveId && this.layers.has(previousActiveId)
+            ? previousActiveId
+            : this.list[0]?.id;
+        this.select(retainedSelection.length ? retainedSelection : (fallbackId ? [fallbackId] : []));
     }
 
     toDocument() {
@@ -435,15 +471,15 @@ export class ImageStore {
         return true;
     }
 
-    reorderSelected(direction) {
+    _selectionOrderCandidate(direction) {
         const selected = new Set(this.selectedIds);
-        if (!selected.size) return false;
-        let list = this.list;
+        if (!selected.size || this.selectedList.some((layer) => layer.locked)) return null;
+        let list = [...this.list];
         if (direction === 'top') list = [...list.filter((layer) => !selected.has(layer.id)), ...list.filter((layer) => selected.has(layer.id))];
         else if (direction === 'bottom') list = [...list.filter((layer) => selected.has(layer.id)), ...list.filter((layer) => !selected.has(layer.id))];
         else {
             const step = direction === 'up' ? 1 : direction === 'down' ? -1 : 0;
-            if (!step) return false;
+            if (!step) return null;
             const indexes = list.map((layer, index) => selected.has(layer.id) ? index : -1).filter((index) => index >= 0);
             const ordered = step > 0 ? indexes.reverse() : indexes;
             ordered.forEach((index) => {
@@ -452,9 +488,46 @@ export class ImageStore {
                 [list[index], list[next]] = [list[next], list[index]];
             });
         }
+        const currentOrder = this.list.map((layer) => layer.id).join('|');
+        return list.map((layer) => layer.id).join('|') === currentOrder ? null : list;
+    }
+
+    _commitLayerOrder(list) {
         this.layers = new Map(list.map((layer, zIndex) => [layer.id, { ...layer, zIndex }]));
         this.root.history?.commit?.('image:order');
         return true;
+    }
+
+    canReorderSelected(direction) {
+        return Boolean(this._selectionOrderCandidate(direction));
+    }
+
+    reorderSelected(direction) {
+        const list = this._selectionOrderCandidate(direction);
+        return list ? this._commitLayerOrder(list) : false;
+    }
+
+    /**
+     * 把当前选择作为一个保持内部顺序的块，移动到目标层在面板视觉顺序中的上方或下方。
+     * 面板按 zIndex 倒序展示，因此视觉 above 对应底层数组中的 target 后方。
+     */
+    moveSelectedTo(targetId, position) {
+        if (!['above', 'below'].includes(position)) return false;
+        const selected = new Set(this.selectedIds);
+        if (!selected.size || selected.has(targetId) || this.selectedList.some((layer) => layer.locked)) return false;
+        const current = this.list;
+        const moving = current.filter((layer) => selected.has(layer.id));
+        const remaining = current.filter((layer) => !selected.has(layer.id));
+        const targetIndex = remaining.findIndex((layer) => layer.id === targetId);
+        if (targetIndex < 0 || !moving.length) return false;
+        const insertionIndex = position === 'above' ? targetIndex + 1 : targetIndex;
+        const next = [
+            ...remaining.slice(0, insertionIndex),
+            ...moving,
+            ...remaining.slice(insertionIndex),
+        ];
+        if (next.every((layer, index) => layer.id === current[index]?.id)) return false;
+        return this._commitLayerOrder(next);
     }
 
     alignSelected(axis) {

@@ -1,4 +1,4 @@
-import { reaction } from 'mobx';
+import { makeAutoObservable, reaction, runInAction } from 'mobx';
 import { validateDocument } from '@utils/projectDocument';
 import { browserPlatform } from '../platform/browserPlatform';
 import { prepareWorkspaceImage } from '@utils/imageValidation';
@@ -14,6 +14,10 @@ const makeError = (code, message, extra = {}) => Object.assign(new Error(message
  * 异步任务都带有 setup/clear 代际号，避免换 key、清空或卸载后旧任务回写项目。
  */
 export class DraftService {
+    status = 'unavailable';
+    lastSavedAt = null;
+    errorCode = null;
+
     constructor(root) {
         this.root = root;
         this.config = null;          // { key, autoRestore }
@@ -26,6 +30,14 @@ export class DraftService {
         this._restorePromise = null;
         this._generation = 0;
         this._storageWarningShown = false;
+        makeAutoObservable(this, {
+            root: false,
+            config: false,
+            _disposer: false,
+            _saveTimer: false,
+            _saveChain: false,
+            _restorePromise: false,
+        });
     }
 
     isEnabled() { return !!this.config; }
@@ -41,11 +53,17 @@ export class DraftService {
         this._autosaveEnabled = true;
         this._blockedImageSrc = null;
         this._storageWarningShown = false;
+        this.errorCode = null;
+        this.lastSavedAt = null;
         const key = typeof config?.key === 'string' ? config.key.trim() : '';
         this.config = key
             ? { key, autoRestore: config.autoRestore !== false }
             : null;
-        if (!this.config) return;
+        if (!this.config) {
+            this.status = 'unavailable';
+            return;
+        }
+        this.status = this.root.draftStore.isAvailable() ? 'idle' : 'unavailable';
 
         // 注册清空钩子：用户删除截图时删除草稿与归属资源（M6.10）。
         this.root.editor.setClearDraftHook(() => { this.clear(); });
@@ -64,12 +82,16 @@ export class DraftService {
         if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
         this.root.editor.setClearDraftHook(null);
         this.config = null;
+        this.status = 'unavailable';
+        this.errorCode = null;
         // 旧恢复任务会在下一次 await 后通过代际校验放弃，不再写入 store。
         this._restorePromise = null;
     }
 
     _scheduleSave() {
         if (!this.config || !this._autosaveEnabled || this._restoring) return;
+        this.status = 'waiting';
+        this.errorCode = null;
         clearTimeout(this._saveTimer);
         this._saveTimer = setTimeout(() => {
             this._saveTimer = null;
@@ -81,11 +103,26 @@ export class DraftService {
         const context = this.config
             ? { key: this.config.key, generation: this._generation }
             : null;
+        if (context && this._isCurrent(context.key, context.generation)) {
+            this.status = 'saving';
+            this.errorCode = null;
+        }
         const task = this._saveChain
             .catch(() => {})
             .then(() => context ? this._save(context) : undefined)
+            .then((result) => {
+                if (context && this._isCurrent(context.key, context.generation) && result) {
+                    runInAction(() => {
+                        this.status = result === 'cleared' ? 'idle' : 'saved';
+                        this.lastSavedAt = Date.now();
+                        this.errorCode = null;
+                    });
+                }
+                return Boolean(result);
+            })
             .catch((err) => {
                 if (context && this._isCurrent(context.key, context.generation)) this._handleSaveError(err);
+                return false;
             });
         this._saveChain = task.catch(() => {});
         return task;
@@ -93,21 +130,20 @@ export class DraftService {
 
     /** 立即保存（跳过防抖）；供验证或宿主主动 flush 使用。 */
     async flush() {
-        if (!this.config) return false;
+        if (!this.config || !this._autosaveEnabled || this._restoring) return false;
         clearTimeout(this._saveTimer);
         this._saveTimer = null;
-        await this._enqueueSave();
-        return true;
+        return this._enqueueSave();
     }
 
     async _save({ key, generation }) {
-        if (!this._isCurrent(key, generation) || !this._autosaveEnabled || this._restoring) return;
+        if (!this._isCurrent(key, generation) || !this._autosaveEnabled || this._restoring) return false;
         const layers = this.root.imageStore.list;
         if (!layers.length) {
             await this.root.draftStore.deleteProject(key);
             if (!this._isCurrent(key, generation)) return;
             await this.root.draftStore.deleteAssetsByKey(key);
-            return;
+            return 'cleared';
         }
 
         const doc = this.root.editor.serializeProject();
@@ -116,12 +152,14 @@ export class DraftService {
         for (const layer of layers) {
             if (savedAssetIds.has(layer.assetId)) continue;
             const image = this.root.imageStore.resolve(layer);
-            if (!image?.src || this._blockedImageSrc === image.src) return;
+            if (!image?.src || this._blockedImageSrc === image.src) {
+                throw makeError('image-blob-unavailable', 'image blob unavailable', { src: image?.src || null });
+            }
             const imageBlob = image.blob || await this._srcToBlob(image.src);
             if (!imageBlob) {
                 throw makeError('image-blob-unavailable', 'image blob unavailable', { src: image.src });
             }
-            if (!this._isCurrent(key, generation)) return;
+            if (!this._isCurrent(key, generation)) return false;
             await this.root.draftStore.saveAsset(layer.assetId, key, {
                 blob: imageBlob,
                 purpose: 'image',
@@ -129,7 +167,7 @@ export class DraftService {
                 type: image.type || imageBlob.type,
             });
             savedAssetIds.add(layer.assetId);
-            if (!this._isCurrent(key, generation)) return;
+            if (!this._isCurrent(key, generation)) return false;
         }
 
         // 2) 项目引用的背景 Blob 写入 assets。
@@ -145,7 +183,7 @@ export class DraftService {
                 name: background.name,
                 type: background.type,
             });
-            if (!this._isCurrent(key, generation)) return;
+            if (!this._isCurrent(key, generation)) return false;
         }
 
         // 3) 只有关联 assets 全部成功后才写 ProjectDocument。
@@ -153,6 +191,7 @@ export class DraftService {
             kind: 'draft',
             name: this.root.editor.img?.name || '自动草稿',
         });
+        return this._isCurrent(key, generation) ? 'saved' : false;
     }
 
     /** 把 img.src（blob:/data:/http:）统一转 Blob；失败由调用方降级。 */
@@ -171,10 +210,13 @@ export class DraftService {
     _handleSaveError(err) {
         const code = err?.code || '';
         const text = String(err?.name || err?.message || err || '');
+        this.status = 'error';
+        this.errorCode = code || err?.message || err?.name || 'draft-save-failed';
         if (code === 'image-blob-unavailable') {
             // 同一个无法 fetch 的远程地址不重复触发网络请求；换图后会自动重试。
+            const repeated = Boolean(err.src && this._blockedImageSrc === err.src);
             this._blockedImageSrc = err.src || null;
-            this.root.editor.message?.warning?.('当前图片无法保存草稿，编辑和导出仍可继续');
+            if (!repeated) this.root.editor.message?.warning?.('当前图片无法保存草稿，编辑和导出仍可继续');
         } else if (code === 'background-asset-missing') {
             this._autosaveEnabled = false;
             this.root.editor.message?.warning?.('背景资源缺失，已停止自动保存，编辑和导出仍可继续');
@@ -191,6 +233,8 @@ export class DraftService {
     }
 
     _warnStorageUnavailable() {
+        this.status = 'unavailable';
+        this.errorCode = this.errorCode || 'draft-storage-unavailable';
         if (this._storageWarningShown) return;
         this._storageWarningShown = true;
         this.root.editor.message?.warning?.('本地草稿存储不可用，本次编辑仍可继续，但关闭页面后不会自动恢复');
@@ -305,6 +349,11 @@ export class DraftService {
             this.root.editor.restoreProject(valid);
             this.root.history.reset();
             committed = true;
+            runInAction(() => {
+                this.status = 'saved';
+                this.lastSavedAt = Date.now();
+                this.errorCode = null;
+            });
             return true;
         } catch (error) {
             // IndexedDB 不可用或瞬时错误：保持初始页，继续允许编辑/导出并给出一次提示。
@@ -338,8 +387,17 @@ export class DraftService {
             await this._saveChain.catch(() => {});
             await this.root.draftStore.deleteProject(key);
             await this.root.draftStore.deleteAssetsByKey(key);
+            runInAction(() => {
+                this.status = 'idle';
+                this.lastSavedAt = Date.now();
+                this.errorCode = null;
+            });
             return true;
-        } catch {
+        } catch (error) {
+            runInAction(() => {
+                this.status = 'error';
+                this.errorCode = error?.code || error?.message || 'draft-clear-failed';
+            });
             return false;
         }
     }

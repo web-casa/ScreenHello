@@ -122,6 +122,7 @@ export default observer(function BatchExportPanel({ open, onClose }) {
                 open={open}
                 onClose={onClose}
                 className="shoteasy-batch-drawer"
+                rootClassName="shoteasy-overlay-drawer"
                 styles={{ body: { padding: 0 } }}
                 extra={<Tag>{batch.jobs.length}/{MAX_BATCH_FILES}</Tag>}
             >

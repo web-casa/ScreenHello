@@ -10,9 +10,12 @@
 - 代码原生的浏览器窗口与无品牌笔记本、显示器、平板、手机外框
 - 矩形、圆形、直线、箭头、画笔、文字、步骤、Emoji、放大镜、模糊、马赛克和聚光标注
 - `.screenhello` 项目文件、最近项目、IndexedDB 本地草稿和存储状态
-- ProjectDocument v2 多图片画布：多选、层序、复制/删除、编组/锁定、对齐/吸附/等间距、堆叠与扇形布局
+- 独立站桌面/平板采用“文件 / 编辑 / 视图 / 帮助”菜单、项目文件/自动草稿双状态、本地资料库 Tabs 与确认式完整导出面板
+- 独立站移动端采用“菜单 / 项目状态 / 导出”紧凑顶栏、分组标注 Sheet 与缩放菜单；核心触控目标至少 44 px，并适配 safe-area、动态视口和 PWA 提示避让
+- ProjectDocument v2 多图片画布：本地缩略图、选择摘要、拖放及键盘/按钮层序、多选、复制/删除、编组/锁定、对齐/吸附/等间距、堆叠与扇形布局
 - 完整风格预设的保存、复制、重命名、删除以及 `.screenhello-preset` 导入/导出
-- 仅在本机分析的边缘色、内描边和横竖图外框建议，所有建议均由用户确认后应用
+- 背景、内描边和外框控制区提供仅在本机分析的上下文建议，所有建议均由用户确认后应用并可撤销
+- 首屏明确说明图片不会上传，并提供可关闭、可从帮助菜单再次打开的快速入门
 - 项目级撤销/重做和多实例隔离
 - 水印与 HDR 风格处理
 - PNG/JPG/WebP/AVIF、1x/2x/3x 导出与 PNG 剪贴板复制；AVIF 由本地 Worker/WASM 按需编码
@@ -45,7 +48,7 @@ Vite 默认在 <http://localhost:5173> 启动开发服务器。
 | `pnpm audit:pwa` | 审计 manifest、Service Worker、预缓存预算与缓存边界 |
 | `pnpm test:pwa` | 在 production preview 验证安装、离线、按需缓存和安全更新 |
 | `pnpm test:release:current` | 在 production preview 运行当前三引擎本地优先与可访问性门禁 |
-| `pnpm test:release:minimum-browser` | 对外部 WebDriver 会话执行精确最低版本 smoke 并生成证据 |
+| `pnpm test:release:minimum-browser` | 对外部 WebDriver 会话执行最低版本桌面/移动 smoke 并生成 schema v2 证据 |
 | `pnpm audit:release:browsers` | 合并审计同一候选提交的四份最低浏览器证据 |
 | `pnpm build:lib` | 构建内部组件包到 `lib/` |
 | `pnpm audit:pwa:library` | 确认 library 构建没有 PWA 注册或缓存副作用 |

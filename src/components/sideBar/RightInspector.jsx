@@ -15,6 +15,7 @@ import EffectProperties from './EffectProperties';
 import { BackgroundSelect } from './BackgroundSelect';
 import UploadBackground from './UploadBackground';
 import ImageLayersPanel from './ImageLayersPanel';
+import ContextSuggestion from './ContextSuggestion';
 
 const DrawerBar = lazy(() => import('./DrawerBar'));
 
@@ -141,6 +142,7 @@ export const InspectorContent = observer(() => {
 
                 {/* 背景 */}
                 <Section title="背景">
+                    <ContextSuggestion kind="background" />
                     <div className="flex justify-between items-center">
                         <label>预设</label>
                         <Button
@@ -286,6 +288,7 @@ export const InspectorContent = observer(() => {
                                 />
                             </div>
                         </div>
+                        <ContextSuggestion kind="inner-border" />
                         {stores.option.innerBorder.visible && (
                             <SliderRow
                                 label="描边宽度"
@@ -353,10 +356,14 @@ export const InspectorContent = observer(() => {
 /**
  * 桌面右栏。仅 lg 以上显示；平板/手机由 TopBar 抽屉提供。
  */
-const RightInspector = observer(() => (
-    <div className="shoteasy-right-inspector hidden lg:flex relative shrink-0 overflow-hidden flex-col">
-        <InspectorContent />
-    </div>
-));
+const RightInspector = observer(() => {
+    const stores = useStores();
+    if (!stores.commands.inspectorVisible) return null;
+    return (
+        <div className="shoteasy-right-inspector hidden lg:flex relative shrink-0 overflow-hidden flex-col">
+            <InspectorContent />
+        </div>
+    );
+});
 
 export default RightInspector;
