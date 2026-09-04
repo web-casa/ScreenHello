@@ -1,6 +1,6 @@
 # Web Release Gate
 
-> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；第四矩阵仍为 3/4，Firefox 128 已验证 Drawer 修复并暴露主导出 Tooltip 的独立退出残留，第五候选仍待同 SHA CI 与四浏览器复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
+> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；第五矩阵仍为 3/4，Firefox 128 的产品菜单已打开，但 runner 的固定 CSS 文本等值稳定态条件未成立。第六候选仍待同 SHA CI 与四浏览器复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
 
 ## 0. Phase 8.5 当前候选
 
@@ -15,8 +15,9 @@
 - 第三候选 `a03bb3b...` 的 Chrome 111、Edge 111 和 Safari 26.6 / macOS 14.8.9 已通过；Firefox 128.0.3 在 AVIF 后等待 20 秒仍未卸载 Drawer。已安装的 `@rc-component/drawer@1.4.2` 源码表明 `destroyOnHidden` 依赖 CSSMotion 关闭回调；应用现改为由自有 `open` 状态直接条件挂载/卸载导出 Drawer，避免旧 Firefox 的第三方动画回调永久留下隐藏节点。
 - 同类 review 也修复了帮助 Modal 的关闭焦点所有权：HelpCenter 由自有 `topic` 状态条件挂载，关闭后显式归还原触发器，不再只依赖第三方 `afterOpenChange(false)`。WebKit CI 模式的首屏/菜单两种入口连续 10 次通过。
 - 第四候选 `c4f6ba8...` 的 Chrome 111、Edge 111、Safari 26.6 / macOS 14.8.9 通过；Firefox 128.0.3 已完成四格式并成功卸载 Drawer，但导出按钮的 AntD Tooltip 停在 `leave-start` 和原桌面坐标，把 450 px 文档撑回 1280 px。该有文字按钮现改用原生 `title` 并保留稳定 `aria-label`，从结构上移除这个不必要的 portal；没有隐藏 overflow 或放宽移动断言。
+- 第五候选 `fb3a705...` 的 Chrome 111、Edge 111、Safari 26.5 / macOS 14 通过；Firefox 128.0.3 已消除横向溢出并把移动菜单实际打开，失败只发生在 runner 对 opacity/transform 的固定文本等值等待，旧证据未记录最后的 computed value，因此不进一步猜测具体字符串。稳定态现改为要求弹层可见、opacity 到位、没有 running/pending Web Animation，并连续两次采样成立；失败报告同时记录最终视觉/动画状态。菜单分区、44 px 目标和无溢出断言保持不变。
 
-公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。第五修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得混用前四轮旧 SHA 的单项成功证据。
+公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。第六修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得混用前五轮旧 SHA 的单项成功证据。
 
 ## 1. 判定规则
 

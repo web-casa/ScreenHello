@@ -160,14 +160,49 @@ const waitForRemovedSelector = async (selector, message) => driver.wait(
     `${target.id}: ${message}`,
 );
 
-const waitForStablePopup = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
-    const element = document.querySelector(value);
-    if (!element) return false;
-    const style = getComputedStyle(element);
-    const transform = style.transform;
-    return style.opacity === '1'
-        && (transform === 'none' || transform === 'matrix(1, 0, 0, 1, 0, 0)');
-}, selector), 20_000, `${target.id}: ${message}`);
+const waitForStablePopup = async (selector, message) => {
+    let consecutiveStableSamples = 0;
+    let lastState;
+    try {
+        await driver.wait(async () => {
+            lastState = await driver.executeScript((value) => {
+                const element = document.querySelector(value);
+                if (!element) return { stable: false, reason: 'missing' };
+                const style = getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                const animations = typeof element.getAnimations === 'function'
+                    ? element.getAnimations({ subtree: true })
+                    : [];
+                const animationStates = animations.map(({ playState }) => playState);
+                const hasActiveAnimation = animationStates.some((playState) => (
+                    playState === 'running' || playState === 'pending'
+                ));
+                const stable = style.display !== 'none'
+                    && style.visibility !== 'hidden'
+                    && Number.parseFloat(style.opacity) >= 0.999
+                    && rect.width > 0
+                    && rect.height > 0
+                    && !hasActiveAnimation;
+                return {
+                    animationStates,
+                    display: style.display,
+                    height: Math.round(rect.height),
+                    opacity: style.opacity,
+                    stable,
+                    transform: style.transform,
+                    visibility: style.visibility,
+                    width: Math.round(rect.width),
+                };
+            }, selector);
+            consecutiveStableSamples = lastState.stable ? consecutiveStableSamples + 1 : 0;
+            return consecutiveStableSamples >= 2;
+        }, 20_000, `${target.id}: ${message}`, 200);
+    } catch (error) {
+        throw new Error(
+            `${target.id}: ${message}; last popup state: ${JSON.stringify(lastState)}; ${describeError(error)}`,
+        );
+    }
+};
 
 const checkMobileWeb = async () => {
     const requestedWindow = await driver.manage().window().setRect({ width: 430, height: 900 });
