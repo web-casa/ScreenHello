@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { Button, Modal } from 'antd';
 import { observer } from 'mobx-react-lite';
+import { NO_CSS_TRANSITION_NAME } from '@components/overlayMotion';
 import useStores from '@stores/useStores';
 
 export default observer(function WorkspaceGuardDialog() {
@@ -36,6 +37,8 @@ export default observer(function WorkspaceGuardDialog() {
             open
             closable={!guard.busy}
             mask={{ closable: false }}
+            transitionName={NO_CSS_TRANSITION_NAME}
+            maskTransitionName={NO_CSS_TRANSITION_NAME}
             keyboard={!guard.busy}
             onCancel={() => { void stores.commands.resolveWorkspaceGuard('cancel'); }}
             focusable={{ focusTriggerAfterClose: false }}

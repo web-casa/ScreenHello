@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Button, Tooltip, Divider, Drawer } from 'antd';
 import Icon from '@components/Icon';
 import ColorPicker from '@components/ColorPicker';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import { WidthDropdown } from '@components/header/WidthDropdown';
 import EmojiSelect from '@components/header/EmojiSelect';
 import { nanoid, cn } from '@utils/utils';
@@ -47,6 +48,7 @@ export default observer(function BottomToolbar() {
     const [isMove, setIsMove] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [moreToolsOpen, setMoreToolsOpen] = useState(false);
+    const mobileTriggerRef = useRef(null);
     const [isCollapsed, setIsCollapsed] = useState(() => {
         return browserPlatform.storage.getPreference(TOOLBAR_COLLAPSED_KEY) === '1';
     });
@@ -54,13 +56,17 @@ export default observer(function BottomToolbar() {
         browserPlatform.storage.setPreference(TOOLBAR_COLLAPSED_KEY, prev ? '0' : '1');
         return !prev;
     });
+    const closeMobileSheet = () => {
+        setMobileOpen(false);
+        requestAnimationFrame(() => mobileTriggerRef.current?.focus({ preventScroll: true }));
+    };
     const selectTool = (type, closeMobile = false) => {
         if (!stores.editor.ensureEditing()) return;
         const { useTool } = stores.editor;
         stores.editor.setUseTool(useTool === type ? null : type);
         setIsMove(false);
         if (type === 'Magnifier' || type === 'blur' || type === 'mosaic') stores.editor.createSnap('init');
-        if (closeMobile) setMobileOpen(false);
+        if (closeMobile) closeMobileSheet();
     };
     const handleSelectEmoji = (emoji, closeMobile = false) => {
         if (!stores.editor.ensureEditing()) return;
@@ -78,7 +84,7 @@ export default observer(function BottomToolbar() {
             editable: true,
         });
         stores.history.commit();
-        if (closeMobile) setMobileOpen(false);
+        if (closeMobile) closeMobileSheet();
     };
     const toggleMove = (closeMobile = false) => {
         if (!stores.editor.ensureEditing()) return;
@@ -86,7 +92,7 @@ export default observer(function BottomToolbar() {
         stores.editor.setUseTool(null);
         setIsMove(is);
         stores.editor.setMove(is);
-        if (closeMobile) setMobileOpen(false);
+        if (closeMobile) closeMobileSheet();
     };
 
     const renderTool = (item, mobile = false) => {
@@ -188,6 +194,7 @@ export default observer(function BottomToolbar() {
                 />
             </Tooltip>
             <Button
+                ref={mobileTriggerRef}
                 type="text"
                 shape="circle"
                 className={cn('shoteasy-mobile-annotation-trigger', stores.editor.useTool && 'is-active')}
@@ -197,76 +204,79 @@ export default observer(function BottomToolbar() {
                 icon={<Icon.Pencil size={18} />}
                 onClick={() => setMobileOpen(true)}
             />
-            <Drawer
-                title="标注工具"
-                placement="bottom"
-                size="min(76dvh, 620px)"
-                open={mobileOpen}
-                onClose={() => setMobileOpen(false)}
-                destroyOnHidden
-                keyboard
-                focusable={{ trap: true, focusTriggerAfterClose: true }}
-                rootClassName="shoteasy-mobile-annotation-drawer"
-                styles={{ body: { padding: 0 } }}
-            >
-                <div className="shoteasy-mobile-annotation-sheet">
-                    <section aria-labelledby="shoteasy-mobile-primary-tools">
-                        <h3 id="shoteasy-mobile-primary-tools">形状与线条</h3>
-                        <div className="shoteasy-mobile-tool-grid">
-                            {primaryTools.map((item) => renderTool(item, true))}
-                        </div>
-                    </section>
-                    <details
-                        open={moreToolsOpen}
-                        onToggle={(event) => setMoreToolsOpen(event.currentTarget.open)}
-                    >
-                        <summary>更多标注工具</summary>
-                        <div className="shoteasy-mobile-tool-grid">
-                            {secondaryTools.map((item) => renderTool(item, true))}
-                        </div>
-                    </details>
-                    <section aria-labelledby="shoteasy-mobile-tool-style">
-                        <h3 id="shoteasy-mobile-tool-style">样式与画布</h3>
-                        <div className="shoteasy-mobile-annotation-settings">
-                            <div>
-                                <ColorPicker
-                                    aria-label="标注颜色"
-                                    size="small"
-                                    placement="top"
-                                    rootClassName="shoteasy-annotation-popup"
-                                    presets={[{
-                                        label: '推荐',
-                                        colors: ['#ffffff', '#444444', '#df4b26', '#1677ff', '#52C41A', '#FA8C16', '#FADB14', '#EB2F96', '#722ED1'],
-                                    }]}
-                                    value={stores.editor.annotateColor}
-                                    onChange={(color) => stores.editor.setAnnotateColor(color.toHexString())}
-                                />
-                                <span>颜色</span>
+            {mobileOpen && (
+                <Drawer
+                    title="标注工具"
+                    placement="bottom"
+                    size="min(76dvh, 620px)"
+                    open
+                    onClose={closeMobileSheet}
+                    motion={NO_CSS_MOTION}
+                    maskMotion={NO_CSS_MOTION}
+                    keyboard
+                    focusable={{ trap: true, focusTriggerAfterClose: false }}
+                    rootClassName="shoteasy-mobile-annotation-drawer"
+                    styles={{ body: { padding: 0 } }}
+                >
+                    <div className="shoteasy-mobile-annotation-sheet">
+                        <section aria-labelledby="shoteasy-mobile-primary-tools">
+                            <h3 id="shoteasy-mobile-primary-tools">形状与线条</h3>
+                            <div className="shoteasy-mobile-tool-grid">
+                                {primaryTools.map((item) => renderTool(item, true))}
                             </div>
-                            <div>
-                                <WidthDropdown
-                                    defaultValue={stores.editor.strokeWidth}
-                                    onChange={(width) => stores.editor.setStrokeWidth(width)}
-                                    placement="top"
-                                />
-                                <span>线宽</span>
+                        </section>
+                        <details
+                            open={moreToolsOpen}
+                            onToggle={(event) => setMoreToolsOpen(event.currentTarget.open)}
+                        >
+                            <summary>更多标注工具</summary>
+                            <div className="shoteasy-mobile-tool-grid">
+                                {secondaryTools.map((item) => renderTool(item, true))}
                             </div>
-                            <div>
-                                <Button
-                                    type="text"
-                                    shape="circle"
-                                    aria-label="移动 / 拖动"
-                                    className={cn('shoteasy-tool-button', isMove && 'is-active')}
-                                    icon={<Icon.Hand size={16} />}
-                                    onClick={() => toggleMove(true)}
-                                />
-                                <span>移动</span>
+                        </details>
+                        <section aria-labelledby="shoteasy-mobile-tool-style">
+                            <h3 id="shoteasy-mobile-tool-style">样式与画布</h3>
+                            <div className="shoteasy-mobile-annotation-settings">
+                                <div>
+                                    <ColorPicker
+                                        aria-label="标注颜色"
+                                        size="small"
+                                        placement="top"
+                                        rootClassName="shoteasy-annotation-popup"
+                                        presets={[{
+                                            label: '推荐',
+                                            colors: ['#ffffff', '#444444', '#df4b26', '#1677ff', '#52C41A', '#FA8C16', '#FADB14', '#EB2F96', '#722ED1'],
+                                        }]}
+                                        value={stores.editor.annotateColor}
+                                        onChange={(color) => stores.editor.setAnnotateColor(color.toHexString())}
+                                    />
+                                    <span>颜色</span>
+                                </div>
+                                <div>
+                                    <WidthDropdown
+                                        defaultValue={stores.editor.strokeWidth}
+                                        onChange={(width) => stores.editor.setStrokeWidth(width)}
+                                        placement="top"
+                                    />
+                                    <span>线宽</span>
+                                </div>
+                                <div>
+                                    <Button
+                                        type="text"
+                                        shape="circle"
+                                        aria-label="移动 / 拖动"
+                                        className={cn('shoteasy-tool-button', isMove && 'is-active')}
+                                        icon={<Icon.Hand size={16} />}
+                                        onClick={() => toggleMove(true)}
+                                    />
+                                    <span>移动</span>
+                                </div>
                             </div>
-                        </div>
-                    </section>
-                    <p className="shoteasy-mobile-annotation-hint">选择工具后会回到画布；再次点击当前工具可退出标注。</p>
-                </div>
-            </Drawer>
+                        </section>
+                        <p className="shoteasy-mobile-annotation-hint">选择工具后会回到画布；再次点击当前工具可退出标注。</p>
+                    </div>
+                </Drawer>
+            )}
         </>
     );
 });

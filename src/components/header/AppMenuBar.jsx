@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { Drawer, Dropdown, Menu, Tabs } from 'antd';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import useStores from '@stores/useStores';
 import HelpCenter from './HelpCenter';
 
@@ -53,7 +54,6 @@ export default observer(function AppMenuBar() {
     const triggerRefs = useRef([]);
     const mobileTriggerRef = useRef(null);
     const helpReturnTargetRef = useRef(null);
-    const restoreMobileFocusRef = useRef(true);
     const popupRefs = useRef({});
     const openMenuRef = useRef(null);
     const popupRefCallbacks = useRef(null);
@@ -232,7 +232,6 @@ export default observer(function AppMenuBar() {
         const entry = commandEntries.get(key);
         if (!entry) return;
         if (menuId === 'help') helpReturnTargetRef.current = mobileTriggerRef.current;
-        restoreMobileFocusRef.current = false;
         setMobileOpen(false);
         requestAnimationFrame(() => {
             mobileTriggerRef.current?.focus({ preventScroll: true });
@@ -243,10 +242,9 @@ export default observer(function AppMenuBar() {
         });
     };
 
-    const handleMobileAfterOpenChange = (nextOpen) => {
-        if (nextOpen) return;
-        if (restoreMobileFocusRef.current) mobileTriggerRef.current?.focus({ preventScroll: true });
-        restoreMobileFocusRef.current = true;
+    const closeMobileMenu = () => {
+        setMobileOpen(false);
+        requestAnimationFrame(() => mobileTriggerRef.current?.focus({ preventScroll: true }));
     };
 
     const mobileTabs = MENU_IDS.map((menuId) => ({
@@ -324,7 +322,6 @@ export default observer(function AppMenuBar() {
                 aria-haspopup="dialog"
                 aria-expanded={mobileOpen}
                 onClick={() => {
-                    restoreMobileFocusRef.current = true;
                     setMobileSection('file');
                     setMobileOpen(true);
                     void stores.workspace.refreshLibrary();
@@ -332,29 +329,31 @@ export default observer(function AppMenuBar() {
             >
                 菜单
             </button>
-            <Drawer
-                title="应用菜单"
-                placement="bottom"
-                size="min(78dvh, 680px)"
-                open={mobileOpen}
-                onClose={() => setMobileOpen(false)}
-                afterOpenChange={handleMobileAfterOpenChange}
-                destroyOnHidden
-                keyboard
-                focusable={{ trap: true, focusTriggerAfterClose: false }}
-                rootClassName="shoteasy-mobile-menu-drawer"
-                styles={{ body: { padding: 0 } }}
-            >
-                <Tabs
-                    activeKey={mobileSection}
-                    items={mobileTabs}
-                    destroyOnHidden
-                    onChange={(menuId) => {
-                        setMobileSection(menuId);
-                        if (menuId === 'file') void stores.workspace.refreshLibrary();
-                    }}
-                />
-            </Drawer>
+            {mobileOpen && (
+                <Drawer
+                    title="应用菜单"
+                    placement="bottom"
+                    size="min(78dvh, 680px)"
+                    open
+                    onClose={closeMobileMenu}
+                    motion={NO_CSS_MOTION}
+                    maskMotion={NO_CSS_MOTION}
+                    keyboard
+                    focusable={{ trap: true, focusTriggerAfterClose: false }}
+                    rootClassName="shoteasy-mobile-menu-drawer"
+                    styles={{ body: { padding: 0 } }}
+                >
+                    <Tabs
+                        activeKey={mobileSection}
+                        items={mobileTabs}
+                        destroyOnHidden
+                        onChange={(menuId) => {
+                            setMobileSection(menuId);
+                            if (menuId === 'file') void stores.workspace.refreshLibrary();
+                        }}
+                    />
+                </Drawer>
+            )}
             <HelpCenter returnFocus={() => (helpReturnTargetRef.current || triggerRefs.current[3])?.focus()} />
         </>
     );

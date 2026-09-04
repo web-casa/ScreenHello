@@ -72,12 +72,14 @@ test('[Phase 8.5.3] initial workspace states the local promise and opens a rever
     await quickStart.press('Enter');
     const dialog = page.getByRole('dialog', { name: '快速入门' });
     await expect(dialog).toContainText('添加图片');
+    await expect(dialog).toHaveCSS('transform', 'none');
     await page.getByTestId('help-close').click();
     await expect(page.locator('.shoteasy-help-modal')).toHaveCount(0);
     await expect(quickStart).toBeFocused();
 
     await runMenuCommand(page, '帮助', /快速入门/);
     await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveCSS('transform', 'none');
     await page.getByTestId('help-close').click();
     await expect(page.locator('.shoteasy-help-modal')).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: '帮助', exact: true })).toBeFocused();

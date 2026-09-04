@@ -314,6 +314,7 @@ test('keeps projects, presets, and suggestions local with the download fallback'
         mimeType: 'application/vnd.screenhello.project+zip',
         buffer: projectBytes,
     });
+    await expect(page.locator('.shoteasy-workspace-guard [role="dialog"]')).toHaveCSS('transform', 'none');
     await page.getByRole('button', { name: '不保存并继续' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(32);
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.imageStore.list.length)).toBe(2);
@@ -325,6 +326,7 @@ test('keeps projects, presets, and suggestions local with the download fallback'
 
     await page.evaluate(() => window.__shoteasyStores.option.setPadding(5));
     await page.locator('.shoteasy-workspace-item > button').filter({ hasText: 'Phase 5 本地项目' }).first().click();
+    await expect(page.locator('.shoteasy-workspace-guard [role="dialog"]')).toHaveCSS('transform', 'none');
     await page.getByRole('button', { name: '不保存并继续' }).click();
     await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.padding)).toBe(32);
 

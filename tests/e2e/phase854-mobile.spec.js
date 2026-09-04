@@ -105,6 +105,7 @@ test('[Phase 8.5.4] phone shell has one menu, project status, and a fixed export
 
         await page.keyboard.press('Escape');
         await expect(drawer).toBeHidden();
+        await expect(page.locator('.shoteasy-mobile-menu-drawer')).toHaveCount(0);
         await expect(mobileMenu).toBeFocused();
 
         await mobileMenu.tap();
@@ -112,6 +113,7 @@ test('[Phase 8.5.4] phone shell has one menu, project status, and a fixed export
         const exportDrawer = page.getByRole('dialog', { name: '导出图片' });
         await expect(exportDrawer).toBeVisible();
         await expect(drawer).toBeHidden();
+        await expect(page.locator('.shoteasy-mobile-menu-drawer')).toHaveCount(0);
         await page.getByTestId('export-cancel').tap();
         await expect(mobileMenu).toBeFocused();
 
@@ -121,6 +123,7 @@ test('[Phase 8.5.4] phone shell has one menu, project status, and a fixed export
         const helpDialog = page.getByRole('dialog', { name: '快速入门' });
         await expect(helpDialog).toBeVisible();
         await expect(drawer).toBeHidden();
+        await expect(page.locator('.shoteasy-mobile-menu-drawer')).toHaveCount(0);
         await page.getByTestId('help-close').tap();
         await expect(mobileMenu).toBeFocused();
     } finally {
@@ -142,6 +145,9 @@ test('[Phase 8.5.4] annotation sheet and compact zoom expose every core action w
         await annotationTrigger.tap();
         const sheet = page.getByRole('dialog', { name: '标注工具' });
         await expect(sheet).toBeVisible();
+        await expect.poll(() => sheet.evaluate((element) => (
+            getComputedStyle(element.closest('.ant-drawer-content-wrapper')).transform
+        ))).toBe('none');
         await expect(sheet.getByRole('button', { name: '矩形', exact: true })).toBeVisible();
         await sheet.getByText('更多标注工具', { exact: true }).tap();
         for (const name of ['放大镜', '步骤序号', '文字', '模糊', '马赛克', '聚光', '选择表情']) {
@@ -180,6 +186,8 @@ test('[Phase 8.5.4] annotation sheet and compact zoom expose every core action w
 
         await sheet.getByRole('button', { name: '画笔' }).tap();
         await expect(sheet).toBeHidden();
+        await expect(page.locator('.shoteasy-mobile-annotation-drawer')).toHaveCount(0);
+        await expect(annotationTrigger).toBeFocused();
         await expect.poll(() => page.evaluate(() => window.__shoteasyStores.editor.useTool)).toBe('Pencil');
 
         const scaleBefore = await page.evaluate(() => window.__shoteasyStores.editor.scale);
@@ -187,6 +195,9 @@ test('[Phase 8.5.4] annotation sheet and compact zoom expose every core action w
         const zoomMenu = page.getByRole('menu', { name: '缩放与画布' });
         await expect(zoomMenu).toBeVisible();
         await zoomMenu.getByRole('menuitem', { name: '放大' }).tap();
+        await expect(zoomMenu).toBeHidden();
+        await expect(page.locator('.shoteasy-mobile-zoom-menu')).toHaveCount(0);
+        await expect(zoomTrigger).toBeFocused();
         await expect.poll(() => page.evaluate(() => window.__shoteasyStores.editor.scale)).not.toBe(scaleBefore);
     } finally {
         await context.close();

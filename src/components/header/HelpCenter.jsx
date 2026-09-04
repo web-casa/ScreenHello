@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Modal } from 'antd';
 import { version as packageVersion } from '../../../package.json';
+import { NO_CSS_TRANSITION_NAME } from '@components/overlayMotion';
 import useStores from '@stores/useStores';
 
 const EXTERNAL_HELP = Object.freeze({
@@ -105,6 +106,8 @@ export default function HelpCenter({ returnFocus }) {
             title={content.title}
             open
             onCancel={close}
+            transitionName={NO_CSS_TRANSITION_NAME}
+            maskTransitionName={NO_CSS_TRANSITION_NAME}
             focusable={{ focusTriggerAfterClose: false }}
             footer={<Button type="primary" data-testid="help-close" onClick={close}>关闭</Button>}
         >

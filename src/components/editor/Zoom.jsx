@@ -1,5 +1,7 @@
+import { useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_TRANSITION_NAME } from '@components/overlayMotion';
 import { Button, Dropdown, Tooltip } from 'antd';
 import useStores from '@stores/useStores';
 
@@ -22,6 +24,12 @@ const mobileItems = [
 
 export default observer(function Zoom() {
     const stores = useStores();
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const mobileTriggerRef = useRef(null);
+    const setMobileMenuOpen = (open) => {
+        setMobileOpen(open);
+        if (!open) setTimeout(() => mobileTriggerRef.current?.focus({ preventScroll: true }), 0);
+    };
     const handleZoom = (key) => {
         void stores.commands.execute(key === 'in' ? 'view.zoomIn' : 'view.zoomOut');
     };
@@ -46,6 +54,7 @@ export default observer(function Zoom() {
             fit: 'view.fitCanvas',
         }[key];
         if (commandId) void stores.commands.execute(commandId);
+        setMobileMenuOpen(false);
     };
 
     return (
@@ -76,6 +85,10 @@ export default observer(function Zoom() {
                 trigger={['click']}
                 placement="topRight"
                 rootClassName="shoteasy-mobile-zoom-menu"
+                open={mobileOpen}
+                onOpenChange={setMobileMenuOpen}
+                destroyOnHidden
+                transitionName={NO_CSS_TRANSITION_NAME}
                 menu={{
                     items: mobileItems,
                     onClick: handleMobileMenuClick,
@@ -83,10 +96,12 @@ export default observer(function Zoom() {
                 }}
             >
                 <Button
+                    ref={mobileTriggerRef}
                     type="text"
                     className="shoteasy-mobile-zoom-trigger"
                     aria-label={`打开缩放菜单，当前 ${stores.editor.scale}%`}
                     aria-haspopup="menu"
+                    aria-expanded={mobileOpen}
                 >
                     {stores.editor.scale}%
                 </Button>

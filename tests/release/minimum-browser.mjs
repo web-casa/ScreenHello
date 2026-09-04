@@ -160,6 +160,12 @@ const waitForRemovedSelector = async (selector, message) => driver.wait(
     `${target.id}: ${message}`,
 );
 
+const waitForFocusedSelector = async (selector, message) => driver.wait(
+    async () => driver.executeScript((value) => document.activeElement === document.querySelector(value), selector),
+    20_000,
+    `${target.id}: ${message}`,
+);
+
 const waitForStablePopup = async (selector, message) => {
     let consecutiveStableSamples = 0;
     let lastState;
@@ -317,6 +323,8 @@ const checkMobileWeb = async () => {
     assert.equal(menu.noHorizontalOverflow, true, `${target.id}: mobile menu overflowed horizontally`);
     await (await waitForEnabled('.shoteasy-mobile-menu-drawer .ant-drawer-close')).click();
     await waitForHiddenSelector('.shoteasy-mobile-menu-drawer [role="dialog"]', 'mobile application menu did not close');
+    await waitForRemovedSelector('.shoteasy-mobile-menu-drawer', 'mobile application menu was not unmounted');
+    await waitForFocusedSelector('.shoteasy-mobile-menu-trigger', 'mobile application menu trigger did not regain focus');
 
     await (await waitForEnabled('.shoteasy-mobile-annotation-trigger')).click();
     await waitForVisibleSelector('.shoteasy-mobile-annotation-drawer [role="dialog"]', 'mobile annotation sheet did not open');
@@ -341,6 +349,8 @@ const checkMobileWeb = async () => {
     assert.equal(annotation.noHorizontalOverflow, true, `${target.id}: annotation sheet overflowed horizontally`);
     await (await waitForEnabled('.shoteasy-mobile-annotation-drawer .ant-drawer-close')).click();
     await waitForHiddenSelector('.shoteasy-mobile-annotation-drawer [role="dialog"]', 'mobile annotation sheet did not close');
+    await waitForRemovedSelector('.shoteasy-mobile-annotation-drawer', 'mobile annotation sheet was not unmounted');
+    await waitForFocusedSelector('.shoteasy-mobile-annotation-trigger', 'mobile annotation trigger did not regain focus');
 
     await (await waitForEnabled('.shoteasy-mobile-zoom-trigger')).click();
     await waitForVisibleSelector('.shoteasy-mobile-zoom-menu [role="menu"]', 'mobile zoom menu did not open');
@@ -368,6 +378,9 @@ const checkMobileWeb = async () => {
     assert.deepEqual(zoom.undersizedTargets, [],
         `${target.id}: mobile zoom targets were smaller than 44px: ${JSON.stringify(zoom.undersizedTargets)}`);
     assert.equal(zoom.noHorizontalOverflow, true, `${target.id}: mobile zoom menu overflowed horizontally`);
+    await (await waitForEnabled('.shoteasy-mobile-zoom-menu [role="menuitem"]')).click();
+    await waitForRemovedSelector('.shoteasy-mobile-zoom-menu', 'mobile zoom menu was not unmounted');
+    await waitForFocusedSelector('.shoteasy-mobile-zoom-trigger', 'mobile zoom trigger did not regain focus');
 
     const minimumTargetSize = Math.min(
         shell.minimumTargetSize,
@@ -605,6 +618,7 @@ try {
     if (driver) {
         try {
             report.diagnostics = await driver.executeScript(() => ({
+                activeElement: document.activeElement?.outerHTML?.slice(0, 500) || '',
                 bodyText: document.body?.innerText?.slice(0, 1_000) || '',
                 location: location.href,
                 readyState: document.readyState,
