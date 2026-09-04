@@ -55,7 +55,9 @@ async function exportFormat(page, format) {
     await page.locator('.shoteasy-export-drawer .ant-segmented').first().getByText(format.toUpperCase(), { exact: true }).click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByTestId('export-download').click();
-    return downloadPromise;
+    const download = await downloadPromise;
+    await expect(page.getByRole('dialog', { name: '导出图片' })).toBeHidden();
+    return download;
 }
 
 function assertImageSignature(bytes, format) {

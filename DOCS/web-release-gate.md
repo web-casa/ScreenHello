@@ -1,6 +1,6 @@
 # Web Release Gate
 
-> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 本地工程、视觉与 review/fix 已通过；正式公开候选尚未写入远端 ref，因此当前候选的同 SHA 公共 CI 和四浏览器可信证据尚未生成。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
+> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 候选已进入 Draft PR #5；首轮公共 CI/矩阵暴露并修复 runner 时序缺口，修复后的同 SHA CI 和四浏览器可信证据仍待复跑。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
 
 ## 0. Phase 8.5 当前候选
 
@@ -9,8 +9,10 @@
 - 终审修复了关闭态 ColorPicker 悬空 `aria-controls`、toolbar/file input 语义，以及真正 `role=tab` 节点只有 28×22 px 的移动触控问题。
 - minimum-browser evidence 升为 schema v2：四份同 SHA 证据必须额外包含小于等于 640 px 的实际 viewport、三项顶栏动作、四菜单、标注/缩放入口、最小 44 px 目标与无横向溢出。
 - digest-pinned Chrome 111 和 Edge 111 的本地仿真增强 smoke 已通过，但审计器会拒绝这种执行环境；它们只证明脚本可运行，不是正式证据。
+- 首轮公开候选 `f021abcc...` 的原生矩阵证明 Chrome 111 / Edge 111 通过，并暴露 minimum-browser runner 的跨浏览器时序缺口：下载记录可能早于导出 Drawer 完全关闭，Safari 下一轮点击会被遮罩拦截，Firefox 缩到移动视口时会把残留 Drawer 计入横向溢出。runner 现已在每次下载后等待 dialog 隐藏，并在空 WebDriver message 时保留 error name、在溢出失败时记录原始宽度；未降低移动验收标准。
+- 同一首轮候选的 public CI 只因 npm Registry audit API 连续 `ERR_SOCKET_TIMEOUT` 失败，没有返回 advisory。CI 保持 fail-closed；修复候选仍须重跑完整 CI，不能把网络失败或首轮 2/4 矩阵记为通过。
 
-公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`。取得单独写入授权后，应在其上建立正常增量候选，让公开仓自身重跑 CI 和 browser matrix，再下载四份 schema v2 JSON 汇总审计。
+公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`；Phase 8.5 候选只位于 Draft PR #5 的 `phase-8.5-web-ux` 分支。修复提交必须继续更新该分支，让公开仓自身重跑 CI 和 browser matrix，再下载四份同一新 SHA 的 schema v2 JSON 汇总审计；不得复用首轮旧 SHA 的单项成功证据。
 
 ## 1. 判定规则
 
@@ -93,7 +95,7 @@ SCREENHELLO_RELEASE_CANDIDATE='<same 40-character commit SHA>' pnpm audit:releas
 
 在用户接受 `macos-14` hosted-current Safari 作为 Apple 验收环境后，候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四浏览器证据和 fail-closed 汇总审计均通过，因此 Phase 7.6 与整个 Phase 7 已 complete。
 
-Phase 8.5 的本地结果已经 GO，但其公开候选仍需单独远端授权、公共 CI 和 schema v2 浏览器矩阵。完成前保持远端 HOLD，不能创建 tag/release、部署 Web 或发布 npm。
+Phase 8.5 的本地结果已经 GO，候选分支/PR 与 workflow 权限也已获得并执行；修复后的公开候选仍须通过完整公共 CI 和 schema v2 浏览器矩阵。完成前保持远端 HOLD，不能合并 `main`、创建 tag/release、部署 Web 或发布 npm。
 
 本结论不自动授权 deploy、npm publish、正式公开仓库晋级、桌面版或 Chrome/Edge 扩展，也不把 Safari 26.5 结果夸大为精确 Safari 16.4 证据。下一阶段应在新的 Phase 8 启动指令和范围 review 后进行。
 

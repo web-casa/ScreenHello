@@ -57,6 +57,12 @@ const redact = (value) => {
     return result;
 };
 
+const describeError = (error) => {
+    const message = typeof error?.message === 'string' ? error.message.trim() : '';
+    const name = typeof error?.name === 'string' ? error.name.trim() : '';
+    return message || name || String(error);
+};
+
 const browserMap = {
     chrome: Browser.CHROME,
     edge: Browser.EDGE,
@@ -183,6 +189,16 @@ const checkMobileWeb = async () => {
             return rect ? Math.min(rect.width, rect.height) : 0;
         });
         const topbar = document.querySelector('.shoteasy-topbar');
+        const horizontalMetrics = {
+            document: {
+                clientWidth: document.documentElement.clientWidth,
+                scrollWidth: document.documentElement.scrollWidth,
+            },
+            topbar: {
+                clientWidth: topbar?.clientWidth || 0,
+                scrollWidth: topbar?.scrollWidth || 0,
+            },
+        };
         return {
             viewport: { width: innerWidth, height: innerHeight },
             requestedWindow: windowRect,
@@ -190,9 +206,10 @@ const checkMobileWeb = async () => {
             minimumTargetSize: Math.round(Math.min(...targetSizes)),
             desktopMenuHidden: !visible(document.querySelector('.shoteasy-app-menu')),
             topbarButtonCount: [...(topbar?.querySelectorAll('button') || [])].filter(visible).length,
+            horizontalMetrics,
             noHorizontalOverflow: (
-                document.documentElement.scrollWidth <= document.documentElement.clientWidth
-                && topbar.scrollWidth <= topbar.clientWidth
+                horizontalMetrics.document.scrollWidth <= horizontalMetrics.document.clientWidth
+                && horizontalMetrics.topbar.scrollWidth <= horizontalMetrics.topbar.clientWidth
             ),
         };
     }, requestedWindow);
@@ -200,7 +217,8 @@ const checkMobileWeb = async () => {
     assert.equal(shell.desktopMenuHidden, true, `${target.id}: desktop menu remained visible on mobile`);
     assert.equal(shell.topbarButtonCount, 3, `${target.id}: mobile topbar must expose exactly three buttons`);
     assert.ok(shell.minimumTargetSize >= 44, `${target.id}: mobile target was smaller than 44px`);
-    assert.equal(shell.noHorizontalOverflow, true, `${target.id}: mobile shell overflowed horizontally`);
+    assert.equal(shell.noHorizontalOverflow, true,
+        `${target.id}: mobile shell overflowed horizontally: ${JSON.stringify(shell.horizontalMetrics)}`);
 
     await (await waitForEnabled('.shoteasy-mobile-menu-trigger')).click();
     await waitForVisibleSelector('.shoteasy-mobile-menu-drawer [role="dialog"]', 'mobile application menu did not open');
@@ -350,12 +368,12 @@ try {
             maxAttempts,
             retryDelayMs: target.sessionRetryDelayMs || 0,
             shouldRetry: (error) => /session timed out while connecting to a Safari instance/i
-                .test(error instanceof Error ? error.message : String(error)),
+                .test(describeError(error)),
             onAttemptFailed: ({ attempt, error, willRetry }) => {
                 report.sessionCreation.attempts = attempt;
                 sessionErrors.push({
                     attempt,
-                    error: redact(error instanceof Error ? error.message : error),
+                    error: redact(describeError(error)),
                     willRetry,
                 });
             },
@@ -490,6 +508,8 @@ try {
         assert.equal(record.type, format === 'jpg' ? 'image/jpeg' : `image/${format}`);
         assert.ok(record.size > 0, `${target.id}: empty ${format} export`);
         assert.equal(validSignature(format, record.hex), true, `${target.id}: invalid ${format} signature`);
+        await waitForHiddenSelector('.shoteasy-export-drawer [role="dialog"]',
+            `${format} export panel did not close after download`);
     }
 
     const mobileWeb = await checkMobileWeb();
@@ -517,7 +537,7 @@ try {
         serviceWorkerApi: browserState.serviceWorker,
     };
 } catch (error) {
-    report.error = redact(error instanceof Error ? error.message : error);
+    report.error = redact(describeError(error));
     if (driver) {
         try {
             report.diagnostics = await driver.executeScript(() => ({
@@ -528,7 +548,7 @@ try {
                 title: document.title,
             }));
         } catch (diagnosticError) {
-            report.diagnosticError = redact(diagnosticError instanceof Error ? diagnosticError.message : diagnosticError);
+            report.diagnosticError = redact(describeError(diagnosticError));
         }
         try {
             report.browserLogs = (await driver.manage().logs().get('browser')).slice(-20).map((entry) => ({
@@ -537,7 +557,7 @@ try {
                 timestamp: entry.timestamp,
             }));
         } catch (logError) {
-            report.browserLogError = redact(logError instanceof Error ? logError.message : logError);
+            report.browserLogError = redact(describeError(logError));
         }
     }
     process.exitCode = 1;
@@ -546,14 +566,14 @@ try {
         try {
             await driver.quit();
         } catch (cleanupError) {
-            report.driverCleanupError = redact(cleanupError instanceof Error ? cleanupError.message : cleanupError);
+            report.driverCleanupError = redact(describeError(cleanupError));
         }
     }
     if (localDriverService) {
         try {
             await localDriverService.kill();
         } catch (cleanupError) {
-            report.serviceCleanupError = redact(cleanupError instanceof Error ? cleanupError.message : cleanupError);
+            report.serviceCleanupError = redact(describeError(cleanupError));
         }
     }
     await writeReport();
