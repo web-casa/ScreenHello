@@ -22,8 +22,8 @@ const readDownload = async (download) => {
 
 const importFixture = async (page) => {
     const uploadInput = page.locator('.shoteasy-upload-card input[type="file"]');
-    const readyDownload = page.locator('[aria-label="下载图片"]:not([disabled])');
-    await expect(readyDownload.or(uploadInput)).toBeAttached();
+    const readyExport = page.locator('[aria-label="导出图片"]:not([disabled])');
+    await expect(readyExport.or(uploadInput)).toBeAttached();
     if (await uploadInput.count()) {
         await uploadInput.setInputFiles({
             name: 'screenhello-pwa.png',
@@ -31,7 +31,7 @@ const importFixture = async (page) => {
             buffer: createPngFixture(64, 48),
         });
     }
-    await expect(readyDownload).toBeAttached();
+    await expect(readyExport).toBeAttached();
 };
 
 const waitForActiveWorker = async (page) => {
@@ -54,10 +54,16 @@ const clearBrowserHttpCache = async (context, page) => {
     await session.detach();
 };
 
-const selectAvif = async (page) => {
-    await page.getByRole('button', { name: /导出格式与倍率/ }).click();
-    await page.locator('.shoteasy-export-popover .ant-segmented-item').filter({ hasText: 'avif' }).click();
-    await page.keyboard.press('Escape');
+const openExportFormat = async (page, format) => {
+    await page.getByRole('button', { name: '导出图片' }).click();
+    await page.locator('.shoteasy-export-drawer .ant-segmented-item').filter({ hasText: format.toUpperCase() }).click();
+};
+
+const downloadFormat = async (page, format) => {
+    await openExportFormat(page, format);
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('export-download').click();
+    return downloadPromise;
 };
 
 test('activates the audited app shell before reporting ready and starts the editor offline', async ({ context, page }, testInfo) => {
@@ -94,13 +100,11 @@ test('activates the audited app shell before reporting ready and starts the edit
     try {
         await ensureControlled(page);
         await importFixture(page);
-        const downloadPromise = page.waitForEvent('download');
-        await page.getByRole('button', { name: '下载图片' }).click();
-        const bytes = await readDownload(await downloadPromise);
+        const bytes = await readDownload(await downloadFormat(page, 'png'));
         expect(bytes.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
 
-        await selectAvif(page);
-        await page.getByRole('button', { name: '下载图片' }).click();
+        await openExportFormat(page, 'avif');
+        await page.getByTestId('export-download').click();
         await expect(page.getByText('AVIF 导出失败，请改用 PNG 或 WebP', { exact: true })).toBeVisible();
         await expect(page.locator('.shoteasy-editor-canvas')).toBeVisible();
         const cachedAfterLocalWork = await page.evaluate(async () => {
@@ -123,11 +127,7 @@ test('runtime-caches AVIF only after first use and reuses it fully offline', asy
     await waitForActiveWorker(page);
     await ensureControlled(page);
     await importFixture(page);
-    await selectAvif(page);
-
-    const onlineDownload = page.waitForEvent('download');
-    await page.getByRole('button', { name: '下载图片' }).click();
-    const onlineBytes = await readDownload(await onlineDownload);
+    const onlineBytes = await readDownload(await downloadFormat(page, 'avif'));
     expect(onlineBytes.subarray(4, 12).toString('ascii')).toBe('ftypavif');
 
     const runtimeEntries = await page.evaluate(async () => {
@@ -143,10 +143,7 @@ test('runtime-caches AVIF only after first use and reuses it fully offline', asy
     try {
         await ensureControlled(page);
         await importFixture(page);
-        await selectAvif(page);
-        const offlineDownload = page.waitForEvent('download');
-        await page.getByRole('button', { name: '下载图片' }).click();
-        const offlineBytes = await readDownload(await offlineDownload);
+        const offlineBytes = await readDownload(await downloadFormat(page, 'avif'));
         expect(offlineBytes.subarray(4, 12).toString('ascii')).toBe('ftypavif');
     } finally {
         await context.setOffline(false);
@@ -190,6 +187,34 @@ test('shows the iOS manual path but no fabricated Firefox desktop install button
         await iosPage.goto('/');
         const stepsButton = iosPage.getByRole('button', { name: '查看步骤' });
         await expect(stepsButton).toBeVisible();
+        await importFixture(iosPage);
+        const overlap = await iosPage.evaluate(() => {
+            const tray = document.querySelector('.shoteasy-pwa-tray').getBoundingClientRect();
+            const targets = [
+                document.querySelector('[aria-label="导出图片"]'),
+                document.querySelector('.shoteasy-mobile-annotation-trigger'),
+                document.querySelector('.shoteasy-mobile-zoom-trigger'),
+            ].map((element) => {
+                const rect = element.getBoundingClientRect();
+                return {
+                    name: element.getAttribute('aria-label'),
+                    width: rect.width,
+                    height: rect.height,
+                    intersects: rect.left < tray.right && rect.right > tray.left && rect.top < tray.bottom && rect.bottom > tray.top,
+                };
+            });
+            return { targets };
+        });
+        expect(overlap.targets.every(({ intersects }) => !intersects)).toBe(true);
+        expect(overlap.targets.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
+        const installActions = iosPage.locator('.shoteasy-pwa-card--install').getByRole('button');
+        const undersizedInstallActions = await installActions.evaluateAll((buttons) => buttons
+            .map((button) => {
+                const rect = button.getBoundingClientRect();
+                return { width: rect.width, height: rect.height };
+            })
+            .filter(({ width, height }) => width < 44 || height < 44));
+        expect(undersizedInstallActions).toEqual([]);
         await stepsButton.focus();
         await iosPage.keyboard.press('Enter');
         const instructions = iosPage.locator('.shoteasy-pwa-card--install p');
@@ -220,6 +245,11 @@ test('shows the iOS manual path but no fabricated Firefox desktop install button
 
 test('holds a waiting update behind dirty confirmation and cleans stale precache entries', async ({ page }) => {
     test.setTimeout(90_000);
+    const unexpectedDialogs = [];
+    page.on('dialog', async (dialog) => {
+        unexpectedDialogs.push(dialog.type());
+        await dialog.dismiss();
+    });
     const swPath = path.join(dist, 'sw.js');
     const originalSw = readFileSync(swPath, 'utf8');
     await page.goto('/');
@@ -246,13 +276,15 @@ test('holds a waiting update behind dirty confirmation and cleans stale precache
         await expect(page.getByText('ScreenHello 有新版本', { exact: true })).toBeVisible();
         await expect(page.getByText('当前项目还有未保存更改', { exact: false })).toBeVisible();
 
-        await page.getByRole('button', { name: '放弃更改并更新' }).click();
-        await expect(page.getByText('确认放弃未保存更改并载入新版本？', { exact: true })).toBeVisible();
+        await page.getByRole('button', { name: '处理更改并更新' }).click();
+        await expect(page.getByRole('button', { name: '保存项目并继续' })).toBeVisible();
+        await expect(page.getByRole('button', { name: '不保存并继续' })).toBeVisible();
+        await expect(page.getByRole('button', { name: /取\s*消/ })).toBeVisible();
         expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).waiting?.state)).toBe('installed');
 
         await Promise.all([
             page.waitForEvent('load'),
-            page.getByRole('button', { name: '确认更新' }).click(),
+            page.getByRole('button', { name: '不保存并继续' }).click(),
         ]);
         await expect(page.getByText('点击或拖拽图片到这里')).toBeVisible();
         await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller?.state)).toBe('activated');
@@ -263,6 +295,7 @@ test('holds a waiting update behind dirty confirmation and cleans stale precache
             }
             return false;
         }, staleUrl)).toBe(false);
+        expect(unexpectedDialogs).toEqual([]);
     } finally {
         writeFileSync(swPath, originalSw);
     }

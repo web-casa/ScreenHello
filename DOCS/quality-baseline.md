@@ -1,6 +1,6 @@
 # Phase 1 质量基线
 
-> Phase 1 采集日期：2026-09-02；当前 golden 于 Phase 8（2026-09-03）因许可安全替换复核更新。此文档记录已经运行的事实。
+> Phase 1 采集日期：2026-09-02；当前首屏 golden 于 Phase 8.5.3（2026-09-04）复核更新，移动响应式基线于 Phase 8.5.5（2026-09-04）完成终审。此文档记录已经运行的事实。
 
 ## 环境与版本
 
@@ -35,11 +35,31 @@ E2E 对非 localhost、`blob:`、`data:` 的请求执行阻断，确保 smoke �
 
 ## Golden 基线
 
-- `tests/e2e/app.spec.js-snapshots/initial-page-chromium-linux.png`：离线首屏，使用代码原生默认渐变；已人工查看布局、主画布、精选渐变和控件状态。
+- `tests/e2e/app.spec.js-snapshots/initial-page-chromium-linux.png`：离线首屏，使用代码原生默认渐变；已人工查看上传、本地承诺、快速入门、截屏和示例入口的层级，并额外检查 390/768 px 无新增越界。
 - `tests/e2e/app.spec.js-snapshots/export-chromium-linux.png`：64×48 自生成四象限 fixture 在代码渐变背景上的 PNG 导出；已人工查看尺寸和颜色分区。
-- 当前 SHA-256：首屏 `53ebb51896b5ae846f6a81cd93fc23c28d21efd67ea69278339441510705ca93`；导出 `6b77d20505a1315834cc9940e17aef6cd99a8a66672c56ff19414b75b2087123`。Phase 1 原始哈希已由 Phase 8 受限素材移除变更取代。
+- `tests/e2e/app.spec.js-snapshots/workspace-center-chromium-linux.png`：Phase 8.5.2 后的 560 px 本地资料库四 Tabs 空状态；文件动作和智能建议不再混入。
+- `tests/e2e/app.spec.js-snapshots/generic-device-frames-chromium-linux.png`：四种代码原生无品牌设备外框导出。
+- 当前 SHA-256：首屏 `1572a64e9c7701d5a940753824f7999f9e4f00a2b940532e64e3152098d1bf2d`；导出 `6b77d20505a1315834cc9940e17aef6cd99a8a66672c56ff19414b75b2087123`；本地资料库 `19f15d4f39c49c2fe875b663177f56295c3719359097a62ae483ff696190c44e`；设备外框 `2d3eee31b8778ad0f98861ada90170f3723bc125ca310735142e088095ac6724`。Phase 1 原始哈希已由 Phase 8 素材替换、Phase 8.5.2 信息架构和 Phase 8.5.3 首屏说明取代。
 
 golden 变化只能由人工查看后使用 `playwright test --update-snapshots` 更新；CI 失败不得自动覆盖。
+
+## Phase 8.5.4 移动增量基线
+
+- 390×844、430×932、768×1024、1024×768、1440×900 各深浅主题共 10 组均为 axe A/AA 0 violation、页面/顶栏横向溢出 0、外部请求 0、page error 0；390/430 px 可见交互目标低于 44 px 为 0。
+- 专项在 Chromium、Firefox、WebKit 共 12/12，覆盖移动单菜单、四组命令可达、后继面板焦点归还、标注 Sheet、缩放菜单、横屏、390×500 低高度、200% 文本、reduced motion 与 768/1024/1180/1280/1440 编辑区切换。
+- PWA production 5/5，直接验证状态卡不与移动导出、标注、缩放入口相交；current release 三引擎 9/9，完整 E2E 94 passed / 20 expected skipped。
+- 人工查看 390/430、768/1024/1440、菜单和标注 Sheet 证据；本阶段没有更新既有 golden。精确最低浏览器最终候选复验仍属于 Phase 8.5.5。
+
+## Phase 8.5.5 最终候选本地证据
+
+- Node 24.18.0 / pnpm 10.12.1 frozen strict-peer install、ignored builds None、low audit、license audit、typecheck 和 lint 通过；26 files / 188 unit tests passed。
+- 当前 Chromium/Firefox/WebKit 为 94 passed / 20 expected skipped；production release 9/9，PWA 5/5，library consumer dev/preview 各 1/1。项目/草稿/预设、多图层、批量、PNG/JPEG/WebP/AVIF、WebP fallback、多实例与 `workspace=false` 均有覆盖。
+- 390/430/768/1024/1440 × dark/light 共 10 captures 为 0 axe violation、0 外网请求、0 page error、0 页面/顶栏横向溢出；390/430 可见交互目标小于 44 px 为 0。人工复核代表图后没有更新 golden。
+- 终审修复了关闭态 ColorPicker 的悬空 `aria-controls`、标注 toolbar/本地 file input 语义和移动菜单内层 `role=tab` 仅 28×22 px 的问题；复跑后不再有 ARIA incomplete，剩余 incomplete 仅为 axe 无法自动判断的渐变/图片背景对比度。
+- Web entry 为 868,858 B / gzip 271,417 B；library package entry 为 322,955 B / gzip 85,011 B；PWA precache 为 20 entries / 2,620,813 B，均在门限内。
+- minimum-browser evidence 已升为 schema v2，除桌面编辑/四格式/同源请求外，还强制验证移动菜单、标注、缩放、44 px 与无横向溢出。Chrome 111.0.5563.146、Edge 111.0.1661.62 本地仿真只证明 runner 功能，不作为可信发布证据。
+
+当前发布判定为“本地 GO / 远端 HOLD”：只有把经 allowlist 验证的公开候选写入远端 ref，并由公开仓自身对同一个 `github.sha` 完成原生 amd64 三浏览器与 `macos-14` Safari 后，才能把 Phase 8.5 整体标记完成。旧 Phase 7 SHA 或本地仿真不得复用。
 
 ## 构建体积快照
 

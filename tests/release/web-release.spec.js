@@ -41,15 +41,21 @@ async function importPrivateFixture(page) {
         mimeType: 'image/png',
         buffer: createPngFixture(64, 48),
     });
-    await expect(page.getByRole('button', { name: '下载图片' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '导出图片' })).toBeEnabled();
 }
 
-async function selectExportFormat(page, format) {
-    const trigger = page.getByRole('button', { name: /导出格式与倍率/ });
-    await trigger.click();
-    await page.locator('.shoteasy-export-popover .ant-segmented').first().getByText(format, { exact: true }).click();
-    await expect(trigger).toHaveAccessibleName(new RegExp(`当前 1x ${format.toUpperCase()}`));
-    await page.keyboard.press('Escape');
+async function runMenuCommand(page, menuName, commandName) {
+    const menubar = page.getByRole('menubar', { name: '应用菜单' });
+    await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
+    await page.getByRole('menuitem', { name: commandName }).last().click();
+}
+
+async function exportFormat(page, format) {
+    await page.getByRole('button', { name: '导出图片' }).click();
+    await page.locator('.shoteasy-export-drawer .ant-segmented').first().getByText(format.toUpperCase(), { exact: true }).click();
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByTestId('export-download').click();
+    return downloadPromise;
 }
 
 function assertImageSignature(bytes, format) {
@@ -75,24 +81,24 @@ test('keeps private edits, project data, exports, and batch work local', async (
     const audit = await openReleaseCandidate(page);
     await importPrivateFixture(page);
 
-    await page.getByRole('button', { name: '打开项目中心' }).click();
+    await page.getByRole('button', { name: /^项目：/ }).click();
     await page.getByRole('textbox', { name: '项目名称' }).fill(PRIVATE_MARKER);
+    await page.keyboard.press('Escape');
+    await runMenuCommand(page, '文件', /^本地资料库/);
+    await page.getByRole('tab', { name: '风格预设' }).click();
     await page.getByRole('button', { name: '保存当前风格' }).click();
     await expect(page.getByText('我的风格', { exact: true })).toBeVisible();
     const projectDownload = page.waitForEvent('download');
-    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await page.locator('.shoteasy-workspace-drawer .ant-drawer-close').click();
+    await runMenuCommand(page, '文件', /^保存项目/);
     const projectBytes = await readDownload(await projectDownload);
     expect(projectBytes.subarray(0, 2).toString('ascii')).toBe('PK');
-    await page.locator('.shoteasy-workspace-drawer .ant-drawer-close').click();
 
     for (const format of ['png', 'jpg', 'webp', 'avif']) {
-        await selectExportFormat(page, format);
-        const downloadPromise = page.waitForEvent('download');
-        await page.getByRole('button', { name: '下载图片' }).click();
-        assertImageSignature(await readDownload(await downloadPromise), format);
+        assertImageSignature(await readDownload(await exportFormat(page, format)), format);
     }
 
-    await page.getByRole('button', { name: '打开批量处理' }).click();
+    await runMenuCommand(page, '文件', /^批量处理/);
     const batchDrawer = page.locator('.shoteasy-batch-drawer');
     await page.getByTestId('batch-file-input').setInputFiles({
         name: `${PRIVATE_MARKER}-batch.png`,
@@ -122,11 +128,7 @@ test('falls back to the local WebP codec when Canvas cannot encode WebP', async 
     });
     const audit = await openReleaseCandidate(page);
     await importPrivateFixture(page);
-    await selectExportFormat(page, 'webp');
-
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('button', { name: '下载图片' }).click();
-    const bytes = await readDownload(await downloadPromise);
+    const bytes = await readDownload(await exportFormat(page, 'webp'));
 
     assertImageSignature(bytes, 'webp');
     expect(audit.requests.some(({ url }) => /\/assets\/webp_enc-[^/]+\.wasm$/.test(new URL(url).pathname))).toBe(true);
@@ -149,14 +151,21 @@ test('meets automated WCAG A/AA and reduced-motion release checks', async ({ pag
     await demo.focus();
     await expect(demo).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: '下载图片' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: '导出图片' })).toBeEnabled();
 
     const paddingColor = page.getByRole('button', { name: '内边距颜色' });
+    await expect(paddingColor).not.toHaveAttribute('aria-controls');
+    await expect(page.getByRole('toolbar', { name: '标注工具' })).toBeVisible();
+    await expect(page.getByLabel('上传本地图片')).toHaveAttribute('type', 'file');
     await paddingColor.focus();
     await expect(paddingColor).toBeFocused();
     await page.keyboard.press('Enter');
     const colorDialog = page.getByRole('dialog', { name: '内边距颜色设置' });
     await expect(colorDialog).toBeVisible();
+    await expect(paddingColor).toHaveAttribute('aria-controls', await colorDialog.getAttribute('id'));
+    await expect.poll(() => colorDialog.evaluate((element) => (
+        getComputedStyle(element.closest('.ant-popover')).opacity
+    ))).toBe('1');
     const nativeColor = colorDialog.getByLabel('内边距颜色色彩');
     await expect(nativeColor).toBeFocused();
     await expect(nativeColor).toHaveValue('#ffffff');
@@ -183,9 +192,10 @@ test('meets automated WCAG A/AA and reduced-motion release checks', async ({ pag
 
     await page.keyboard.press('Escape');
     await expect(colorDialog).toBeHidden();
+    await expect(paddingColor).not.toHaveAttribute('aria-controls');
     await expect(paddingColor).toBeFocused();
 
-    const motion = await page.locator('.shoteasy-top-action--export').evaluate((element) => {
+    const motion = await page.locator('.shoteasy-export-primary').evaluate((element) => {
         const style = getComputedStyle(element);
         const toMilliseconds = (value) => value.split(',').map((item) => {
             const token = item.trim();

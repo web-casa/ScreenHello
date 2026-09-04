@@ -9,6 +9,7 @@ import { ImageStore } from './imageStore';
 import { Option } from './option';
 import { WorkspaceStore } from './workspaceStore';
 import { BatchStore } from './batchStore';
+import { CommandService } from './commandService';
 
 let runtimeSequence = 0;
 let activeRuntime = null;
@@ -36,6 +37,7 @@ export class ScreenHelloRuntime {
         this.workspace = new WorkspaceStore(this);
         this.exportService = new ExportService(this);
         this.batch = batchEnabled ? new BatchStore(this) : null;
+        this.commands = new CommandService(this);
     }
 
     scheduleDispose() {
@@ -69,6 +71,7 @@ export class ScreenHelloRuntime {
         if (activeRuntime === this) activeRuntime = null;
         this.cancelScheduledDispose();
         this.batch?.dispose();
+        this.commands.dispose();
         this.exportService.dispose();
         this.draftService.teardown();
         this.workspace.dispose();

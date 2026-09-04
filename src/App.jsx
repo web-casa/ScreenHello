@@ -12,6 +12,8 @@ import Init from '@components/init/Init';
 import StoreProvider from '@stores/StoreProvider';
 import useStores from '@stores/useStores';
 import useSetImg from '@hooks/useSetImg';
+import useKeyboardShortcuts from '@hooks/useKeyboardShortcuts';
+import WorkspaceGuardDialog from '@components/workspace/WorkspaceGuardDialog';
 import { cn } from '@utils/utils';
 import { browserPlatform } from './platform/browserPlatform';
 import '@style/main.css';
@@ -28,6 +30,9 @@ export const AppContent = observer(function AppContent({ defaultImg, headLeft, h
   const isEditing = !!stores.editor.img?.src;
   const workplace = isEditing ? <Editor /> : <Init />;
   const [messageApi, contextHolder] = message.useMessage();
+  const shouldBlockUnload = Boolean(workspace && stores.workspace.isDirty);
+
+  useKeyboardShortcuts(stores);
 
   useEffect(() => {
     stores.editor.setMessage(messageApi);
@@ -66,6 +71,17 @@ export const AppContent = observer(function AppContent({ defaultImg, headLeft, h
   }, [stores, workspace]);
 
   useEffect(() => {
+    if (!shouldBlockUnload) return undefined;
+    const handleBeforeUnload = (event) => {
+      if (stores.commands.consumePageUnloadApproval()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [shouldBlockUnload, stores]);
+
+  useEffect(() => {
     stores.editor.cancelScheduledImageRelease();
     return () => stores.editor.scheduleImageRelease();
   }, [stores]);
@@ -94,8 +110,9 @@ export const AppContent = observer(function AppContent({ defaultImg, headLeft, h
         }}
       >
         {contextHolder}
+        <WorkspaceGuardDialog />
         <div
-          className={cn('polka shoteasy-app flex flex-col overflow-hidden antialiased w-full h-[100vh]', boxClassName)}
+          className={cn('polka shoteasy-app flex flex-col overflow-hidden antialiased w-full', boxClassName)}
           data-mode={stores.editor.isDark ? 'dark' : 'light'}
           data-screenhello-instance={stores.id}
           onPointerDownCapture={() => stores.activate()}

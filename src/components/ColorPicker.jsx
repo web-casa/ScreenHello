@@ -265,7 +265,7 @@ export default function ColorPickerWithDropper(props) {
         'aria-disabled': disabled || undefined,
         'aria-expanded': isOpen,
         'aria-haspopup': 'dialog',
-        'aria-controls': ids.dialog,
+        'aria-controls': isOpen ? ids.dialog : undefined,
         'aria-label': accessibleName,
         onKeyDown: (event) => {
             onKeyDown?.(event);
@@ -276,7 +276,7 @@ export default function ColorPickerWithDropper(props) {
     };
     const trigger = isValidElement(children)
         ? cloneElement(children, {
-            'aria-controls': ids.dialog,
+            'aria-controls': isOpen ? ids.dialog : undefined,
             'aria-expanded': isOpen,
             'aria-haspopup': 'dialog',
         })

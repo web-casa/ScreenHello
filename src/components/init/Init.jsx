@@ -116,6 +116,18 @@ export default observer(function Init() {
                         </div>
                     </div>
                 </Dragger>
+                {stores.workspace.enabled && (
+                    <div className="shoteasy-local-promise">
+                        <span className="shoteasy-local-promise__mark" aria-hidden="true"><Icon.Check size={14} /></span>
+                        <span><strong>图片仅在此设备处理，不会上传</strong><small>无需账号；项目和草稿保存在你的浏览器或本地文件中。</small></span>
+                        <Button
+                            type="link"
+                            size="small"
+                            aria-label="打开快速入门"
+                            onClick={() => { void stores.commands.execute('help.quickStart'); }}
+                        >三步入门</Button>
+                    </div>
+                )}
                 <div className="shoteasy-quick-actions m-0 justify-center">
                     <Tooltip placement="top" arrow={false} title="截取屏幕窗口">
                         <Button type="default" size="middle" icon={<Icon.Camera size={18} />} onClick={onCapture}>

@@ -2,6 +2,15 @@
 @import "tailwindcss" source("../");
 
 @layer base {
+    :root {
+        --se-z-canvas-control: 20;
+        --se-z-topbar: 100;
+        --se-z-pwa: 900;
+        --se-z-overlay: 1000;
+        --se-z-popup: 1050;
+        --se-z-modal: 1100;
+    }
+
     .shoteasy-app,
     .shoteasy-components {
         /* —— design.md「neon gallery in the void」设计令牌 —— */
@@ -87,7 +96,7 @@
     .shoteasy-components kbd,
     .shoteasy-components pre,
     .shoteasy-components samp {
-        font-family: var(--font-mono);
+        font-family: var(--font-mono, ui-monospace, monospace);
     }
 
     .shoteasy-app[data-mode="dark"],
@@ -127,6 +136,11 @@
         @apply [&_::-webkit-scrollbar-thumb]:bg-[var(--c-scroll)] [&_::-webkit-scrollbar-thumb]:rounded-md;
         @apply hover:[&_::-webkit-scrollbar-thumb]:bg-[var(--c-scroll-hover)];
         @apply [&_::-webkit-scrollbar-track]:bg-[var(--c-bg)];
+    }
+
+    .shoteasy-app {
+        height: 100vh;
+        height: 100dvh;
     }
 
     .shoteasy-app button:focus-visible,
@@ -190,7 +204,7 @@
     }
 
     .shoteasy-topbar {
-        z-index: 11;
+        z-index: var(--se-z-topbar);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -213,6 +227,176 @@
 
     .shoteasy-topbar__brand {
         min-width: 0;
+    }
+
+    .shoteasy-app-menu {
+        display: flex;
+        align-items: center;
+        gap: 1px;
+        flex: 0 0 auto;
+    }
+
+    .shoteasy-mobile-menu-trigger {
+        display: none;
+        min-width: 60px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        padding: 0 12px;
+        border: 1px solid var(--se-border-strong);
+        border-radius: var(--radius-pill);
+        color: var(--se-ink);
+        background: var(--se-panel);
+        font-size: 13px;
+        font-weight: 650;
+        cursor: pointer;
+    }
+
+    .shoteasy-mobile-menu-trigger[aria-expanded="true"] {
+        color: var(--se-accent);
+        border-color: var(--se-accent);
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-app-menu__trigger {
+        min-width: 42px;
+        height: 32px;
+        padding: 0 9px;
+        border: 0;
+        border-radius: var(--radius-control);
+        color: var(--se-control-icon);
+        background: transparent;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .shoteasy-app-menu__trigger:hover,
+    .shoteasy-app-menu__trigger[aria-expanded="true"] {
+        color: var(--se-ink);
+        background: var(--se-ghost-fill);
+    }
+
+    .shoteasy-command-menu .ant-dropdown-menu {
+        min-width: 270px;
+        padding: 6px;
+    }
+
+    .shoteasy-command-menu .ant-dropdown-menu-item,
+    .shoteasy-command-menu .ant-dropdown-menu-submenu-title {
+        min-height: 34px;
+    }
+
+    .shoteasy-command-label {
+        display: flex;
+        min-width: 220px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+    }
+
+    .shoteasy-command-label__copy {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .shoteasy-command-label__copy > span {
+        display: flex;
+        align-items: center;
+    }
+
+    .shoteasy-command-label__copy small {
+        padding-left: 18px;
+        font-size: 10px;
+        line-height: 1.35;
+        opacity: 0.72;
+    }
+
+    .shoteasy-command-label__check {
+        display: inline-flex;
+        width: 18px;
+        flex: 0 0 18px;
+        align-items: center;
+    }
+
+    .shoteasy-command-label kbd {
+        flex: 0 0 auto;
+        color: currentColor;
+        font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: 10px;
+        opacity: 0.56;
+    }
+
+    .shoteasy-project-status {
+        display: flex;
+        min-width: 0;
+        max-width: 300px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1px;
+        padding: 5px 10px;
+        border: 0;
+        border-radius: var(--radius-control);
+        color: var(--se-ink);
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .shoteasy-project-status:hover,
+    .shoteasy-project-status[aria-expanded="true"] {
+        background: var(--se-ghost-fill);
+    }
+
+    .shoteasy-project-status strong,
+    .shoteasy-project-status span {
+        overflow: hidden;
+        max-width: 100%;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-project-status strong {
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    .shoteasy-project-status span {
+        color: var(--se-muted-contrast);
+        font-size: 10px;
+    }
+
+    .shoteasy-project-popover {
+        width: 320px;
+    }
+
+    .shoteasy-project-popover label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--se-muted, color-mix(in srgb, currentColor 62%, transparent));
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .shoteasy-project-popover__statuses {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+    }
+
+    .shoteasy-project-popover__statuses .ant-tag {
+        margin-inline-end: 0;
+    }
+
+    .shoteasy-project-popover p {
+        margin: 10px 0 0;
+        color: var(--se-muted, color-mix(in srgb, currentColor 62%, transparent));
+        font-size: 11px;
+        line-height: 1.55;
     }
 
     .shoteasy-logo {
@@ -276,6 +460,12 @@
         gap: 6px;
     }
 
+    .shoteasy-workspace-mobile-only {
+        display: none;
+        align-items: center;
+        gap: 4px;
+    }
+
     .shoteasy-top-action.ant-btn {
         width: 34px;
         min-width: 34px;
@@ -300,6 +490,21 @@
         background: var(--se-primary);
         color: #fff;
         box-shadow: var(--se-glow);
+    }
+
+    .shoteasy-export-primary.ant-btn {
+        height: 34px;
+        padding-inline: 16px;
+        border-color: var(--se-primary);
+        background: var(--se-primary);
+        color: #fff;
+        box-shadow: var(--se-glow);
+    }
+
+    .shoteasy-export-primary.ant-btn:hover {
+        border-color: color-mix(in srgb, var(--se-primary) 86%, #000);
+        background: color-mix(in srgb, var(--se-primary) 86%, #000);
+        color: #fff;
     }
 
     .shoteasy-top-action--primary.ant-btn:hover {
@@ -547,10 +752,60 @@
         font-weight: 600;
     }
 
+    .shoteasy-local-promise {
+        width: min(100%, 440px);
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 9px;
+        margin-top: -4px;
+        padding: 8px 9px;
+        color: var(--se-muted);
+        border: 1px solid color-mix(in srgb, var(--se-accent) 24%, var(--se-border));
+        border-radius: var(--radius-popover);
+        background: color-mix(in srgb, var(--se-accent-soft) 45%, var(--se-panel));
+    }
+
+    .shoteasy-local-promise__mark {
+        width: 24px;
+        height: 24px;
+        display: inline-grid;
+        place-items: center;
+        color: var(--se-accent);
+        border-radius: 7px;
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-local-promise > span:nth-child(2),
+    .shoteasy-local-promise strong,
+    .shoteasy-local-promise small {
+        display: block;
+    }
+
+    .shoteasy-local-promise strong {
+        color: var(--se-ink);
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .shoteasy-local-promise small {
+        margin-top: 1px;
+        font-size: 9px;
+        line-height: 1.35;
+    }
+
+    .shoteasy-local-promise .ant-btn {
+        height: 28px;
+        padding-inline: 5px;
+        font-size: 11px;
+    }
+
     .shoteasy-editor-canvas {
         flex: 1 1 auto;
         min-width: 0;
         min-height: 0;
+        container-name: screenhello-editor;
+        container-type: inline-size;
     }
 
     .shoteasy-left-rail,
@@ -636,7 +891,7 @@
     .shoteasy-size-trigger__meta {
         overflow: hidden;
         margin-top: 4px;
-        color: var(--se-muted);
+        color: var(--se-muted-contrast);
         font-family: var(--font-mono);
         font-size: 10px;
         font-variant-numeric: tabular-nums;
@@ -1444,48 +1699,262 @@
         padding-bottom: 13px;
     }
 
+    .shoteasy-context-suggestion {
+        min-height: 44px;
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        margin: 2px 0 10px;
+        padding: 7px 7px 7px 8px;
+        color: var(--se-muted);
+        border: 1px solid color-mix(in srgb, var(--se-accent) 22%, var(--se-border));
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--se-accent-soft) 36%, var(--se-panel-muted));
+    }
+
+    .shoteasy-context-suggestion.is-pending,
+    .shoteasy-context-suggestion.is-error {
+        grid-template-columns: minmax(0, 1fr) auto;
+        min-height: 38px;
+        font-size: 10px;
+    }
+
+    .shoteasy-context-suggestion.is-pending {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .shoteasy-context-suggestion__preview,
+    .shoteasy-context-suggestion__swatch,
+    .shoteasy-context-suggestion__border-preview,
+    .shoteasy-context-suggestion__frame-preview {
+        width: 30px;
+        height: 24px;
+        display: block;
+    }
+
+    .shoteasy-context-suggestion__swatch,
+    .shoteasy-context-suggestion__border-preview,
+    .shoteasy-context-suggestion__frame-preview {
+        border: 1px solid color-mix(in srgb, var(--se-border-strong) 70%, transparent);
+        border-radius: 6px;
+        background: var(--se-panel);
+    }
+
+    .shoteasy-context-suggestion__frame-preview {
+        position: relative;
+        padding: 4px;
+    }
+
+    .shoteasy-context-suggestion__frame-preview::before {
+        position: absolute;
+        inset: 3px 3px auto;
+        height: 4px;
+        border-radius: 2px 2px 0 0;
+        background: var(--se-border-strong);
+        content: '';
+    }
+
+    .shoteasy-context-suggestion__frame-preview i {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 3px;
+        background: var(--se-accent-soft);
+    }
+
+    .shoteasy-context-suggestion__frame-preview[data-kind='vector-device'] {
+        border-width: 2px 3px 3px;
+        border-radius: 4px;
+    }
+
+    .shoteasy-context-suggestion__copy,
+    .shoteasy-context-suggestion__copy strong,
+    .shoteasy-context-suggestion__eyebrow {
+        display: block;
+        min-width: 0;
+    }
+
+    .shoteasy-context-suggestion__eyebrow {
+        color: var(--se-accent-text);
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: .03em;
+    }
+
+    .shoteasy-context-suggestion__copy strong {
+        overflow: hidden;
+        color: var(--se-ink);
+        font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: 9px;
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-context-suggestion .ant-btn {
+        height: 27px;
+        padding-inline: 5px;
+        font-size: 10px;
+    }
+
+    .shoteasy-context-suggestion .ant-btn-link:not(:disabled) {
+        color: var(--se-accent-text);
+        font-weight: 600;
+    }
+
+    .shoteasy-layer-summary {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--se-muted);
+        font-size: 9px;
+    }
+
+    .shoteasy-layer-summary strong {
+        color: var(--se-ink);
+        font-size: 10px;
+        font-weight: 600;
+    }
+
     .shoteasy-layer-list {
         display: grid;
         gap: 4px;
-        max-height: 184px;
+        max-height: 232px;
+        padding: 2px;
         overflow: auto;
     }
 
-    .shoteasy-layer-list > button {
-        display: grid;
-        grid-template-columns: 24px minmax(0, 1fr) 20px;
-        align-items: center;
-        gap: 7px;
+    .shoteasy-layer-row {
+        position: relative;
+        border-radius: 8px;
+    }
+
+    .shoteasy-layer-row::before {
+        position: absolute;
+        z-index: 1;
+        right: 4px;
+        left: 4px;
+        height: 2px;
+        border-radius: 999px;
+        background: var(--se-accent);
+        box-shadow: var(--se-glow);
+        content: '';
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .shoteasy-layer-row.is-drop-above::before { top: -3px; opacity: 1; }
+    .shoteasy-layer-row.is-drop-below::before { bottom: -3px; opacity: 1; }
+
+    .shoteasy-layer-row > button {
         width: 100%;
-        padding: 7px;
+        display: grid;
+        grid-template-columns: 14px 38px minmax(0, 1fr) auto 18px;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
         color: var(--se-ink);
         background: var(--se-panel-muted);
         border: 1px solid transparent;
-        border-radius: 7px;
+        border-radius: 8px;
         text-align: left;
+        cursor: pointer;
+        transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
     }
 
-    .shoteasy-layer-list > button.is-selected {
+    .shoteasy-layer-row > button:hover {
+        border-color: var(--se-border-strong);
+    }
+
+    .shoteasy-layer-row > button:active {
+        transform: translateY(1px);
+    }
+
+    .shoteasy-layer-row > button:focus-visible {
+        outline: 2px solid var(--se-accent);
+        outline-offset: 1px;
+    }
+
+    .shoteasy-layer-row.is-selected > button {
         border-color: var(--se-accent);
         background: var(--se-accent-soft);
     }
 
-    .shoteasy-layer-list strong,
-    .shoteasy-layer-list small {
+    .shoteasy-layer-row[draggable='false'] .shoteasy-layer-drag {
+        opacity: .28;
+    }
+
+    .shoteasy-layer-drag {
+        display: inline-grid;
+        place-items: center;
+        color: var(--se-muted);
+        cursor: grab;
+    }
+
+    .shoteasy-layer-row:active .shoteasy-layer-drag { cursor: grabbing; }
+
+    .shoteasy-layer-thumb {
+        width: 38px;
+        height: 30px;
+        display: grid;
+        overflow: hidden;
+        place-items: center;
+        color: var(--se-muted);
+        border: 1px solid var(--se-border);
+        border-radius: 5px;
+        background: var(--se-panel);
+    }
+
+    .shoteasy-layer-thumb img {
+        width: 100%;
+        height: 100%;
         display: block;
+        object-fit: cover;
+    }
+
+    .shoteasy-layer-copy,
+    .shoteasy-layer-copy strong,
+    .shoteasy-layer-copy small {
+        display: block;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .shoteasy-layer-list strong { font-size: 11px; font-weight: 600; }
-    .shoteasy-layer-list small { color: var(--se-muted); font-size: 9px; }
+    .shoteasy-layer-copy strong { font-size: 11px; font-weight: 600; }
+    .shoteasy-layer-copy small { color: var(--se-muted-contrast); font-size: 9px; }
+
+    .shoteasy-layer-state {
+        display: flex;
+        gap: 3px;
+    }
+
+    .shoteasy-layer-state small:not(:empty) {
+        min-width: 18px;
+        padding: 2px 3px;
+        color: var(--se-muted);
+        border: 1px solid var(--se-border);
+        border-radius: 4px;
+        font-size: 8px;
+        text-align: center;
+    }
 
     .shoteasy-layer-index {
         color: var(--se-muted);
-        font-family: var(--font-mono);
+        font-family: var(--font-mono, ui-monospace, monospace);
         font-size: 9px;
         text-align: center;
+    }
+
+    .shoteasy-layer-order-help {
+        margin: -3px 0 0;
+        color: var(--se-muted);
+        font-size: 9px;
+        line-height: 1.45;
     }
 
     .shoteasy-layer-actions {
@@ -1495,6 +1964,8 @@
     }
 
     .shoteasy-layer-actions.is-primary { justify-content: space-between; }
+    .shoteasy-layer-actions.is-order { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .shoteasy-layer-actions.is-order .ant-btn { width: 100%; padding-inline: 3px; font-size: 9px; }
     .shoteasy-layer-actions.is-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .shoteasy-layer-actions.is-grid .ant-btn { width: 100%; padding-inline: 5px; font-size: 10px; }
 
@@ -1549,11 +2020,11 @@
 
     .shoteasy-bottom-toolbar {
         position: absolute;
-        z-index: 10;
+        z-index: var(--se-z-canvas-control);
         left: 50%;
         bottom: 12px;
         transform: translateX(-50%);
-        max-width: calc(100% - 180px);
+        max-width: calc(100% - 24px);
         display: flex;
         align-items: center;
         gap: 4px;
@@ -1676,7 +2147,7 @@
        与工具栏互斥显隐，从左侧滑入/滑出 */
     .shoteasy-bottom-toolbar-collapsed.ant-btn {
         position: absolute;
-        z-index: 10;
+        z-index: var(--se-z-canvas-control);
         left: 12px;
         bottom: 12px;
         width: 34px;
@@ -1714,7 +2185,7 @@
        右下角在窄屏会与之重叠；位置全宽度稳定，不随断点漂移 */
     .shoteasy-zoom-controls {
         position: absolute;
-        z-index: 10;
+        z-index: var(--se-z-canvas-control);
         right: 12px;
         top: 12px;
         display: flex;
@@ -1763,6 +2234,129 @@
     .shoteasy-zoom-controls .ant-btn:hover {
         color: var(--se-accent);
         background: var(--se-accent-soft);
+    }
+
+    .shoteasy-mobile-zoom-trigger.ant-btn,
+    .shoteasy-mobile-annotation-trigger.ant-btn {
+        display: none;
+    }
+
+    .shoteasy-mobile-annotation-trigger.ant-btn {
+        position: absolute;
+        z-index: var(--se-z-canvas-control);
+        left: max(12px, env(safe-area-inset-left));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        padding: 0;
+        align-items: center;
+        justify-content: center;
+        color: var(--se-control-icon);
+        background: color-mix(in srgb, var(--se-panel-muted) 94%, transparent);
+        border: 1px solid var(--se-border-strong);
+        border-radius: 50%;
+        box-shadow: var(--shadow-float);
+        backdrop-filter: blur(8px);
+    }
+
+    .shoteasy-mobile-annotation-trigger.is-active.ant-btn {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+        border-color: var(--se-accent);
+    }
+
+    .shoteasy-mobile-annotation-sheet {
+        display: grid;
+        gap: 18px;
+        padding: 4px 16px max(18px, env(safe-area-inset-bottom));
+    }
+
+    .shoteasy-mobile-annotation-sheet h3 {
+        margin: 0 0 8px;
+        color: var(--se-muted-contrast);
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .shoteasy-mobile-annotation-sheet details {
+        border-top: 1px solid var(--se-border);
+        border-bottom: 1px solid var(--se-border);
+    }
+
+    .shoteasy-mobile-annotation-sheet summary {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        color: var(--se-ink);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .shoteasy-mobile-annotation-sheet details[open] summary {
+        margin-bottom: 8px;
+    }
+
+    .shoteasy-mobile-tool-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+        gap: 8px;
+    }
+
+    .shoteasy-mobile-tool,
+    .shoteasy-mobile-annotation-settings > div {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        color: var(--se-muted-contrast);
+        font-size: 11px;
+    }
+
+    .shoteasy-mobile-tool .ant-btn,
+    .shoteasy-mobile-annotation-settings .ant-btn,
+    .shoteasy-mobile-annotation-settings [role="button"] {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        padding: 0;
+    }
+
+    .shoteasy-mobile-annotation-settings {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(64px, 1fr));
+        gap: 8px;
+    }
+
+    .shoteasy-mobile-annotation-hint {
+        margin: -4px 0 0;
+        color: var(--se-muted-contrast);
+        font-size: 11px;
+        line-height: 1.55;
+    }
+
+    .shoteasy-mobile-annotation-drawer .ant-drawer-content-wrapper {
+        max-height: calc(100dvh - env(safe-area-inset-top));
+    }
+
+    .shoteasy-mobile-annotation-drawer .ant-drawer-header {
+        min-height: 56px;
+        padding: 6px 12px;
+    }
+
+    .shoteasy-mobile-annotation-drawer .ant-drawer-close {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+    }
+
+    .shoteasy-mobile-annotation-drawer input,
+    .shoteasy-mobile-annotation-drawer textarea {
+        font-size: 16px;
     }
 
     .shoteasy-width-button.ant-btn {
@@ -1843,6 +2437,7 @@
     }
 
     .shoteasy-workspace-trigger.ant-btn {
+        display: none;
         height: 34px;
         padding-inline: 10px;
         border-radius: var(--radius-control);
@@ -2006,6 +2601,168 @@
         display: flex;
         flex-direction: column;
         min-height: 100%;
+    }
+
+    .shoteasy-workspace .ant-tabs-nav {
+        margin: 0;
+        padding: 0 20px;
+        background: var(--se-panel, transparent);
+    }
+
+    .shoteasy-workspace .ant-tabs-content-holder {
+        min-height: 260px;
+    }
+
+    .shoteasy-workspace .shoteasy-workspace-section {
+        border-bottom: 0;
+    }
+
+    .shoteasy-export-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .shoteasy-export-panel__heading {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-bottom: 10px;
+    }
+
+    .shoteasy-export-panel__heading strong {
+        color: var(--se-ink, currentColor);
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    .shoteasy-export-panel__heading span,
+    .shoteasy-export-note {
+        color: var(--se-muted, color-mix(in srgb, currentColor 62%, transparent));
+        font-size: 11px;
+        line-height: 1.55;
+    }
+
+    .shoteasy-export-summary {
+        overflow: hidden;
+        border: 1px solid var(--se-border, color-mix(in srgb, currentColor 16%, transparent));
+        border-radius: 12px;
+        background: var(--se-panel-muted, color-mix(in srgb, currentColor 4%, transparent));
+    }
+
+    .shoteasy-export-summary > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 42px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--se-border, color-mix(in srgb, currentColor 16%, transparent));
+    }
+
+    .shoteasy-export-summary > div:last-child {
+        border-bottom: 0;
+    }
+
+    .shoteasy-export-summary span {
+        color: var(--se-muted, color-mix(in srgb, currentColor 62%, transparent));
+        font-size: 11px;
+    }
+
+    .shoteasy-export-summary strong {
+        color: var(--se-ink, currentColor);
+        font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: 12px;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .shoteasy-export-note {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--se-accent-soft, rgba(37, 99, 235, 0.12));
+    }
+
+    .shoteasy-export-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .shoteasy-help-content {
+        color: var(--se-ink, currentColor);
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    .shoteasy-help-steps {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: help-step;
+    }
+
+    .shoteasy-help-steps li {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        column-gap: 10px;
+        counter-increment: help-step;
+    }
+
+    .shoteasy-help-steps li::before {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        grid-row: 1 / span 2;
+        place-items: center;
+        border-radius: 999px;
+        color: var(--se-accent-text, #2563eb);
+        background: var(--se-accent-soft, rgba(37, 99, 235, 0.12));
+        content: counter(help-step);
+        font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: 11px;
+        font-weight: 650;
+    }
+
+    .shoteasy-help-steps span {
+        color: var(--se-muted, color-mix(in srgb, currentColor 62%, transparent));
+        font-size: 12px;
+    }
+
+    .shoteasy-shortcut-list {
+        margin: 0;
+    }
+
+    .shoteasy-shortcut-list > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--se-border, color-mix(in srgb, currentColor 16%, transparent));
+    }
+
+    .shoteasy-shortcut-list > div:last-child {
+        border-bottom: 0;
+    }
+
+    .shoteasy-shortcut-list dd {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 4px;
+        margin: 0;
+    }
+
+    .shoteasy-shortcut-list kbd {
+        padding: 2px 6px;
+        border: 1px solid var(--se-border-strong, color-mix(in srgb, currentColor 28%, transparent));
+        border-radius: 5px;
+        background: var(--se-panel-muted, color-mix(in srgb, currentColor 4%, transparent));
+        font-size: 10px;
     }
 
     .shoteasy-workspace-section {
@@ -2309,6 +3066,17 @@
         transition: width 180ms ease;
     }
 
+    /* 保存后继续的短暂 busy 态仍是可见状态，保持正文达到 WCAG AA 对比度。 */
+    .shoteasy-workspace-guard .ant-btn-primary.ant-btn-loading {
+        color: #ffffff;
+        background: #0958d9;
+        opacity: 1;
+    }
+
+    .shoteasy-workspace-guard .ant-btn-primary.ant-btn-loading > span {
+        opacity: 1;
+    }
+
     @keyframes shake {
         0% { transform: translateX(0); }
         25% { transform: translateX(0.5rem); }
@@ -2321,12 +3089,31 @@
     }
 }
 
+@container screenhello-editor (max-width: 600px) {
+    .shoteasy-bottom-toolbar,
+    .shoteasy-bottom-toolbar-collapsed.ant-btn {
+        display: none;
+    }
+
+    .shoteasy-mobile-annotation-trigger.ant-btn {
+        display: inline-flex;
+    }
+}
+
 @media (max-width: 1023px) {
     .shoteasy-mobile-actions {
         display: flex;
     }
 
     .shoteasy-topbar__divider--meta {
+        display: none;
+    }
+
+    .shoteasy-project-status {
+        max-width: 150px;
+    }
+
+    .shoteasy-project-status span {
         display: none;
     }
 
@@ -2343,14 +3130,46 @@
     }
 }
 
-@media (max-width: 640px) {
-    .shoteasy-topbar {
-        gap: 5px;
-        padding-inline: 8px;
+@media (max-width: 840px) and (min-width: 641px) {
+    .shoteasy-logo > span:last-child {
+        display: none;
     }
 
-    .shoteasy-topbar__brand {
-        max-width: 90px;
+    .shoteasy-app-menu__trigger {
+        min-width: 38px;
+        padding-inline: 6px;
+    }
+
+    .shoteasy-project-status {
+        max-width: 110px;
+        padding-inline: 6px;
+    }
+}
+
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
+    .shoteasy-topbar {
+        min-height: calc(56px + env(safe-area-inset-top));
+        gap: 8px;
+        padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+    }
+
+    .shoteasy-topbar.is-workspace .shoteasy-topbar__brand,
+    .shoteasy-topbar.is-workspace .shoteasy-topbar__divider,
+    .shoteasy-topbar.is-workspace .shoteasy-mobile-actions,
+    .shoteasy-topbar.is-workspace .shoteasy-topbar__spacer,
+    .shoteasy-topbar.is-workspace .shoteasy-workspace-trigger,
+    .shoteasy-topbar.is-workspace .shoteasy-copy-action,
+    .shoteasy-topbar.is-workspace .shoteasy-workspace-mobile-only {
+        display: none;
+    }
+
+    .shoteasy-app-menu {
+        display: none;
+    }
+
+    .shoteasy-mobile-menu-trigger {
+        display: inline-flex;
+        flex: 0 0 auto;
     }
 
     .shoteasy-history {
@@ -2358,10 +3177,15 @@
     }
 
     .shoteasy-top-actions {
-        gap: 3px;
+        gap: 0;
+    }
+
+    .shoteasy-workspace-mobile-only {
+        display: none;
     }
 
     .shoteasy-workspace-trigger.ant-btn {
+        display: inline-flex;
         width: 32px;
         min-width: 32px;
         padding: 0;
@@ -2393,6 +3217,26 @@
         font-size: 11px;
     }
 
+    .shoteasy-project-status {
+        width: auto;
+        min-width: 44px;
+        max-width: none;
+        height: 44px;
+        flex: 1 1 auto;
+        align-items: center;
+        justify-content: center;
+        padding-inline: 8px;
+        text-align: center;
+    }
+
+    .shoteasy-export-primary.ant-btn {
+        width: auto;
+        min-width: 68px;
+        height: 44px;
+        padding: 0 14px;
+        font-size: 13px;
+    }
+
     .shoteasy-empty-state {
         align-items: flex-start;
         padding: 24px 14px;
@@ -2405,6 +3249,169 @@
     .shoteasy-quick-actions .ant-btn {
         justify-content: flex-start;
     }
+
+    .shoteasy-bottom-toolbar,
+    .shoteasy-bottom-toolbar-collapsed.ant-btn,
+    .shoteasy-zoom-controls__group,
+    .shoteasy-zoom-controls__fit.ant-btn {
+        display: none;
+    }
+
+    .shoteasy-mobile-annotation-trigger.ant-btn,
+    .shoteasy-mobile-zoom-trigger.ant-btn {
+        position: absolute;
+        z-index: var(--se-z-canvas-control);
+        bottom: max(12px, env(safe-area-inset-bottom));
+        display: inline-flex;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        padding: 0;
+        align-items: center;
+        justify-content: center;
+        color: var(--se-control-icon);
+        background: color-mix(in srgb, var(--se-panel-muted) 94%, transparent);
+        border: 1px solid var(--se-border-strong);
+        border-radius: 50%;
+        box-shadow: var(--shadow-float);
+        backdrop-filter: blur(8px);
+    }
+
+    .shoteasy-mobile-annotation-trigger.ant-btn {
+        left: max(12px, env(safe-area-inset-left));
+    }
+
+    .shoteasy-mobile-annotation-trigger.is-active.ant-btn {
+        color: var(--se-accent);
+        background: var(--se-accent-soft);
+        border-color: var(--se-accent);
+    }
+
+    .shoteasy-zoom-controls {
+        top: auto;
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        width: 44px;
+        height: 44px;
+    }
+
+    .shoteasy-mobile-zoom-trigger.ant-btn {
+        right: 0;
+        bottom: 0;
+        border-radius: 50%;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-drawer-content-wrapper,
+    .shoteasy-mobile-annotation-drawer .ant-drawer-content-wrapper {
+        max-height: calc(100dvh - env(safe-area-inset-top));
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-drawer-header,
+    .shoteasy-mobile-annotation-drawer .ant-drawer-header {
+        min-height: 56px;
+        padding: 6px 12px;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-drawer-close,
+    .shoteasy-mobile-annotation-drawer .ant-drawer-close {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-tabs-nav {
+        margin: 0;
+        padding-inline: 8px;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-tabs-tab {
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+        padding: 0 4px;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-tabs-tab-btn {
+        display: inline-flex;
+        min-width: 44px;
+        min-height: 44px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-tabs-content-holder {
+        min-height: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        padding: 8px 8px max(14px, env(safe-area-inset-bottom));
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-menu {
+        border-inline-end: 0;
+    }
+
+    .shoteasy-mobile-menu-drawer .ant-menu-item,
+    .shoteasy-mobile-menu-drawer .ant-menu-submenu-title {
+        min-height: 44px;
+        height: auto;
+        margin-block: 2px;
+        white-space: normal;
+    }
+
+    .shoteasy-mobile-menu-drawer .shoteasy-command-label {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .shoteasy-mobile-zoom-menu {
+        z-index: var(--se-z-popup);
+    }
+
+    .shoteasy-annotation-popup {
+        z-index: var(--se-z-popup);
+    }
+
+    .shoteasy-mobile-zoom-menu .ant-dropdown-menu-item {
+        min-width: 148px;
+        min-height: 44px;
+    }
+
+    .shoteasy-mobile-menu-drawer input,
+    .shoteasy-mobile-menu-drawer textarea,
+    .shoteasy-mobile-annotation-drawer input,
+    .shoteasy-mobile-annotation-drawer textarea,
+    .shoteasy-project-status-popover input,
+    .shoteasy-workspace-drawer input,
+    .shoteasy-color-picker-panel input[type="text"] {
+        font-size: 16px;
+    }
+
+    .shoteasy-mobile-annotation-settings .shoteasy-width-button.ant-btn {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+    }
+}
+
+.shoteasy-workspace-guard,
+.shoteasy-help-modal,
+.shoteasy-cropper-modal,
+.shoteasy-workspace-modal {
+    z-index: var(--se-z-modal);
+}
+
+.shoteasy-overlay-drawer,
+.shoteasy-compact-panel-drawer,
+.shoteasy-mobile-menu-drawer,
+.shoteasy-mobile-annotation-drawer {
+    z-index: var(--se-z-overlay) !important;
+}
+
+.shoteasy-annotation-popup {
+    z-index: var(--se-z-popup) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -18,9 +18,15 @@ export default function UploadBackground({ compact = false }) {
     };
     if (compact) {
         return (
-            <label className="shoteasy-bg-upload-compact" aria-label="上传本地图片" title="上传本地图片">
+            <label className="shoteasy-bg-upload-compact" title="上传本地图片">
                 <Icon.Upload size={16} />
-                <input type="file" accept="image/*" className="sr-only" onChange={handleUpload} />
+                <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    aria-label="上传本地图片"
+                    onChange={handleUpload}
+                />
             </label>
         );
     }

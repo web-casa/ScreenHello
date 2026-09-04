@@ -4,7 +4,7 @@ import Icon from '@components/Icon';
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'));
 
-const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect, locale = 'en', theme = 'auto' }, ref) {
+const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect, locale = 'en', theme = 'auto', className }, ref) {
     const [open, setOpen] = useState(false);
     const hide = () => {
         setOpen(false);
@@ -29,6 +29,7 @@ const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect
             )}
             title=""
             trigger="click"
+            rootClassName="shoteasy-annotation-popup"
             open={open}
             onOpenChange={handleOpenChange}
         >
@@ -36,6 +37,7 @@ const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect
                 ref={ref}
                 type="text"
                 shape="circle"
+                className={className}
                 disabled={disabled}
                 aria-label="选择表情"
                 icon={<Icon.Smile size={16} />}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { Builder, Browser, By, Key, until } from 'selenium-webdriver';
+import { Builder, Browser, By, until } from 'selenium-webdriver';
 import { Options as SafariOptions, ServiceBuilder as SafariServiceBuilder } from 'selenium-webdriver/safari.js';
 import { browserVersionIsAccepted } from '../../scripts/browser-version-policy.mjs';
 import { createSessionWithRetry } from '../../scripts/webdriver-session-retry.mjs';
@@ -64,7 +64,7 @@ const browserMap = {
     safari: Browser.SAFARI,
 };
 const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     target: target.id,
     testedAt: new Date().toISOString(),
     source: redact(process.env.SCREENHELLO_BROWSER_SOURCE || 'selenium-remote'),
@@ -98,19 +98,213 @@ const waitForEnabled = async (selector) => {
     return element;
 };
 
+const clickMenuItem = async (menuLabel, itemLabel) => {
+    const opened = await driver.executeScript((label) => {
+        const trigger = [...document.querySelectorAll('[role="menubar"] [role="menuitem"]')]
+            .find((element) => element.textContent?.trim() === label);
+        trigger?.click();
+        return Boolean(trigger);
+    }, menuLabel);
+    assert.equal(opened, true, `${target.id}: missing ${menuLabel} menu`);
+    await driver.wait(async () => driver.executeScript((label) => (
+        [...document.querySelectorAll('.shoteasy-command-menu [role="menuitem"]')]
+            .some((element) => element.offsetParent && element.textContent?.includes(label))
+    ), itemLabel), 10_000, `${target.id}: missing ${itemLabel} menu item`);
+    const clicked = await driver.executeScript((label) => {
+        const item = [...document.querySelectorAll('.shoteasy-command-menu [role="menuitem"]')]
+            .find((element) => element.offsetParent && element.textContent?.includes(label));
+        item?.click();
+        return Boolean(item);
+    }, itemLabel);
+    assert.equal(clicked, true, `${target.id}: could not click ${itemLabel}`);
+};
+
 const selectFormat = async (format) => {
-    const trigger = await waitForEnabled('[aria-label^="导出格式与倍率"]');
+    const trigger = await waitForEnabled('[aria-label="导出图片"]');
     await trigger.click();
     const selected = await driver.executeScript((value) => {
-        const segmented = document.querySelector('.shoteasy-export-popover .ant-segmented');
+        const segmented = document.querySelector('.shoteasy-export-drawer .ant-segmented');
         const option = [...(segmented?.querySelectorAll('label') || [])]
             .find((label) => label.textContent?.trim() === value);
         option?.click();
         return Boolean(option);
-    }, format);
+    }, format.toUpperCase());
     assert.equal(selected, true, `${target.id}: missing ${format} format option`);
-    await driver.wait(async () => (await trigger.getAttribute('aria-label'))?.includes(format.toUpperCase()), 10_000);
-    await driver.findElement(By.css('body')).sendKeys(Key.ESCAPE);
+};
+
+const waitForVisibleSelector = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
+    const element = document.querySelector(value);
+    if (!element) return false;
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+}, selector), 20_000, `${target.id}: ${message}`);
+
+const waitForHiddenSelector = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
+    const element = document.querySelector(value);
+    if (!element) return true;
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0;
+}, selector), 20_000, `${target.id}: ${message}`);
+
+const waitForStablePopup = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
+    const element = document.querySelector(value);
+    if (!element) return false;
+    const style = getComputedStyle(element);
+    const transform = style.transform;
+    return style.opacity === '1'
+        && (transform === 'none' || transform === 'matrix(1, 0, 0, 1, 0, 0)');
+}, selector), 20_000, `${target.id}: ${message}`);
+
+const checkMobileWeb = async () => {
+    const requestedWindow = await driver.manage().window().setRect({ width: 430, height: 900 });
+    await driver.wait(async () => driver.executeScript(() => innerWidth <= 640), 20_000,
+        `${target.id}: browser did not enter the mobile CSS viewport`);
+    await waitForVisibleSelector('.shoteasy-mobile-menu-trigger', 'mobile menu trigger was not visible');
+
+    const shell = await driver.executeScript((windowRect) => {
+        const visible = (element) => {
+            if (!element) return false;
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        };
+        const selectors = [
+            '.shoteasy-mobile-menu-trigger',
+            '.shoteasy-project-status',
+            '[aria-label="导出图片"]',
+            '.shoteasy-mobile-annotation-trigger',
+            '.shoteasy-mobile-zoom-trigger',
+        ];
+        const targets = selectors.map((selector) => document.querySelector(selector));
+        const targetSizes = targets.map((element) => {
+            const rect = element?.getBoundingClientRect();
+            return rect ? Math.min(rect.width, rect.height) : 0;
+        });
+        const topbar = document.querySelector('.shoteasy-topbar');
+        return {
+            viewport: { width: innerWidth, height: innerHeight },
+            requestedWindow: windowRect,
+            allTargetsVisible: targets.every(visible),
+            minimumTargetSize: Math.round(Math.min(...targetSizes)),
+            desktopMenuHidden: !visible(document.querySelector('.shoteasy-app-menu')),
+            topbarButtonCount: [...(topbar?.querySelectorAll('button') || [])].filter(visible).length,
+            noHorizontalOverflow: (
+                document.documentElement.scrollWidth <= document.documentElement.clientWidth
+                && topbar.scrollWidth <= topbar.clientWidth
+            ),
+        };
+    }, requestedWindow);
+    assert.equal(shell.allTargetsVisible, true, `${target.id}: a mobile primary action was not visible`);
+    assert.equal(shell.desktopMenuHidden, true, `${target.id}: desktop menu remained visible on mobile`);
+    assert.equal(shell.topbarButtonCount, 3, `${target.id}: mobile topbar must expose exactly three buttons`);
+    assert.ok(shell.minimumTargetSize >= 44, `${target.id}: mobile target was smaller than 44px`);
+    assert.equal(shell.noHorizontalOverflow, true, `${target.id}: mobile shell overflowed horizontally`);
+
+    await (await waitForEnabled('.shoteasy-mobile-menu-trigger')).click();
+    await waitForVisibleSelector('.shoteasy-mobile-menu-drawer [role="dialog"]', 'mobile application menu did not open');
+    await waitForStablePopup('.shoteasy-mobile-menu-drawer .ant-drawer-content-wrapper',
+        'mobile application menu did not finish opening');
+    const menu = await driver.executeScript(() => {
+        const drawer = document.querySelector('.shoteasy-mobile-menu-drawer [role="dialog"]');
+        const tabs = [...(drawer?.querySelectorAll('[role="tab"]') || [])].map((tab) => tab.textContent?.trim());
+        const controls = [...(drawer?.querySelectorAll('[role="tab"], [role="menuitem"], .ant-drawer-close') || [])]
+            .filter((element) => element.offsetParent);
+        const targetSizes = controls.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                name: element.getAttribute('aria-label') || element.textContent?.trim(),
+                role: element.getAttribute('role') || element.tagName.toLowerCase(),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+            };
+        });
+        const hasNewProject = [...(drawer?.querySelectorAll('[role="menuitem"]') || [])]
+            .some((item) => item.textContent?.includes('新建项目'));
+        return {
+            tabs,
+            hasNewProject,
+            minimumTargetSize: Math.min(...targetSizes.map(({ width, height }) => Math.min(width, height))),
+            undersizedTargets: targetSizes.filter(({ width, height }) => width < 44 || height < 44),
+            noHorizontalOverflow: drawer.scrollWidth <= drawer.clientWidth,
+        };
+    });
+    assert.deepEqual(menu.tabs, ['文件', '编辑', '视图', '帮助'], `${target.id}: mobile menu sections changed`);
+    assert.equal(menu.hasNewProject, true, `${target.id}: mobile file menu was not reachable`);
+    assert.deepEqual(menu.undersizedTargets, [],
+        `${target.id}: mobile menu targets were smaller than 44px: ${JSON.stringify(menu.undersizedTargets)}`);
+    assert.equal(menu.noHorizontalOverflow, true, `${target.id}: mobile menu overflowed horizontally`);
+    await (await waitForEnabled('.shoteasy-mobile-menu-drawer .ant-drawer-close')).click();
+    await waitForHiddenSelector('.shoteasy-mobile-menu-drawer [role="dialog"]', 'mobile application menu did not close');
+
+    await (await waitForEnabled('.shoteasy-mobile-annotation-trigger')).click();
+    await waitForVisibleSelector('.shoteasy-mobile-annotation-drawer [role="dialog"]', 'mobile annotation sheet did not open');
+    await waitForStablePopup('.shoteasy-mobile-annotation-drawer .ant-drawer-content-wrapper',
+        'mobile annotation sheet did not finish opening');
+    const annotation = await driver.executeScript(() => {
+        const drawer = document.querySelector('.shoteasy-mobile-annotation-drawer [role="dialog"]');
+        const primarySection = document.querySelector('[aria-labelledby="shoteasy-mobile-primary-tools"]');
+        const buttons = [...(primarySection?.querySelectorAll('.shoteasy-mobile-tool-grid button') || [])];
+        return {
+            labels: buttons.map((button) => button.getAttribute('aria-label')),
+            minimumTargetSize: Math.round(Math.min(...buttons.map((button) => {
+                const rect = button.getBoundingClientRect();
+                return Math.min(rect.width, rect.height);
+            }))),
+            noHorizontalOverflow: drawer.scrollWidth <= drawer.clientWidth,
+        };
+    });
+    assert.deepEqual(annotation.labels, ['矩形', '实心矩形', '圆形', '直线', '箭头', '画笔'],
+        `${target.id}: mobile primary annotation tools changed`);
+    assert.ok(annotation.minimumTargetSize >= 44, `${target.id}: annotation target was smaller than 44px`);
+    assert.equal(annotation.noHorizontalOverflow, true, `${target.id}: annotation sheet overflowed horizontally`);
+    await (await waitForEnabled('.shoteasy-mobile-annotation-drawer .ant-drawer-close')).click();
+    await waitForHiddenSelector('.shoteasy-mobile-annotation-drawer [role="dialog"]', 'mobile annotation sheet did not close');
+
+    await (await waitForEnabled('.shoteasy-mobile-zoom-trigger')).click();
+    await waitForVisibleSelector('.shoteasy-mobile-zoom-menu [role="menu"]', 'mobile zoom menu did not open');
+    await waitForStablePopup('.shoteasy-mobile-zoom-menu', 'mobile zoom menu did not finish opening');
+    const zoom = await driver.executeScript(() => {
+        const menuElement = document.querySelector('.shoteasy-mobile-zoom-menu [role="menu"]');
+        const items = [...document.querySelectorAll('.shoteasy-mobile-zoom-menu [role="menuitem"]')]
+            .filter((item) => item.offsetParent);
+        const targetSizes = items.map((item) => {
+            const rect = item.getBoundingClientRect();
+            return {
+                name: item.textContent?.trim(),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+            };
+        });
+        return {
+            labels: items.map((item) => item.textContent?.trim()),
+            minimumTargetSize: Math.min(...targetSizes.map(({ width, height }) => Math.min(width, height))),
+            undersizedTargets: targetSizes.filter(({ width, height }) => width < 44 || height < 44),
+            noHorizontalOverflow: menuElement.scrollWidth <= menuElement.clientWidth,
+        };
+    });
+    assert.deepEqual(zoom.labels, ['放大', '缩小', '100%', '适应画布'], `${target.id}: mobile zoom commands changed`);
+    assert.deepEqual(zoom.undersizedTargets, [],
+        `${target.id}: mobile zoom targets were smaller than 44px: ${JSON.stringify(zoom.undersizedTargets)}`);
+    assert.equal(zoom.noHorizontalOverflow, true, `${target.id}: mobile zoom menu overflowed horizontally`);
+
+    const minimumTargetSize = Math.min(
+        shell.minimumTargetSize,
+        menu.minimumTargetSize,
+        annotation.minimumTargetSize,
+        zoom.minimumTargetSize
+    );
+
+    return {
+        viewport: shell.viewport,
+        topbarActions: ['menu', 'project-status', 'export'],
+        menuSections: ['file', 'edit', 'view', 'help'],
+        annotationSheet: true,
+        zoomMenu: true,
+        minimumTargetSize,
+        noHorizontalOverflow: true,
+    };
 };
 
 const validSignature = (format, hex) => {
@@ -273,20 +467,18 @@ try {
         return true;
     }, pngBase64);
     assert.equal(injected, true, `${target.id}: fixture input was not available`);
-    await waitForEnabled('[aria-label="下载图片"]');
+    await waitForEnabled('[aria-label="导出图片"]');
 
     const noBackground = await driver.wait(until.elementLocated(By.css('.shoteasy-inspector [title="无背景"]')), 20_000);
     await noBackground.click();
-    const undo = await waitForEnabled('[aria-label="撤销"]');
-    await undo.click();
-    const redo = await waitForEnabled('[aria-label="重做"]');
-    await redo.click();
+    await clickMenuItem('编辑', '撤销');
+    await clickMenuItem('编辑', '重做');
 
     const downloads = [];
     for (const format of ['png', 'jpg', 'webp', 'avif']) {
         await selectFormat(format);
         const previousCount = downloads.length;
-        await (await waitForEnabled('[aria-label="下载图片"]')).click();
+        await (await waitForEnabled('[data-testid="export-download"]')).click();
         await driver.wait(async () => {
             const recordsJson = await driver.executeScript(() => JSON.stringify(window.__screenhelloReleaseDownloads || []));
             const records = JSON.parse(recordsJson);
@@ -299,6 +491,8 @@ try {
         assert.ok(record.size > 0, `${target.id}: empty ${format} export`);
         assert.equal(validSignature(format, record.hex), true, `${target.id}: invalid ${format} signature`);
     }
+
+    const mobileWeb = await checkMobileWeb();
 
     const browserState = await driver.executeScript(() => ({
         errors: window.__screenhelloReleaseErrors,
@@ -318,6 +512,7 @@ try {
         coreEditUndoRedo: true,
         imageExports: downloads.map(({ name, type, size }) => ({ name, type, size })),
         localResourceRequests: true,
+        mobileWeb,
         secureContext: browserState.secureContext,
         serviceWorkerApi: browserState.serviceWorker,
     };

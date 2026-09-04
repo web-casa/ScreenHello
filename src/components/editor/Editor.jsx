@@ -6,14 +6,23 @@ import BottomToolbar from './BottomToolbar';
 import Icon from '@components/Icon';
 import { cn } from '@utils/utils';
 import useStores from '@stores/useStores';
-import useSetImg from '@hooks/useSetImg';
 import useImageDrop from '@hooks/useImageDrop';
 
 export default observer(function Editor() {
     const stores = useStores();
     const [target, setTarget] = useState(null);
-    const getFile = useSetImg(stores);
-    const handleDropFile = async (file) => getFile(file, 'blob', { replace: true });
+    const handleDropFile = async (file) => {
+        if (!stores.workspace.enabled) {
+            await stores.commands.replaceAllImage(file);
+            return;
+        }
+        const command = stores.commands.get('file.replaceActiveImage');
+        if (!command.enabled) {
+            stores.editor.message?.info?.(command.disabledReason);
+            return;
+        }
+        await command.execute({ file });
+    };
     const showImageError = () => stores.editor.message?.error?.('图片加载失败，请选择有效图片');
     const { isDragging, dragProps } = useImageDrop(handleDropFile, showImageError);
 
@@ -34,7 +43,7 @@ export default observer(function Editor() {
                 {target && <View target={target} />}
             </div>
             <Zoom />
-            <BottomToolbar />
+            {stores.commands.annotationToolsVisible && <BottomToolbar />}
         </div>
     );
 });

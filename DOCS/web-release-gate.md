@@ -1,10 +1,20 @@
 # Web Release Gate
 
-> 评估日期：2026-09-03。当前结论：**GO，Phase 7.6 发布门通过**。工程门禁、颜色面板可访问性修复和同一候选提交的四浏览器可信证据均已通过；进入 Phase 8 仍需单独启动，不由本结论自动执行。
+> 评估日期：2026-09-04。当前结论：**本地 GO / 远端 HOLD**。Phase 8.5 本地工程、视觉与 review/fix 已通过；正式公开候选尚未写入远端 ref，因此当前候选的同 SHA 公共 CI 和四浏览器可信证据尚未生成。下文保留 Phase 7 已通过证据作为历史基线，但不能替代本次复验。
+
+## 0. Phase 8.5 当前候选
+
+- 当前 Chromium/Firefox/WebKit 94 passed / 20 expected skipped，production release 9/9，PWA 5/5，26 files / 188 unit tests，以及 library consumer dev/preview 均通过。
+- 390/430/768/1024/1440 深浅主题 10 组为 0 axe violation、0 页面/顶栏横向溢出、0 外网请求、0 page error；390/430 没有小于 44 px 的可见目标，代表截图已人工复核。
+- 终审修复了关闭态 ColorPicker 悬空 `aria-controls`、toolbar/file input 语义，以及真正 `role=tab` 节点只有 28×22 px 的移动触控问题。
+- minimum-browser evidence 升为 schema v2：四份同 SHA 证据必须额外包含小于等于 640 px 的实际 viewport、三项顶栏动作、四菜单、标注/缩放入口、最小 44 px 目标与无横向溢出。
+- digest-pinned Chrome 111 和 Edge 111 的本地仿真增强 smoke 已通过，但审计器会拒绝这种执行环境；它们只证明脚本可运行，不是正式证据。
+
+公开仓 `main` 仍是 Phase 7 的 `4d318fa9ea8961faf148d22720458b7e8b4af7eb`。取得单独写入授权后，应在其上建立正常增量候选，让公开仓自身重跑 CI 和 browser matrix，再下载四份 schema v2 JSON 汇总审计。
 
 ## 1. 判定规则
 
-ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目标、当前引擎回归、构建/许可/体积门、核心用户链路、本地优先与可访问性必须同时有证据。缺文件、版本不精确、候选提交不一致、非可信执行环境或把 Playwright WebKit 当成 Safari，都会判定失败。
+ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目标、当前引擎回归、构建/许可/体积门、核心用户链路、本地优先、移动 Web 与可访问性必须同时有证据。缺文件、版本不精确、候选提交不一致、移动证据不完整、非可信执行环境或把 Playwright WebKit 当成 Safari，都会判定失败。
 
 最低支持范围仍为 Chrome 111+、Edge 111+、Firefox 128+、Safari 16.4+。Chrome/Edge/Firefox 使用返回的 WebDriver capabilities 核对真实浏览器名和完整版本；Safari 接受 Apple 设备、可信浏览器云或用户确认的 GitHub `macos-14` 原生 Safari，并记录 runner、平台与实际版本。`macos-14` 采用“实际 Safari 版本不低于 16.4”的策略，不伪称精确重放 Safari 16.4。四份证据必须对应同一个 40 位 Git commit SHA。
 
@@ -21,7 +31,7 @@ ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目�
 
 这些本地结果与下一节的真实浏览器矩阵是两层独立证据；Playwright WebKit 本身仍不被当作 Safari。
 
-## 3. 最低浏览器证据状态
+## 3. Phase 7.6 历史最低浏览器证据
 
 | 目标 | 可信执行环境 | 实测版本 | 当前状态 |
 | --- | --- | --- | --- |
@@ -30,7 +40,7 @@ ScreenHello 的 Web Release Gate 采用 fail-closed：四个最低浏览器目�
 | Firefox 128 | GitHub `ubuntu-24.04` 原生 amd64 + digest-pinned Selenium | 128.0.3 | 通过 |
 | Safari 16.4+ | GitHub `macos-14` + 系统 SafariDriver | Safari 26.5 / macOS 14 | 通过用户确认的 hosted-current 验收；未精确重放 16.4 |
 
-候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四份证据均通过导入、编辑、撤销/重做、PNG/JPEG/WebP/AVIF 签名、MIME、非空输出及同源请求检查，汇总审计 `failures` 为空。Safari 会话第一次尝试即成功；其原生 WebP 探测明确记录 `observedMimeType: image/png`，最终软件回退输出 `image/webp`。
+候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四份 schema v1 历史证据均通过导入、编辑、撤销/重做、PNG/JPEG/WebP/AVIF 签名、MIME、非空输出及同源请求检查，汇总审计 `failures` 为空。Safari 会话第一次尝试即成功；其原生 WebP 探测明确记录 `observedMimeType: image/png`，最终软件回退输出 `image/webp`。它没有 Phase 8.5 移动检查，因此不能作为当前候选证据。
 
 首次公开前通过的 browser matrix 同时执行三个原生 amd64 目标和 `macos-14` Safari。正式公共候选仍须运行仓库内同一 workflow 并保留公开 run/evidence。精确 Safari 16.4 仍是未覆盖的历史下界风险；当前接受的是 `macos-14` hosted-current Safari，不应改写成“已精确验证 16.4”。
 
@@ -77,11 +87,13 @@ workflow 在 `macos-14` 上执行系统 `safaridriver --enable`，由 Selenium �
 SCREENHELLO_RELEASE_CANDIDATE='<same 40-character commit SHA>' pnpm audit:release:browsers
 ```
 
-证据默认写入忽略提交的 `artifacts/release/browser-matrix/`。provider options 只从环境读取，报告只记录 capability key，不记录其值；runner 还会从 source、错误和浏览器日志中清除 WebDriver endpoint 及已识别的 username/password/access-key/token/secret。审计器会拒绝失败记录、错误版本/MIME、非可信架构、非固定原生镜像、候选提交不一致、缺失 Safari 环境说明以及任何标记为 Playwright WebKit 的 Safari 结果。
+证据默认写入忽略提交的 `artifacts/release/browser-matrix/`。provider options 只从环境读取，报告只记录 capability key，不记录其值；runner 还会从 source、错误和浏览器日志中清除 WebDriver endpoint 及已识别的 username/password/access-key/token/secret。当前审计器只接受 schema v2，并会拒绝失败记录、错误版本/MIME、移动 Web 字段不完整、非可信架构、非固定原生镜像、候选提交不一致、缺失 Safari 环境说明以及任何标记为 Playwright WebKit 的 Safari 结果。
 
-## 6. 结论与后续边界
+## 6. 历史结论与当前边界
 
-在用户接受 `macos-14` hosted-current Safari 作为 Apple 验收环境后，候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四浏览器证据和 fail-closed 汇总审计均通过，Phase 7.6 与整个 Phase 7 可以标记 complete。
+在用户接受 `macos-14` hosted-current Safari 作为 Apple 验收环境后，候选提交 `35e3fdeb47c27d806e15411e5c0637c2607a13ca` 的四浏览器证据和 fail-closed 汇总审计均通过，因此 Phase 7.6 与整个 Phase 7 已 complete。
+
+Phase 8.5 的本地结果已经 GO，但其公开候选仍需单独远端授权、公共 CI 和 schema v2 浏览器矩阵。完成前保持远端 HOLD，不能创建 tag/release、部署 Web 或发布 npm。
 
 本结论不自动授权 deploy、npm publish、正式公开仓库晋级、桌面版或 Chrome/Edge 扩展，也不把 Safari 26.5 结果夸大为精确 Safari 16.4 证据。下一阶段应在新的 Phase 8 启动指令和范围 review 后进行。
 

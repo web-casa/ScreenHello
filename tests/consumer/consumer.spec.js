@@ -60,6 +60,8 @@ test('isolates two library instances, drafts, shortcuts, and unmount/remount', a
 
     await expect(apps).toHaveCount(2);
     await expect(page.getByRole('button', { name: '打开批量处理' })).toHaveCount(0);
+    await expect(page.getByRole('menubar', { name: '应用菜单' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^项目：/ })).toHaveCount(0);
     await expect(first).toHaveCSS('display', 'flex');
     await expect(second).toHaveCSS('display', 'flex');
     await expect.poll(() => page.evaluate(() => {
@@ -92,6 +94,13 @@ test('isolates two library instances, drafts, shortcuts, and unmount/remount', a
     });
     await expect(page.locator('#consumer-a').getByRole('button', { name: '下载图片' })).toBeEnabled();
     await expect(page.locator('#consumer-b').getByRole('button', { name: '下载图片' })).toBeDisabled();
+
+    await page.locator('#consumer-a .shoteasy-editor-canvas').click({ position: { x: 20, y: 20 } });
+    const shortcutDownloadPromise = page.waitForEvent('download');
+    await page.keyboard.press('Control+s');
+    const shortcutDownload = await shortcutDownloadPromise;
+    expect(shortcutDownload.suggestedFilename()).toBe('ScreenHello.png');
+    expect((await readDownload(shortcutDownload)).subarray(1, 4).toString('ascii')).toBe('PNG');
 
     await page.locator('#consumer-a').getByRole('button', { name: /导出格式与倍率/ }).click();
     await page.locator('.shoteasy-export-popover:visible .ant-segmented-item').filter({ hasText: 'avif' }).click();

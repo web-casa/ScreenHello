@@ -34,6 +34,29 @@ afterEach(() => {
 });
 
 describe('DraftService multi-image persistence', () => {
+    it('reports unavailable, waiting, saving, and saved independently of project dirty state', async () => {
+        vi.useFakeTimers();
+        const runtime = createRuntime();
+        runtime.editor.replaceImg({ src: 'data:image/png;base64,one', width: 64, height: 48, name: 'one.png', type: 'image/png' });
+        runtime.workspace.isDirty = true;
+        runtime.draftService.setup({ key: 'status', autoRestore: false });
+        vi.spyOn(runtime.draftService, '_srcToBlob').mockResolvedValue(new Blob(['image'], { type: 'image/png' }));
+        const pending = deferred();
+        vi.spyOn(runtime.draftStore, 'saveAsset').mockReturnValue(pending.promise);
+        vi.spyOn(runtime.draftStore, 'saveProject').mockResolvedValue(undefined);
+
+        runtime.option.setPadding(8);
+        expect(runtime.draftService.status).toBe('waiting');
+        const flushing = runtime.draftService.flush();
+        await vi.waitFor(() => expect(runtime.draftService.status).toBe('saving'));
+        pending.resolve();
+        await expect(flushing).resolves.toBe(true);
+
+        expect(runtime.draftService.status).toBe('saved');
+        expect(runtime.workspace.isDirty).toBe(true);
+        vi.useRealTimers();
+    });
+
     it('writes every image asset before committing a V2 document', async () => {
         const runtime = createRuntime();
         runtime.editor.replaceImg({ src: 'data:image/png;base64,one', width: 64, height: 48, name: 'one.png', type: 'image/png' });
@@ -53,6 +76,8 @@ describe('DraftService multi-image persistence', () => {
         expect(saveProject).toHaveBeenCalledOnce();
         expect(events.filter((event) => event.startsWith('asset:'))).toHaveLength(2);
         expect(events.at(-1)).toBe('project');
+        expect(runtime.draftService.status).toBe('saved');
+        expect(runtime.draftService.lastSavedAt).toEqual(expect.any(Number));
     });
 
     it('does not commit the document when a later image asset fails', async () => {
@@ -67,8 +92,31 @@ describe('DraftService multi-image persistence', () => {
             .mockRejectedValueOnce(new Error('idb-transaction-failed'));
         const saveProject = vi.spyOn(runtime.draftStore, 'saveProject').mockResolvedValue(undefined);
 
-        await expect(runtime.draftService.flush()).resolves.toBe(true);
+        await expect(runtime.draftService.flush()).resolves.toBe(false);
         expect(saveProject).not.toHaveBeenCalled();
+        expect(runtime.draftService.status).toBe('error');
+        expect(runtime.draftService.errorCode).toBe('idb-transaction-failed');
+
+        await expect(runtime.draftService.flush()).resolves.toBe(false);
+        expect(runtime.draftService.status).toBe('error');
+        expect(runtime.draftService.errorCode).toBe('idb-transaction-failed');
+    });
+
+    it('keeps a blocked image save in the error state without repeating its warning', async () => {
+        const runtime = createRuntime();
+        const warning = vi.fn();
+        runtime.editor.setMessage({ warning });
+        runtime.editor.replaceImg({ src: 'blob:unreadable', width: 64, height: 48, name: 'unreadable.png', type: 'image/png' });
+        runtime.draftService.setup({ key: 'blocked-image', autoRestore: false });
+        vi.spyOn(runtime.draftService, '_srcToBlob').mockResolvedValue(null);
+
+        await expect(runtime.draftService.flush()).resolves.toBe(false);
+        expect(runtime.draftService.status).toBe('error');
+        expect(runtime.draftService.errorCode).toBe('image-blob-unavailable');
+        await expect(runtime.draftService.flush()).resolves.toBe(false);
+
+        expect(runtime.draftService.status).toBe('error');
+        expect(warning).toHaveBeenCalledOnce();
     });
 
     it('does not report an obsolete save failure after teardown', async () => {

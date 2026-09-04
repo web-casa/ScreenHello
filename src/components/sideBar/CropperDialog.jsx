@@ -31,6 +31,8 @@ export default observer(function CropperDialog({ onClose }) {
 
     return (
         <Modal
+            rootClassName="shoteasy-cropper-modal"
+            zIndex={1100}
             title="裁剪"
             open
             onOk={handleOk}

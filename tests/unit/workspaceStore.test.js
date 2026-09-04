@@ -43,6 +43,26 @@ afterEach(() => {
 });
 
 describe('WorkspaceStore', () => {
+    it('keeps project-file status independent from draft persistence', () => {
+        const runtime = createRuntime();
+
+        runtime.workspace.resetProject();
+        expect(runtime.workspace.projectFileStatus).toBe('never-saved');
+        expect(runtime.workspace.lastSavedAt).toBeNull();
+
+        runtime.workspace.isDirty = true;
+        expect(runtime.workspace.projectFileStatus).toBe('dirty');
+        runtime.workspace.busy = 'save';
+        expect(runtime.workspace.projectFileStatus).toBe('saving');
+        runtime.workspace.busy = null;
+        runtime.workspace.saveErrorCode = 'write-failed';
+        expect(runtime.workspace.projectFileStatus).toBe('error');
+
+        runtime.workspace._markClean();
+        expect(runtime.workspace.projectFileStatus).toBe('saved');
+        expect(runtime.workspace.lastSavedAt).toEqual(expect.any(Number));
+    });
+
     it('keeps the current project when a later image fails decoding', async () => {
         class FakeImage {
             width = 64;

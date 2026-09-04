@@ -34,13 +34,15 @@ Vite 以 ES module 形式输出 `lib/image-beautifier.es.js`（历史产物名�
 | `boxClassName` | `string` | `''` | 合并到顶层容器的 className |
 | `onClear` | `() => void` | `undefined` | 用户确认删除当前截图后调用 |
 | `persistence` | `false` 或 `{ key: string, autoRestore?: boolean }` | `false` | 显式开启 IndexedDB 草稿；按 `key` 隔离，`autoRestore` 默认开启 |
-| `workspace` | `boolean` | `false` | 显式开启项目中心、项目/预设文件、最近项目和本地样式建议；独立站默认传入 `true` |
+| `workspace` | `boolean` | `false` | 显式开启独立站菜单、项目/预设文件、本地资料库和本地样式建议；独立站默认传入 `true` |
 
 `defaultImg` 通过 `<img>` 加载；非 data URL 会设置 `crossOrigin="Anonymous"`。远程服务器必须允许跨域，否则载入或导出可能失败。组件不会释放宿主通过 `defaultImg` 传入的 `blob:` URL；由文件导入或草稿恢复创建的 object URL 则归对应实例管理并在替换/卸载时释放。
 
 `persistence` 默认关闭，组件不会因草稿服务访问 IndexedDB。开启后，项目变化会以 750ms 防抖保存；关联的原图和上传背景以二进制字节保存，读取时恢复为 Blob，以兼容当前三种浏览器引擎。组件卸载只释放运行时 object URL，不删除草稿。传入 `defaultImg` 时优先使用宿主图片，不自动覆盖为草稿。
 
-`workspace` 与 `persistence` 是独立开关。开启 `workspace` 后，项目中心会使用 IndexedDB 保存最近项目和风格预设，并提供 `.screenhello` / `.screenhello-preset` 文件交换；宿主若希望自动草稿恢复，仍需同时传入独立、稳定的 `persistence.key`。保留默认值 `false` 是为了不让现有 library 消费端静默出现 UI 或本地存储副作用。
+`workspace` 与 `persistence` 是独立开关。开启 `workspace` 后，独立站菜单与本地资料库会使用 IndexedDB 保存最近项目和风格预设，并提供 `.screenhello` / `.screenhello-preset` 文件交换；宿主若希望自动草稿恢复，仍需同时传入独立、稳定的 `persistence.key`。保留默认值 `false` 是为了不让现有 library 消费端静默出现这些 UI 或本地存储副作用。
+
+`workspace=true` 会把 `Cmd/Ctrl+S` 解释为保存 `.screenhello` 项目；默认的 `workspace=false` 保持历史兼容行为，即按当前导出设置下载图片。两种模式都只响应最近点击/聚焦的 runtime，输入控件内不拦截系统快捷键。
 
 ## 宿主布局
 

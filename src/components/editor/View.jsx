@@ -13,7 +13,6 @@ import Watermark from './layers/Watermark';
 import ShapeLine from './layers/ShapeLine';
 import { ScrollBar } from '@leafer-in/scroll'
 import { nanoid } from '@utils/utils';
-import HotKeys from './HotKeys';
 import '@leafer-in/view';
 import '@leafer-in/viewport';
 
@@ -106,14 +105,8 @@ export default observer(function View({ target }) {
             clearImageTimer = setTimeout(() => {
                 clearImageTimer = null;
                 if (!stores.imageStore.layers.has(imageId)) return;
-                if (stores.imageStore.list.length === 1) {
-                    stores.editor.destroy();
-                    stores.editor.clearImg();
-                    stores.editor.clearFun && stores.editor.clearFun();
-                } else {
-                    stores.imageStore.select([imageId]);
-                    stores.imageStore.removeSelected();
-                }
+                stores.imageStore.select([imageId]);
+                void stores.commands.execute('edit.deleteSelection', { imagesOnly: true });
             }, 0);
         };
         closeButton.on(PointerEvent.TAP, clearCurrentImage);
@@ -465,10 +458,9 @@ export default observer(function View({ target }) {
                 return <ShapeLine key={id} {...props} />;
             })}
             {stores.imageStore.list.map((layer) => (
-                <Screenshot key={`${layer.id}:${layer.zIndex}`} layer={layer} />
+                <Screenshot key={layer.id} layer={layer} />
             ))}
             {stores.option.waterImg && <Watermark />}
         </FrameBox>
-        <HotKeys />
     </>);
 });

@@ -11,6 +11,7 @@ import {
     getFrameGroups,
     isDeviceFrame,
 } from '@utils/frameConfig';
+import ContextSuggestion from './ContextSuggestion';
 
 const FrameThumb = ({ frame, compact = false }) => {
     const definition = getFrameDefinition(frame);
@@ -117,6 +118,7 @@ export default observer(function FrameBar() {
                         查看全部 <Icon.ChevronRight size={14} />
                     </Button>
                 </div>
+                <ContextSuggestion kind="frame" />
                 <div className="shoteasy-frame-panel__subheading">浏览器外框</div>
                 <div className="shoteasy-frame-grid is-quick" role="radiogroup" aria-label="常用浏览器外框">
                     {/* 无外框领头，与 5 个浏览器外框凑满 2 列 × 3 行；「查看全部」抽屉里仍归基础外框组 */}

@@ -32,7 +32,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                     && 'serviceWorker' in navigator
                     ? <PwaController />
                     : null}
-                {/* 独立站启用草稿恢复与项目中心；library 两项默认均关闭。 */}
+                {/* 独立站启用草稿恢复、应用菜单与本地资料库；library 两项默认均关闭。 */}
                 <AppContent persistence={{ key: 'shoteasy-default', autoRestore: true }} workspace />
             </StoreProvider>
         </EditorErrorBoundary>

@@ -41,6 +41,7 @@ export class WorkspaceStore {
     fileHandle = null;
     isDirty = false;
     lastSavedAt = null;
+    saveErrorCode = null;
     exportSettings = normalizeExportSettings();
     presets = [];
     recentProjects = [];
@@ -82,7 +83,10 @@ export class WorkspaceStore {
         this._baselineSignature = this._signature();
         this._dirtyDisposer = reaction(
             () => this._signature(),
-            (signature) => { this.isDirty = signature !== this._baselineSignature; }
+            (signature) => {
+                this.isDirty = signature !== this._baselineSignature;
+                if (this.isDirty) this.saveErrorCode = null;
+            }
         );
         this._suggestionDisposer = reaction(
             () => this.root.editor.img?.src || null,
@@ -121,10 +125,19 @@ export class WorkspaceStore {
         });
     }
 
-    _markClean() {
+    get projectFileStatus() {
+        if (this.busy === 'save' || this.busy === 'save-as') return 'saving';
+        if (this.saveErrorCode) return 'error';
+        if (this.isDirty) return 'dirty';
+        if (this.lastSavedAt) return 'saved';
+        return 'never-saved';
+    }
+
+    _markClean({ saved = true } = {}) {
         this._baselineSignature = this._signature();
         this.isDirty = false;
-        this.lastSavedAt = Date.now();
+        this.lastSavedAt = saved ? Date.now() : null;
+        this.saveErrorCode = null;
     }
 
     _isOperationCurrent(operation) {
@@ -153,7 +166,7 @@ export class WorkspaceStore {
         this.currentRecentId = null;
         this.fileHandle = null;
         this.exportSettings = normalizeExportSettings();
-        this._markClean();
+        this._markClean({ saved: false });
     }
 
     setExportSettings(value) {
@@ -331,6 +344,7 @@ export class WorkspaceStore {
 
     async saveProject({ saveAs = false } = {}) {
         if (this.busy) return false;
+        this.saveErrorCode = null;
         this.busy = saveAs ? 'save-as' : 'save';
         const operation = this._operationGeneration;
         try {
@@ -380,6 +394,9 @@ export class WorkspaceStore {
             return true;
         } catch (error) {
             if (!this._isOperationCancelled(error, operation)) {
+                runInAction(() => {
+                    this.saveErrorCode = error?.code || error?.name || error?.message || 'project-save-failed';
+                });
                 this.root.editor.message?.error?.(this._messageForError(error, '项目保存失败，请重试'));
             }
             return false;
@@ -582,7 +599,7 @@ export class WorkspaceStore {
                 this.fileHandle = null;
                 this.currentRecentId = null;
             });
-            this._markClean();
+            this._markClean({ saved: false });
             this.root.editor.message?.success?.('草稿已恢复');
             return true;
         } catch (error) {
