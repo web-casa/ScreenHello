@@ -1,6 +1,6 @@
 # ADR 0001：桌面框架采用 Tauri 2
 
-- 状态：候选已接受，仍受 Phase 9.3 三平台 Gate 约束
+- 状态：Accepted；三平台自动技术 Gate 已通过，正式分发仍受人工/渠道 Gate 约束
 - 日期：2026-09-05
 - 决策范围：桌面 MVP 的应用壳与原生能力边界，不代表安装包已可正式分发
 
@@ -20,6 +20,8 @@ Phase 9.0～9.2 已证明 Tauri 2 可以提供独立桌面入口、最小 capabi
 4. 当前原生能力没有出现需要 Node/Electron 主进程才能解决的关键阻断。
 
 该选择只授权继续桌面 MVP 开发。Phase 9.3 的同 SHA 三平台自动 Gate 必须通过；系统 picker、托盘视觉、多显示器/DPI/负坐标、平台权限、Wayland、远程桌面和无显示器仍需人工或受控环境验证。上述人工项未通过前，`releaseReady` 必须保持 `false`。
+
+依据：公开候选 `486ba005f374ca2430bad64258452eec117ec49f` 的 [三平台自动 Gate](https://github.com/web-casa/ScreenHello/actions/runs/33949585116) 与下载后摘要/包内复核均通过，未出现需要切换框架的关键阻断。后续候选继续以各自同 SHA 证据验收；CI 图像中的 Linux 缺字已在 runner 前置依赖补 CJK 字体，并要求重新验证截图。
 
 ## 三平台验证契约
 

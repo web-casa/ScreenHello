@@ -4,7 +4,7 @@
 
 Phase 9.0 已建立 Tauri 2 桌面壳与最小安全契约；Phase 9.1 接入实例级原生文件与图片剪贴板；Phase 9.2 已接入显示器/窗口/区域截图、固定主屏快捷键、托盘和单实例恢复。桌面端复用现有 React 编辑器、菜单、项目容器、图片校验和导出服务，但使用独立的桌面 HTML/React 入口、`desktopPlatform` 和 `dist-desktop/` 产物；Web 入口继续生成 PWA，library 入口继续保持 `workspace=false` 默认行为。
 
-当前已启动 Phase 9.3：公开候选通过 Ubuntu 24.04 x64、Windows Server 2025 x64 与 `macos-14` arm64 的同 SHA workflow 生成无签名测试 bundle、CycloneDX SBOM、SHA-256 摘要和结构化 evidence。三平台结果尚未写回本文件前，当前可复现的 runtime 证据仍只有 Linux aarch64 + WebKitGTK 4.1；它已完成环境 IPC、640×480 区域 PNG 捕获与编辑器导入、PNG 系统剪贴板写入、快捷键注册、托盘创建和第二实例退出。系统文件对话框、真实托盘、多显示器/DPI/负坐标、Wayland/远程桌面/无显示器和平台权限仍是明确人工项，因此当前实现不是可发布桌面 MVP。
+Phase 9.3 已取得公开候选 `486ba005f374ca2430bad64258452eec117ec49f` 的三平台自动 Gate 通过证据（[Actions run](https://github.com/web-casa/ScreenHello/actions/runs/33949585116)）：Ubuntu 24.04 x64、Windows Server 2025 x64 与 `macos-14` arm64 均完成真实 WebView、640×480 区域 PNG 捕获与编辑器导入、PNG 剪贴板、快捷键注册、托盘创建和第二实例退出，以及无签名 DEB/APP/NSIS、包内检查、CycloneDX SBOM 和 SHA-256 汇总。下载后复算亦通过。截图复审发现 Ubuntu runner 缺中文字库，当前 workflow 已补 `fonts-noto-cjk`，后续候选须使用自身 run 复验。系统文件对话框、真实托盘、多显示器/DPI/负坐标、Wayland/远程桌面/无显示器和权限仍为人工项，`releaseReady=false`。
 
 ## 技术基线
 
@@ -15,6 +15,8 @@ Phase 9.0 已建立 Tauri 2 桌面壳与最小安全契约；Phase 9.1 接入实
 - release profile 启用 LTO、单 codegen unit、`opt-level=s`、abort panic 和 strip；Tauri 按 capability 删除未授权 command。
 
 Linux 构建需要 `libclang-dev`、`libpipewire-0.3-dev` 和 `libgbm-dev`。无安装包 release ELF 体积只用于同平台回归，不代表 Windows/macOS 安装包大小。
+
+界面使用系统字体；Linux 的中文运行/视觉验证环境需提供 CJK 字库，Ubuntu runner 安装 `fonts-noto-cjk`。裸系统缺中文字库会显示方框，不能据此宣称中文视觉验收通过；应用不下载远程字体。
 
 ## 安全边界
 

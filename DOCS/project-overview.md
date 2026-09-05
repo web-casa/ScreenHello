@@ -8,7 +8,7 @@ ScreenHello 将本地图片、粘贴图片或屏幕截图放入可配置画布�
 
 1. 独立站点：`src/main.jsx` 将 `App` 挂载到 `index.html#root`，由 `pnpm dev` 或 `pnpm build` 使用。
 2. React 组件库：`src/index.js` 导出 `ImageBeautifier`，由 `pnpm build:lib` 构建到 `lib/`。
-3. 桌面 PoC：`desktop/index.html` 与 `src/desktop/` 复用同一编辑器，`src/platform/desktopPlatform.js` 和 `src-tauri/` 提供 Tauri 2 原生适配；当前完成至 Phase 9.2，不是正式安装包。
+3. 桌面 PoC：`desktop/index.html` 与 `src/desktop/` 复用同一编辑器，`src/platform/desktopPlatform.js` 和 `src-tauri/` 提供 Tauri 2 原生适配；Phase 9.3 已取得三平台自动技术 Gate 证据，当前产物仍为无签名测试包。
 
 ## 已实现能力
 
@@ -43,7 +43,7 @@ ScreenHello 将本地图片、粘贴图片或屏幕截图放入可配置画布�
 - 文本美化、代码美化和 GIF：当前不提供入口，仍不属于可用功能。
 - 自动化测试：已接入 Vitest 单元测试、Playwright 当前三引擎 smoke/E2E、移动响应式/axe/PWA、Chromium visual/export golden 和 library consumer smoke；精确最低浏览器最终候选复验留在 Phase 8.5.5。
 - 服务端能力：没有 API、数据库、账户系统或上传服务。
-- 桌面系统能力尚未完成 Windows/macOS/Linux 真机权限、多显示器/DPI/负坐标、Wayland、远程桌面和无显示器矩阵；原生文件对话框交互、三平台安装包、更新、签名与公证也仍待 9.3。Phase 9.2 仍不能作为桌面 MVP 发布。
+- 桌面 Phase 9.3 已验证 Windows x64、macOS 14 ARM64、Linux x64 的自动 runtime、DEB/APP/NSIS 构建、包内结构与 SBOM/摘要。真机权限、多显示器/DPI/负坐标、Wayland、远程桌面、无显示器、原生文件对话框视觉、安装升级/卸载、更新、签名与公证仍待后续验证；技术 Gate 通过不代表桌面 MVP 可正式发布。Linux 中文环境需系统 CJK 字库。
 - Web Release Gate 已通过：同一候选提交在原生 amd64 Chrome 111、Edge 111、Firefox 128 与 GitHub `macos-14` Safari 26.5 上完成核心编辑和四格式导出。产品仍声明 Safari 16.4+，但当前测试策略不精确重放历史 16.4。Phase 8 正式公开仓晋级已完成；之后的 Phase 8.5 私有开发变更尚未晋级，新的公开写入、tag/release 与部署仍需单独授权。详见 [Web Release Gate](./web-release-gate.md)。
 
 ## 技术栈
