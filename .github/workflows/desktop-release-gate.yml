@@ -1,0 +1,266 @@
+name: Desktop Release Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/desktop-release-gate.yml
+      - config/desktop-release-matrix.json
+      - desktop/**
+      - package.json
+      - pnpm-lock.yaml
+      - scripts/audit-desktop-poc.mjs
+      - scripts/audit-desktop-release-evidence.mjs
+      - scripts/collect-desktop-release-evidence.mjs
+      - scripts/desktop-process-tree.mjs
+      - scripts/generate-desktop-sbom.mjs
+      - scripts/test-desktop-runtime.mjs
+      - src-tauri/**
+      - src/desktop/**
+      - src/platform/desktopPlatform.js
+      - tests/unit/desktopProcessTree.test.js
+      - tests/unit/desktopReleaseEvidenceAudit.test.js
+      - vite.config.js
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-gate-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_AUDIT_VERSION: 0.22.2
+  RUST_TOOLCHAIN: 1.96.0
+  SCREENHELLO_RELEASE_CANDIDATE: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  desktop:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+            rust-target: x86_64-unknown-linux-gnu
+            bundle: deb
+          - target: macos-14-arm64
+            runner: macos-14
+            platform: macos
+            rust-target: aarch64-apple-darwin
+            bundle: app
+          - target: windows-x64
+            runner: windows-2025
+            platform: windows
+            rust-target: x86_64-pc-windows-msvc
+            bundle: nsis
+    defaults:
+      run:
+        shell: bash
+    env:
+      SCREENHELLO_DESKTOP_TARGET: ${{ matrix.target }}
+      SCREENHELLO_EXPECTED_DESKTOP_PLATFORM: ${{ matrix.platform }}
+      SCREENHELLO_RUNNER_LABEL: ${{ matrix.runner }}
+      SCREENHELLO_DESKTOP_RUNTIME_EVIDENCE: artifacts/release/desktop-matrix/${{ matrix.target }}/runtime.json
+      SCREENHELLO_DESKTOP_SCREENSHOT: artifacts/release/desktop-matrix/${{ matrix.target }}/runtime.png
+      SCREENHELLO_DESKTOP_SBOM_DIR: artifacts/release/desktop-matrix/${{ matrix.target }}
+      SCREENHELLO_DESKTOP_ARTIFACT_INSPECTION: artifacts/release/desktop-matrix/${{ matrix.target }}/artifact-inspection.json
+
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SCREENHELLO_RELEASE_CANDIDATE }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 10.12.1
+          run_install: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Set up Rust 1.96
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$RUST_TOOLCHAIN"
+          rustup target add "${{ matrix.rust-target }}"
+          rustc -vV
+          cargo -vV
+
+      - name: Install Linux desktop prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            dbus-x11 \
+            fonts-noto-cjk \
+            libayatana-appindicator3-dev \
+            libclang-dev \
+            libgbm-dev \
+            libpipewire-0.3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            xvfb
+
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Check ignored dependency builds
+        run: pnpm ignored-builds
+
+      - name: Audit JavaScript dependencies
+        run: pnpm audit --audit-level=low
+
+      - name: Audit third-party notices
+        run: pnpm audit:licenses
+
+      - name: Verify JavaScript boundaries
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test:unit
+          pnpm build
+
+      - name: Audit the desktop gate workflow
+        run: pnpm audit:desktop:workflow
+
+      - name: Verify Rust boundaries
+        run: |
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+          cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+          cargo check --manifest-path src-tauri/Cargo.toml --locked --features desktop-test-driver
+
+      - name: Audit Rust dependencies
+        run: |
+          cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
+          cargo audit --file src-tauri/Cargo.lock --ignore RUSTSEC-2024-0429
+
+      - name: Build runner-only test driver
+        run: pnpm desktop:build:test-driver
+
+      - name: Exercise embedded desktop runtime on Linux
+        if: runner.os == 'Linux'
+        env:
+          SCREENHELLO_DESKTOP_DRIVER_PROVIDER: embedded
+        run: xvfb-run -a -s '-screen 0 1280x1024x24' dbus-run-session -- node scripts/test-desktop-runtime.mjs
+
+      - name: Exercise embedded desktop runtime on macOS or Windows
+        if: runner.os != 'Linux'
+        env:
+          SCREENHELLO_DESKTOP_DRIVER_PROVIDER: embedded
+        run: node scripts/test-desktop-runtime.mjs
+
+      - name: Remove the runner-only test build
+        run: cargo clean --manifest-path src-tauri/Cargo.toml
+
+      - name: Build unsigned production candidate
+        run: |
+          started_at="$(node -e 'process.stdout.write(String(Date.now()))')"
+          pnpm exec tauri build --ci --bundles "${{ matrix.bundle }}" --no-sign --config src-tauri/tauri.phase9.conf.json
+          finished_at="$(node -e 'process.stdout.write(String(Date.now()))')"
+          echo "SCREENHELLO_DESKTOP_BUILD_DURATION_MS=$((finished_at - started_at))" >> "$GITHUB_ENV"
+
+      - name: Prove the test driver is absent
+        run: |
+          cargo tree --manifest-path src-tauri/Cargo.toml --locked > "$RUNNER_TEMP/screenhello-production-cargo-tree.txt"
+          if grep -q 'tauri-plugin-wdio-webdriver' "$RUNNER_TEMP/screenhello-production-cargo-tree.txt"; then
+            echo 'The production dependency tree contains the runner-only test driver.' >&2
+            exit 1
+          fi
+          pnpm audit:desktop
+
+      - name: Locate the production artifacts
+        run: |
+          case "${{ matrix.target }}" in
+            linux-x64)
+              binary='src-tauri/target/release/screenhello-desktop'
+              bundle="$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print -quit)"
+              ;;
+            macos-14-arm64)
+              binary='src-tauri/target/release/screenhello-desktop'
+              app="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)"
+              test -n "$app"
+              bundle="${app}.zip"
+              ditto -c -k --sequesterRsrc --keepParent "$app" "$bundle"
+              echo "SCREENHELLO_DESKTOP_APP_BUNDLE=$app" >> "$GITHUB_ENV"
+              ;;
+            windows-x64)
+              binary='src-tauri/target/release/screenhello-desktop.exe'
+              bundle="$(find src-tauri/target/release/bundle/nsis -maxdepth 1 -type f -name '*.exe' -print -quit)"
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
+          test -f "$binary"
+          test -f "$bundle"
+          echo "SCREENHELLO_DESKTOP_BINARY=$binary" >> "$GITHUB_ENV"
+          echo "SCREENHELLO_DESKTOP_BUNDLE=$bundle" >> "$GITHUB_ENV"
+
+      - name: Inspect package identity, architecture, and payload
+        run: pnpm desktop:inspect
+
+      - name: Generate software bills of materials
+        run: pnpm desktop:sbom
+
+      - name: Collect fail-closed platform evidence
+        run: pnpm desktop:evidence
+
+      - name: Upload unsigned test evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-gate-${{ matrix.target }}-${{ env.SCREENHELLO_RELEASE_CANDIDATE }}-${{ github.run_attempt }}
+          path: artifacts/release/desktop-matrix/
+          if-no-files-found: warn
+          retention-days: 14
+
+  summarize:
+    name: Three-platform evidence summary
+    if: always()
+    needs: desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.SCREENHELLO_RELEASE_CANDIDATE }}
+          persist-credentials: false
+
+      - name: Download platform evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: desktop-gate-*-${{ env.SCREENHELLO_RELEASE_CANDIDATE }}-${{ github.run_attempt }}
+          path: artifacts/release/desktop-matrix
+          merge-multiple: true
+
+      - name: Audit one-candidate evidence
+        run: |
+          mkdir -p artifacts/release/desktop-matrix
+          node scripts/audit-desktop-release-evidence.mjs | tee artifacts/release/desktop-matrix/automatic-gate.json
+
+      - name: Upload automatic gate summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-gate-summary-${{ env.SCREENHELLO_RELEASE_CANDIDATE }}-${{ github.run_attempt }}
+          path: artifacts/release/desktop-matrix/automatic-gate.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,5 +1,6 @@
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx';
 import { browserPlatform } from '../platform/browserPlatform';
+import { isExportCancelled } from './exportService';
 import {
     MAX_BATCH_FILES,
     batchError,
@@ -179,7 +180,8 @@ export class BatchStore {
         try {
             await this.platform.export.download(this.archive, this.archiveFilename);
             return true;
-        } catch {
+        } catch (error) {
+            if (isExportCancelled(error)) return false;
             this.errorCode = 'batch-download-failed';
             return false;
         }

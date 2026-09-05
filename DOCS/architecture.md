@@ -186,7 +186,11 @@ IndexedDB 数据库当前为 v2：`projects` 保存草稿文档，`assets` 保�
 
 Leafer 2.2.9 的 `export('canvas')` 返回 `IExportResult`，其中 `result.data` 是 Leafer canvas wrapper，原生 Canvas 位于 `wrapper.view`。图片导出的临时 wrapper 在 Blob 生成后销毁，native backing store 同时归零；Canvas 结果则返回显式、幂等的 `release()`，runtime dispose 会兜底回收未归还 lease。普通格式受 8192 px 单边和 16,777,216 像素硬限制，AVIF 另受 4,194,304 像素限制。AVIF Worker 空闲 1 秒终止，只加载一个同源 WASM；详见 [Phase 7 Web P2](./phase-7-web-p2.md)。
 
-文件/object URL、File System Access、存储估算/持久化请求、偏好存储、IndexedDB、剪贴板、屏幕捕获和下载统一经 `src/platform/browserPlatform.js` 调用。项目保存会先在用户手势中取得文件 handle，再执行异步 ZIP 编码；不支持系统 picker 时退回 `<input type=file>` 和下载。该边界来自现有真实调用点，用于隔离浏览器实现并为未来桌面适配保留替换位置；它不虚构当前不存在的桌面接口。
+每个 `ScreenHelloRuntime` 都持有自己的 platform。Web/PWA/library 默认使用 `src/platform/browserPlatform.js`，桌面入口注入 `src/platform/desktopPlatform.js`；Store、Service、hook 和资源工具只通过所属 root 使用平台能力，双实例不会共享可变原生 handle。浏览器侧继续统一承载文件/object URL、File System Access、存储、剪贴板、屏幕捕获和下载；不支持系统 picker 时退回 `<input type=file>` 和下载。
+
+桌面文件 picker 由 Rust dialog plugin 执行。WebView 只收到固定 schema 的随机 token、规范化文件名、MIME 和大小，路径仅保存在按 window owner 隔离且最多 64 项的 backend map。读写通过 raw IPC 传二进制，项目/预设、输入图片、单图导出与批量 ZIP 分别受 64/48/128/256 MiB 上限约束；写入使用同目录临时文件同步后原子替换。图片临时 handle 读取后自动释放，项目/保存 handle 在替换、失败或 runtime teardown 时显式释放。桌面复制把既有 PNG Blob 解码为 Tauri Image、仅调用图片写入权限，并在 `finally` 关闭 resource。
+
+桌面截图由 `xcap` 在 Rust 端枚举和捕获，显示器、窗口、区域共用单操作锁。WebView 只收到规范化名称、几何、缩放和按 window owner 隔离的一次性 token，不收到 PID、原生 ID、路径或底层错误正文；单次最多 16 个显示器、128 个窗口、33,177,600 像素和 48 MiB PNG，响应继续使用 raw IPC。文件菜单打开来源选择器；Rust 端固定全局快捷键和托盘动作只通过有界 Channel 触发同一个实例命令。single-instance plugin 最先注册，第二实例参数和工作目录被丢弃，只恢复主窗口。
 
 独立站的 `Cmd/Ctrl+S` 保存 `.screenhello` 项目，`Cmd/Ctrl+O`、`Shift+S`、`Shift+E`、`C`、undo/redo/delete/zoom 也通过命令 ID 路由；`workspace=false` library 仍保持 `Cmd/Ctrl+S` 下载图片。只有最近激活的实例响应，焦点位于输入框/文本域/下拉/可编辑内容时保留浏览器原生行为。
 
@@ -194,7 +198,7 @@ Leafer 2.2.9 的 `export('canvas')` 返回 `IExportResult`，其中 `result.data
 
 - 每个 `ImageBeautifier` 拥有独立 runtime；组件只能通过 `useStores()` 访问 Context 中的实例，Store 只能通过 root 注入访问兄弟 Store。
 - 同页多实例的全局快捷键/粘贴通过 active runtime 协调；草稿数据由调用方提供的 persistence key 隔离。
-- library 仍是浏览器专用组件，不支持 SSR 直接执行；受控系统能力应经 `browserPlatform`，纯 UI/Canvas DOM 访问保留在浏览器组件内部。
+- library 仍是浏览器专用组件，不支持 SSR 直接执行；受控系统能力应经 runtime platform，纯 UI/Canvas DOM 访问保留在浏览器组件内部。
 - 批量处理当前只属于开启 workspace 的独立站能力；不得从 `src/index.js` 暴露 BatchStore/service 或让 library 默认出现入口。
 - AVIF adapter/Worker/WASM 必须保持功能级动态加载和同源资源 URL；不得退回 Vite library mode 导致 WASM 内联，也不得启用 pthread/COOP/COEP。
 - LeaferJS 节点的更新依赖多个 React effect。新增 option 字段时，需要同时检查 store、控制面板、图层 effect 和导出结果。

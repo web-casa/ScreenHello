@@ -1,9 +1,9 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import { browserPlatform } from '../platform/browserPlatform';
 import { isExportCancelled } from './exportService';
 import { MAX_PROJECT_IMAGES } from '../utils/projectDocument';
 import { getDefaultFrameSize, modKey, nanoid } from '../utils/utils';
 import { prepareRuntimeImage, releaseRuntimeImage } from '../utils/runtimeImage';
+import { captureScreen } from '../utils/captureScreen';
 
 const LABELS = Object.freeze({
     'file.newProject': '新建项目',
@@ -13,6 +13,7 @@ const LABELS = Object.freeze({
     'file.saveProjectAs': '另存为…',
     'file.addImages': '添加图片…',
     'file.replaceActiveImage': '替换当前图片…',
+    'file.captureScreen': '截取屏幕…',
     'file.openExport': '导出图片…',
     'file.quickExport': '使用当前设置快速导出',
     'file.copyFinalImage': '复制最终图片',
@@ -90,6 +91,7 @@ const commandResult = (id, {
 /** 每个 ScreenHelloRuntime 独占的命令与受控 workspace 替换编排层。 */
 export class CommandService {
     imageBusy = false;
+    captureBusy = false;
     pageUnloadApproved = false;
     guardOpen = false;
     guardBusy = false;
@@ -111,6 +113,8 @@ export class CommandService {
             root: false,
             get: false,
             _descriptor: false,
+            _pickLocalImages: false,
+            _installCapture: false,
             _replaceTargetId: false,
             _selectedUnlocked: false,
             _uiActions: false,
@@ -133,6 +137,7 @@ export class CommandService {
     get isBusy() {
         return Boolean(
             this.imageBusy
+            || this.captureBusy
             || this.guardBusy
             || this.exportActive
             || this.root.workspace.busy
@@ -192,6 +197,17 @@ export class CommandService {
                     disabledReason: conflictReason || (imageStore.list.length >= MAX_PROJECT_IMAGES ? `最多添加 ${MAX_PROJECT_IMAGES} 张图片` : null),
                     busy: conflict,
                 };
+            case 'file.captureScreen': {
+                const captureAvailable = this.root.platform.capture.isSupported();
+                return {
+                    enabled: !conflict && captureAvailable && imageStore.list.length < MAX_PROJECT_IMAGES,
+                    disabledReason: conflictReason
+                        || (!captureAvailable ? '当前环境不支持屏幕截图' : null)
+                        || (imageStore.list.length >= MAX_PROJECT_IMAGES ? `最多添加 ${MAX_PROJECT_IMAGES} 张图片` : null),
+                    busy: conflict,
+                    shortcut: this.root.platform.capture.shortcut || null,
+                };
+            }
             case 'file.replaceActiveImage': {
                 const targetId = this._replaceTargetId();
                 return {
@@ -206,7 +222,7 @@ export class CommandService {
             case 'file.quickExport':
                 return { enabled: !conflict && hasImage, disabledReason: conflictReason || (!hasImage ? '请先添加图片' : null), busy: conflict };
             case 'file.copyFinalImage': {
-                const clipboardAvailable = Boolean(globalThis.navigator?.clipboard?.write && globalThis.ClipboardItem);
+                const clipboardAvailable = this.root.platform.clipboard.supportsWriteImage();
                 return {
                     enabled: !conflict && hasImage && clipboardAvailable,
                     disabledReason: conflictReason || (!hasImage ? '请先添加图片' : (!clipboardAvailable ? '当前浏览器不支持复制图片' : null)),
@@ -300,7 +316,7 @@ export class CommandService {
         return commandResult(id, {
             ...state,
             label: state.label || LABELS[id] || id,
-            shortcut: SHORTCUTS[id] || null,
+            shortcut: state.shortcut === undefined ? (SHORTCUTS[id] || null) : state.shortcut,
             execute: (nextPayload = payload) => this.execute(id, nextPayload),
         });
     }
@@ -318,6 +334,25 @@ export class CommandService {
         return handler ? handler(payload) : false;
     }
 
+    async _pickLocalImages(multiple) {
+        try {
+            return await this.root.platform.file.openImages({ multiple });
+        } catch {
+            this.root.editor.message?.error?.('无法打开系统图片选择器');
+            return { status: 'failed' };
+        }
+    }
+
+    async _installCapture(file) {
+        if (!(file instanceof File)) {
+            this.root.editor.message?.error?.('未能获取屏幕内容，请检查屏幕录制权限');
+            return false;
+        }
+        return this.root.imageStore.list.length
+            ? this.addImages([file])
+            : this.replaceAllImage(file);
+    }
+
     async execute(id, payload) {
         if (this.root.isDisposed || !this.root.isActive) return false;
         const descriptor = this.get(id, payload);
@@ -333,7 +368,7 @@ export class CommandService {
                         { label: '打开其他项目' }
                     );
                 }
-                if (!browserPlatform.file.supportsFileSystemAccess()) return Boolean(await this._invokeUi('file.selectProjectFile'));
+                if (!this.root.platform.file.supportsFileSystemAccess()) return Boolean(await this._invokeUi('file.selectProjectFile'));
                 return this.requestWorkspaceReplacement(async () => {
                     const result = await this.root.workspace.openProjectPicker();
                     return result === true;
@@ -347,14 +382,50 @@ export class CommandService {
                 return this.root.workspace.saveProject();
             case 'file.saveProjectAs':
                 return this.root.workspace.saveProject({ saveAs: true });
-            case 'file.addImages':
-                return payload?.files?.length
-                    ? this.addImages(payload.files)
-                    : Boolean(await this._invokeUi('file.selectImages'));
-            case 'file.replaceActiveImage':
-                return payload?.file
-                    ? this.replaceActiveImage(payload.file)
-                    : Boolean(await this._invokeUi('file.selectReplacementImage'));
+            case 'file.addImages': {
+                if (payload?.files?.length) return this.addImages(payload.files);
+                const selected = await this._pickLocalImages(true);
+                if (selected.status === 'selected') return this.addImages(selected.files);
+                return selected.status === 'unsupported'
+                    ? Boolean(await this._invokeUi('file.selectImages'))
+                    : false;
+            }
+            case 'file.replaceActiveImage': {
+                if (payload?.file) return this.replaceActiveImage(payload.file);
+                const selected = await this._pickLocalImages(false);
+                if (selected.status === 'selected') return this.replaceActiveImage(selected.files[0]);
+                return selected.status === 'unsupported'
+                    ? Boolean(await this._invokeUi('file.selectReplacementImage'))
+                    : false;
+            }
+            case 'file.captureScreen': {
+                if (payload?.file instanceof File) return this._installCapture(payload.file);
+                if (payload?.mode === 'primary' && typeof this.root.platform.capture.capturePrimary === 'function') {
+                    this.captureBusy = true;
+                    try {
+                        const file = await this.root.platform.capture.capturePrimary();
+                        runInAction(() => { this.captureBusy = false; });
+                        return this._installCapture(file);
+                    } catch {
+                        runInAction(() => { this.captureBusy = false; });
+                        this.root.editor.message?.error?.('未能截取主屏幕，请检查系统录屏权限');
+                        return false;
+                    }
+                }
+                if (this.root.platform.capture.supportsSourcePicker()) {
+                    return Boolean(await this._invokeUi('file.openCapture'));
+                }
+                this.captureBusy = true;
+                try {
+                    const file = await captureScreen(this.root.platform);
+                    runInAction(() => { this.captureBusy = false; });
+                    return this._installCapture(file);
+                } catch {
+                    runInAction(() => { this.captureBusy = false; });
+                    this.root.editor.message?.error?.('未能获取屏幕内容，请检查屏幕录制权限');
+                    return false;
+                }
+            }
             case 'file.openExport':
                 return Boolean(await this._invokeUi('file.openExport'));
             case 'file.quickExport':
@@ -402,7 +473,7 @@ export class CommandService {
                 const nextTheme = payload?.theme || (this.root.editor.isDark ? 'light' : 'dark');
                 if (!['light', 'dark'].includes(nextTheme)) return false;
                 this.root.editor.setTheme(nextTheme);
-                browserPlatform.storage.setPreference('SHOTEASY_BEAUTIFIER_THEME', nextTheme);
+                this.root.platform.storage.setPreference('SHOTEASY_BEAUTIFIER_THEME', nextTheme);
                 return true;
             }
             case 'help.quickStart':
@@ -557,7 +628,10 @@ export class CommandService {
             }
             for (let index = 0; index < list.length; index += 1) {
                 failingName = list[index].name;
-                prepared.push(await prepareRuntimeImage(list[index], { role: `image-${index + 1}` }));
+                prepared.push(await prepareRuntimeImage(list[index], {
+                    role: `image-${index + 1}`,
+                    platform: this.root.platform,
+                }));
             }
             if (this.root.isDisposed || !this.root.isActive) return false;
             this.root.imageStore.addMany(prepared, { commit: false });
@@ -571,7 +645,7 @@ export class CommandService {
                 : `无法添加图片“${failingName}”`);
             return false;
         } finally {
-            if (!installed) prepared.forEach(releaseRuntimeImage);
+            if (!installed) prepared.forEach((image) => releaseRuntimeImage(image, this.root.platform));
             runInAction(() => { this.imageBusy = false; });
         }
     }
@@ -584,7 +658,7 @@ export class CommandService {
         let installed = false;
         this.imageBusy = true;
         try {
-            prepared = await prepareRuntimeImage(file, { role: 'replacement-image' });
+            prepared = await prepareRuntimeImage(file, { role: 'replacement-image', platform: this.root.platform });
             if (this.root.isDisposed || !this.root.isActive || this._replaceTargetId() !== targetId) return false;
             this.root.imageStore.replaceActiveResource(prepared, { targetId, commit: true });
             installed = true;
@@ -593,7 +667,7 @@ export class CommandService {
             this.root.editor.message?.error?.('图片加载失败，请选择有效图片');
             return false;
         } finally {
-            if (prepared && !installed) releaseRuntimeImage(prepared);
+            if (prepared && !installed) releaseRuntimeImage(prepared, this.root.platform);
             runInAction(() => { this.imageBusy = false; });
         }
     }
@@ -604,7 +678,7 @@ export class CommandService {
         let installed = false;
         this.imageBusy = true;
         try {
-            prepared = await prepareRuntimeImage(file, { role: 'replacement-image' });
+            prepared = await prepareRuntimeImage(file, { role: 'replacement-image', platform: this.root.platform });
             if (this.root.isDisposed || !this.root.isActive) return false;
             this.root.editor.replaceImg(prepared);
             installed = true;
@@ -618,7 +692,7 @@ export class CommandService {
             this.root.editor.message?.error?.('图片加载失败，请选择有效图片');
             return false;
         } finally {
-            if (prepared && !installed) releaseRuntimeImage(prepared);
+            if (prepared && !installed) releaseRuntimeImage(prepared, this.root.platform);
             runInAction(() => { this.imageBusy = false; });
         }
     }
@@ -708,6 +782,7 @@ export class CommandService {
         this._exportController?.abort();
         this._exportController = null;
         this.exportActive = false;
+        this.captureBusy = false;
         this._uiActions.clear();
         if (this.guardOpen) this._finishGuard(false);
     }

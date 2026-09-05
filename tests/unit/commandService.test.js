@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { autorun } from 'mobx';
+import { browserPlatform } from '../../src/platform/browserPlatform.js';
 import { createScreenHelloRuntime } from '../../src/stores/index.js';
+import { modKey } from '../../src/utils/utils.js';
 
 const runtimes = [];
-const createRuntime = () => {
-    const runtime = createScreenHelloRuntime();
+const createRuntime = (options) => {
+    const runtime = createScreenHelloRuntime(options);
     runtimes.push(runtime);
     runtime.activate();
     runtime.workspace.enabled = true;
@@ -33,6 +35,133 @@ afterEach(() => {
 });
 
 describe('CommandService', () => {
+    it('routes browser, desktop picker, and primary screenshot results through the instance image transaction', async () => {
+        class FakeImage {
+            width = 64;
+            height = 48;
+            naturalWidth = 64;
+            naturalHeight = 48;
+            set src(_value) { queueMicrotask(() => this.onload?.()); }
+        }
+        vi.stubGlobal('Image', FakeImage);
+        const captureFile = new File(['capture'], 'ScreenHello-capture.png', { type: 'image/png' });
+        const capturePrimary = vi.fn().mockResolvedValue(captureFile);
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                createObjectURL: vi.fn().mockReturnValue('blob:captured-image'),
+                revokeObjectURL: vi.fn(),
+            },
+            capture: {
+                ...browserPlatform.capture,
+                isSupported: () => true,
+                supportsSourcePicker: () => true,
+                shortcut: 'Ctrl+Shift+H',
+                capturePrimary,
+            },
+        };
+        const runtime = createRuntime({ platform });
+        const openCapture = vi.fn().mockReturnValue(true);
+        runtime.commands.registerUiAction('file.openCapture', openCapture);
+
+        expect(runtime.commands.get('file.captureScreen')).toMatchObject({
+            enabled: true,
+            shortcut: 'Ctrl+Shift+H',
+        });
+        await expect(runtime.commands.execute('file.captureScreen')).resolves.toBe(true);
+        expect(openCapture).toHaveBeenCalledOnce();
+        await expect(runtime.commands.execute('file.captureScreen', { mode: 'primary' })).resolves.toBe(true);
+        expect(capturePrimary).toHaveBeenCalledOnce();
+        expect(runtime.imageStore.list).toHaveLength(1);
+        expect(runtime.editor.img.name).toBe('ScreenHello-capture.png');
+
+        await expect(runtime.commands.execute('file.captureScreen', { file: captureFile })).resolves.toBe(true);
+        expect(runtime.imageStore.list).toHaveLength(2);
+    });
+
+    it('serializes primary screenshot commands before starting the image transaction', async () => {
+        class FakeImage {
+            width = 64;
+            height = 48;
+            naturalWidth = 64;
+            naturalHeight = 48;
+            set src(_value) { queueMicrotask(() => this.onload?.()); }
+        }
+        vi.stubGlobal('Image', FakeImage);
+        let resolveCapture;
+        const capturePrimary = vi.fn(() => new Promise((resolve) => { resolveCapture = resolve; }));
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                createObjectURL: vi.fn().mockReturnValue('blob:captured-image'),
+                revokeObjectURL: vi.fn(),
+            },
+            capture: {
+                ...browserPlatform.capture,
+                isSupported: () => true,
+                supportsSourcePicker: () => true,
+                capturePrimary,
+            },
+        };
+        const runtime = createRuntime({ platform });
+        const first = runtime.commands.execute('file.captureScreen', { mode: 'primary' });
+        expect(runtime.commands.captureBusy).toBe(true);
+        expect(runtime.commands.get('file.captureScreen')).toMatchObject({ enabled: false, busy: true });
+        await expect(runtime.commands.execute('file.captureScreen', { mode: 'primary' })).resolves.toBe(false);
+        expect(capturePrimary).toHaveBeenCalledOnce();
+        resolveCapture(new File(['capture'], 'capture.png', { type: 'image/png' }));
+        await expect(first).resolves.toBe(true);
+        expect(runtime.commands.captureBusy).toBe(false);
+    });
+
+    it('uses the injected native image picker and clipboard capability without a browser fallback', async () => {
+        class FakeImage {
+            width = 64;
+            height = 48;
+            naturalWidth = 64;
+            naturalHeight = 48;
+            set src(_value) { queueMicrotask(() => this.onload?.()); }
+        }
+        vi.stubGlobal('Image', FakeImage);
+        const selectedFile = new File(['image'], 'native.png', { type: 'image/png' });
+        const openImages = vi.fn()
+            .mockResolvedValueOnce({ status: 'selected', files: [selectedFile] })
+            .mockResolvedValueOnce({ status: 'cancelled' });
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                openImages,
+                createObjectURL: vi.fn().mockReturnValue('blob:native-image'),
+                revokeObjectURL: vi.fn(),
+            },
+            clipboard: { ...browserPlatform.clipboard, supportsWriteImage: () => true },
+        };
+        const runtime = createRuntime({ platform });
+        const pickerError = vi.fn();
+        runtime.editor.setMessage({ error: pickerError });
+        const selectImages = vi.fn().mockReturnValue(true);
+        runtime.commands.registerUiAction('file.selectImages', selectImages);
+
+        await expect(runtime.commands.execute('file.addImages')).resolves.toBe(true);
+        expect(openImages).toHaveBeenCalledWith({ multiple: true });
+        expect(runtime.imageStore.list).toHaveLength(1);
+        expect(runtime.editor.img.name).toBe('native.png');
+        expect(selectImages).not.toHaveBeenCalled();
+
+        await expect(runtime.commands.execute('file.addImages')).resolves.toBe(false);
+        expect(selectImages).not.toHaveBeenCalled();
+        runtime.editor.replaceImg(image());
+        expect(runtime.commands.get('file.copyFinalImage')).toMatchObject({ enabled: true });
+
+        openImages.mockRejectedValueOnce(new Error('/private/path/picker-failed'));
+        await expect(runtime.commands.execute('file.replaceActiveImage')).resolves.toBe(false);
+        expect(pickerError).toHaveBeenCalledWith('无法打开系统图片选择器');
+        expect(pickerError.mock.calls.flat().join(' ')).not.toContain('/private/path');
+    });
+
     it('derives command state from the current runtime and explains disabled commands', () => {
         const runtime = createRuntime();
 
@@ -42,7 +171,7 @@ describe('CommandService', () => {
             enabled: false,
             busy: false,
             disabledReason: '请先添加图片',
-            shortcut: 'Ctrl+S',
+            shortcut: `${modKey}+S`,
         });
 
         runtime.editor.replaceImg(image());

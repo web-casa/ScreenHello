@@ -2,6 +2,124 @@
 
 ScreenHello uses build-time or bundled runtime code from the following projects.
 
+## Tauri 2
+
+- Projects: <https://github.com/tauri-apps/tauri>, <https://github.com/tauri-apps/plugins-workspace>
+- Included direct components: `@tauri-apps/api` 2.11.1, `tauri` 2.11.5, `tauri-plugin-dialog` 2.7.3, `tauri-plugin-clipboard-manager` 2.3.3, `tauri-plugin-global-shortcut` 2.3.2, `tauri-plugin-single-instance` 2.4.4
+- Copyright: Copyright (c) 2017 - Present Tauri Apps Contributors
+- License selected for ScreenHello redistribution: MIT (upstream also offers Apache-2.0)
+- Use in ScreenHello: desktop WebView API, Rust application runtime, build tooling, native file dialogs, PNG clipboard writes, global shortcut and single-instance lifecycle
+
+The complete selected upstream license text follows.
+
+<!-- license:tauri-mit:start -->
+MIT License
+
+Copyright (c) 2017 - Present Tauri Apps Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+<!-- license:tauri-mit:end -->
+
+## getrandom 0.3.4
+
+- Project: <https://github.com/rust-random/getrandom>
+- Copyright: Copyright (c) 2018-2025 The rust-random Project Developers; Copyright (c) 2014 The Rust Project Developers
+- License selected for ScreenHello redistribution: MIT (upstream also offers Apache-2.0)
+- Use in ScreenHello: operating-system entropy for opaque, process-local screenshot source tokens
+
+The complete selected upstream license text follows.
+
+<!-- license:getrandom-mit:start -->
+Copyright (c) 2018-2025 The rust-random Project Developers
+Copyright (c) 2014 The Rust Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+<!-- license:getrandom-mit:end -->
+
+## tempfile 3.27.0
+
+- Project: <https://github.com/Stebalien/tempfile>
+- Copyright: Copyright (c) 2015 Steven Allen
+- License selected for ScreenHello redistribution: MIT (upstream also offers Apache-2.0)
+- Use in ScreenHello: atomic same-directory project and image export writes
+
+The complete selected upstream license text follows.
+
+<!-- license:tempfile-mit:start -->
+Copyright (c) 2015 Steven Allen
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+<!-- license:tempfile-mit:end -->
+
+## xcap 0.9.8
+
+- Project: <https://github.com/nashaofu/xcap>
+- Copyright: Copyright 2024 nashaofu
+- License: Apache License 2.0
+- Use in ScreenHello: bounded local monitor, window and region capture in the desktop application
+
+The Apache License 2.0 terms are reproduced once in the `@jsquash` section below; they apply to xcap as well. The xcap copyright notice above is retained separately.
+
 ## vite-plugin-pwa 1.3.0
 
 - Project: <https://github.com/vite-pwa/vite-plugin-pwa>

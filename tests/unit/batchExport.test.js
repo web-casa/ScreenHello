@@ -385,6 +385,13 @@ describe('BatchStore', () => {
         await expect(store.download()).resolves.toBe(true);
         expect(platform.export.download).toHaveBeenCalledOnce();
         expect(platform.export.download).toHaveBeenCalledWith(store.archive, 'ScreenHello-batch.zip');
+
+        platform.export.download.mockRejectedValueOnce(
+            Object.assign(new Error('cancelled'), { code: 'export-cancelled' }),
+        );
+        store.errorCode = null;
+        await expect(store.download()).resolves.toBe(false);
+        expect(store.errorCode).toBeNull();
     });
 
     it('retries only failed or cancelled files and keeps store instances isolated', async () => {

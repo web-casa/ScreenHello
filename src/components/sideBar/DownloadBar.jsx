@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
 import { Button, Tooltip, Popover, Segmented, ConfigProvider, Popconfirm } from 'antd';
@@ -22,7 +22,7 @@ export default observer(function DownloadBar() {
     const copyCommand = stores.commands.get('file.copyFinalImage');
     const newProjectCommand = stores.commands.get('file.newProject');
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const cleanups = [
             stores.commands.registerUiAction('file.openBatch', () => { setBatchOpen(true); return true; }),
             stores.commands.registerUiAction('file.selectReplacementImage', () => { replacementInput.current?.click(); return true; }),

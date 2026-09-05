@@ -9,11 +9,13 @@ import { getImage } from './utils';
 export const prepareRuntimeImage = async (input, {
     type = 'blob',
     role = 'image',
+    platform = browserPlatform,
 } = {}) => {
     if (type === 'blob') {
         const prepared = await prepareWorkspaceImage(input, {
             retainObjectUrl: true,
             role,
+            platform,
         });
         return {
             src: prepared.url,
@@ -39,8 +41,8 @@ export const prepareRuntimeImage = async (input, {
     };
 };
 
-export const releaseRuntimeImage = (image) => {
+export const releaseRuntimeImage = (image, platform = browserPlatform) => {
     if (image?._ownsObjectUrl && typeof image.src === 'string') {
-        browserPlatform.file.revokeObjectURL(image.src);
+        platform.file.revokeObjectURL(image.src);
     }
 };

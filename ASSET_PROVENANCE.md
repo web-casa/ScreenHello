@@ -7,6 +7,9 @@ source repository and built applications.
 
 - `src/assets/logo.png`, `src/assets/favicon.png` and `public/pwa-*.png` are
   ScreenHello application identity assets contributed with the project.
+- `src-tauri/icons/*` are desktop and Windows Store derivatives generated from
+  `public/pwa-512x512.png` with the pinned Tauri CLI 2.11.4; they do not
+  introduce a separate third-party source.
 - `src/assets/demo.jpg` is the bundled ScreenHello example illustration.
 - `src/assets/blur.svg`, `src/assets/color.svg` and `src/assets/icon/*.svg` are
   interface assets inherited from the MIT-licensed Shoteasy source tree and

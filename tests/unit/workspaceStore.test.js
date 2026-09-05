@@ -15,8 +15,8 @@ const deferred = () => {
     return { promise, resolve, reject };
 };
 
-const createRuntime = () => {
-    const runtime = createScreenHelloRuntime();
+const createRuntime = (options) => {
+    const runtime = createScreenHelloRuntime(options);
     runtimes.push(runtime);
     runtime.testMessages = {
         success: vi.fn(),
@@ -346,6 +346,49 @@ describe('WorkspaceStore', () => {
         expect(browserPlatform.file.writeToHandle).toHaveBeenCalledWith(handle, expect.any(Blob));
         expect(runtime.testMessages.warning).toHaveBeenCalledWith('项目文件已保存，但浏览器存储空间不足，未加入最近项目');
         expect(runtime.testMessages.error).not.toHaveBeenCalled();
+    });
+
+    it('retains the active desktop project handle and releases replaced or failed handles', async () => {
+        const first = { platform: 'desktop', token: 'a'.repeat(48), kind: 'project' };
+        const second = { platform: 'desktop', token: 'b'.repeat(48), kind: 'project' };
+        const failed = { platform: 'desktop', token: 'c'.repeat(48), kind: 'project' };
+        const releaseHandle = vi.fn().mockResolvedValue(undefined);
+        const chooseSaveHandle = vi.fn()
+            .mockResolvedValueOnce({ status: 'selected', handle: first })
+            .mockResolvedValueOnce({ status: 'selected', handle: second })
+            .mockResolvedValueOnce({ status: 'selected', handle: failed });
+        const writeToHandle = vi.fn()
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('/private/path/write-failed'));
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                supportsFileSystemAccess: () => true,
+                chooseSaveHandle,
+                writeToHandle,
+                releaseHandle,
+            },
+        };
+        const runtime = createRuntime({ platform });
+        vi.spyOn(runtime.draftStore, 'saveRecentProject').mockResolvedValue(undefined);
+        vi.spyOn(runtime.draftStore, 'listRecentProjects').mockResolvedValue([]);
+        vi.spyOn(runtime.draftStore, 'listPresets').mockResolvedValue([]);
+        vi.spyOn(runtime.draftStore, 'listProjects').mockResolvedValue([]);
+
+        await expect(runtime.workspace.saveProject()).resolves.toBe(true);
+        expect(runtime.workspace.fileHandle).toBe(first);
+        expect(releaseHandle).not.toHaveBeenCalledWith(first);
+
+        await expect(runtime.workspace.saveProject({ saveAs: true })).resolves.toBe(true);
+        await vi.waitFor(() => expect(releaseHandle).toHaveBeenCalledWith(first));
+        expect(runtime.workspace.fileHandle).toBe(second);
+
+        await expect(runtime.workspace.saveProject({ saveAs: true })).resolves.toBe(false);
+        expect(runtime.workspace.fileHandle).toBe(second);
+        expect(releaseHandle).toHaveBeenCalledWith(failed);
+        expect(runtime.testMessages.error).toHaveBeenCalledWith('项目保存失败，请重试');
     });
 
     it('stores, duplicates, renames, applies, and deletes style presets', async () => {

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { browserPlatform } from '../../src/platform/browserPlatform.js';
 import { createScreenHelloRuntime } from '../../src/stores/index.js';
 import { getBackgroundDefinition } from '../../src/utils/backgroundConfig.js';
 
 const runtimes = [];
-const createRuntime = () => {
-    const runtime = createScreenHelloRuntime();
+const createRuntime = (options) => {
+    const runtime = createScreenHelloRuntime(options);
     runtimes.push(runtime);
     return runtime;
 };
@@ -16,6 +17,35 @@ afterEach(() => {
 });
 
 describe('ScreenHelloRuntime isolation', () => {
+    it('injects one platform through owned stores and releases only its native file handle', async () => {
+        const releaseHandle = vi.fn().mockResolvedValue(undefined);
+        const createObjectURL = vi.fn().mockReturnValue('blob:desktop-owned');
+        const revokeObjectURL = vi.fn();
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                createObjectURL,
+                revokeObjectURL,
+                releaseHandle,
+            },
+        };
+        const runtime = createRuntime({ platform });
+        const handle = { platform: 'desktop', token: 'a'.repeat(48), kind: 'project' };
+        const asset = runtime.assetStore.add(new Blob(['background'], { type: 'image/png' }));
+
+        runtime.workspace._setFileHandle(handle);
+        expect(runtime.platform).toBe(platform);
+        expect(runtime.assetStore.platform).toBe(platform);
+        expect(runtime.exportService.platform).toBe(platform);
+        expect(runtime.batch.platform).toBe(platform);
+        expect(asset?.url).toBe('blob:desktop-owned');
+
+        runtime.dispose();
+        await vi.waitFor(() => expect(releaseHandle).toHaveBeenCalledWith(handle));
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:desktop-owned');
+    });
+
     it('keeps editor, option, history, theme, and draft configuration instance-local', () => {
         const first = createRuntime();
         const second = createRuntime();

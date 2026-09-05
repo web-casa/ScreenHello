@@ -8,7 +8,6 @@ import { WidthDropdown } from '@components/header/WidthDropdown';
 import EmojiSelect from '@components/header/EmojiSelect';
 import { nanoid, cn } from '@utils/utils';
 import useStores from '@stores/useStores';
-import { browserPlatform } from '../../platform/browserPlatform';
 
 const toolList = ['Square', 'SquareFill', 'Circle', 'Slash', 'MoveDownLeft', 'Pencil', 'Magnifier', 'Step', 'text', 'blur', 'mosaic', 'spotlight', 'Smile'];
 const primaryTools = ['Square', 'SquareFill', 'Circle', 'Slash', 'MoveDownLeft', 'Pencil'];
@@ -50,10 +49,10 @@ export default observer(function BottomToolbar() {
     const [moreToolsOpen, setMoreToolsOpen] = useState(false);
     const mobileTriggerRef = useRef(null);
     const [isCollapsed, setIsCollapsed] = useState(() => {
-        return browserPlatform.storage.getPreference(TOOLBAR_COLLAPSED_KEY) === '1';
+        return stores.platform.storage.getPreference(TOOLBAR_COLLAPSED_KEY) === '1';
     });
     const toggleCollapsed = () => setIsCollapsed((prev) => {
-        browserPlatform.storage.setPreference(TOOLBAR_COLLAPSED_KEY, prev ? '0' : '1');
+        stores.platform.storage.setPreference(TOOLBAR_COLLAPSED_KEY, prev ? '0' : '1');
         return !prev;
     });
     const closeMobileSheet = () => {

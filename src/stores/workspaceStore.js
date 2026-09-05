@@ -1,5 +1,4 @@
 import { makeAutoObservable, reaction, runInAction } from 'mobx';
-import { browserPlatform } from '../platform/browserPlatform';
 import { createStylePreset, normalizeExportSettings, normalizeWorkspaceName } from '@utils/stylePreset';
 import { prepareWorkspaceImage } from '@utils/imageValidation';
 import { analyzeImageSuggestions } from '@utils/imageSuggestions';
@@ -112,7 +111,7 @@ export class WorkspaceStore {
         this.enabled = false;
         this.ready = false;
         this.busy = null;
-        this.fileHandle = null;
+        this._setFileHandle(null);
         this.suggestions = { status: 'idle', result: null };
     }
 
@@ -154,6 +153,14 @@ export class WorkspaceStore {
         return error?.code === 'workspace-operation-cancelled' || !this._isOperationCurrent(operation);
     }
 
+    _setFileHandle(handle) {
+        const previous = this.fileHandle;
+        this.fileHandle = handle || null;
+        if (previous && previous !== handle) {
+            void this.root.platform.file.releaseHandle(previous).catch(() => {});
+        }
+    }
+
     setProjectName(value) {
         this.projectName = Array.from(String(value ?? ''))
             .filter((character) => character >= ' ' && character !== '\u007f')
@@ -164,7 +171,7 @@ export class WorkspaceStore {
     resetProject() {
         this.projectName = '未命名项目';
         this.currentRecentId = null;
-        this.fileHandle = null;
+        this._setFileHandle(null);
         this.exportSettings = normalizeExportSettings();
         this._markClean({ saved: false });
     }
@@ -205,8 +212,8 @@ export class WorkspaceStore {
         const request = this._storageRequest + 1;
         this._storageRequest = request;
         const [estimate, persisted] = await Promise.all([
-            browserPlatform.storage.estimate(),
-            browserPlatform.storage.isPersisted(),
+            this.root.platform.storage.estimate(),
+            this.root.platform.storage.isPersisted(),
         ]);
         if (request !== this._storageRequest) return estimate;
         runInAction(() => {
@@ -224,7 +231,7 @@ export class WorkspaceStore {
     async requestPersistentStorage() {
         const request = this._persistenceRequest + 1;
         this._persistenceRequest = request;
-        const result = await browserPlatform.storage.requestPersistence();
+        const result = await this.root.platform.storage.requestPersistence();
         if (request !== this._persistenceRequest) return result;
         runInAction(() => {
             this.storage = {
@@ -347,13 +354,15 @@ export class WorkspaceStore {
         this.saveErrorCode = null;
         this.busy = saveAs ? 'save-as' : 'save';
         const operation = this._operationGeneration;
+        let selectedHandle = null;
+        let adoptedHandle = false;
         try {
             this.projectName = normalizeWorkspaceName(this.projectName, '未命名项目');
             const suggestedName = fileNameFor(this.projectName, PROJECT_EXTENSION);
             let handle = saveAs ? null : this.fileHandle;
             let saveMethod = handle ? 'file-system' : 'download';
-            if (!handle && browserPlatform.file.supportsFileSystemAccess()) {
-                const selected = await browserPlatform.file.chooseSaveHandle({
+            if (!handle && this.root.platform.file.supportsFileSystemAccess()) {
+                const selected = await this.root.platform.file.chooseSaveHandle({
                     suggestedName,
                     types: projectPickerTypes,
                     excludeAcceptAllOption: true,
@@ -362,6 +371,7 @@ export class WorkspaceStore {
                 if (selected.status === 'cancelled') return false;
                 if (selected.status === 'selected') {
                     handle = selected.handle;
+                    selectedHandle = handle;
                     saveMethod = 'file-system';
                 }
             }
@@ -369,12 +379,15 @@ export class WorkspaceStore {
             const blob = await this.createProjectBlob();
             this._assertOperation(operation);
             if (handle) {
-                await browserPlatform.file.writeToHandle(handle, blob);
+                await this.root.platform.file.writeToHandle(handle, blob);
             } else {
-                await browserPlatform.export.download(blob, suggestedName);
+                await this.root.platform.export.download(blob, suggestedName);
             }
             this._assertOperation(operation);
-            if (handle) this.fileHandle = handle;
+            if (handle) {
+                this._setFileHandle(handle);
+                adoptedHandle = true;
+            }
             const recentId = saveAs || !this.currentRecentId ? createId('recent') : this.currentRecentId;
             const cached = await this._cacheRecentProject({
                 id: recentId,
@@ -401,14 +414,18 @@ export class WorkspaceStore {
             }
             return false;
         } finally {
+            if (selectedHandle && !adoptedHandle) {
+                await this.root.platform.file.releaseHandle(selectedHandle).catch(() => {});
+            }
             if (this._isOperationCurrent(operation)) runInAction(() => { this.busy = null; });
         }
     }
 
     async openProjectPicker() {
         const operation = this._operationGeneration;
+        let pendingHandle = null;
         try {
-            const result = await browserPlatform.file.openWithPicker({
+            const result = await this.root.platform.file.openWithPicker({
                 types: projectPickerTypes,
                 excludeAcceptAllOption: true,
                 multiple: false,
@@ -416,19 +433,28 @@ export class WorkspaceStore {
             });
             this._assertOperation(operation);
             if (result.status !== 'selected') return result.status;
-            return this.openProjectFile(result.file, { handle: result.handle });
+            pendingHandle = result.handle;
+            const opening = this.openProjectFile(result.file, { handle: pendingHandle });
+            pendingHandle = null;
+            return opening;
         } catch (error) {
             if (!this._isOperationCancelled(error, operation)) {
                 this.root.editor.message?.error?.(this._messageForError(error, '无法打开系统文件选择器'));
             }
             return false;
+        } finally {
+            if (pendingHandle) await this.root.platform.file.releaseHandle(pendingHandle).catch(() => {});
         }
     }
 
     async openProjectFile(file, { handle = null, recentId = null } = {}) {
-        if (this.busy) return false;
+        if (this.busy) {
+            if (handle) await this.root.platform.file.releaseHandle(handle).catch(() => {});
+            return false;
+        }
         this.busy = 'open';
         const operation = this._operationGeneration;
+        let adoptedHandle = false;
         try {
             const { readWorkspaceArchive } = await loadArchiveTools();
             const decoded = await readWorkspaceArchive(file, { expectedKind: 'project' });
@@ -447,9 +473,10 @@ export class WorkspaceStore {
             runInAction(() => {
                 this.projectName = decoded.name;
                 this.exportSettings = decoded.exportSettings;
-                this.fileHandle = handle;
                 this.currentRecentId = cached ? id : null;
             });
+            this._setFileHandle(handle);
+            adoptedHandle = true;
             this._markClean();
             await this.refreshStorage();
             this._assertOperation(operation);
@@ -461,6 +488,7 @@ export class WorkspaceStore {
             }
             return false;
         } finally {
+            if (handle && !adoptedHandle) await this.root.platform.file.releaseHandle(handle).catch(() => {});
             if (this._isOperationCurrent(operation)) runInAction(() => { this.busy = null; });
         }
     }
@@ -491,6 +519,7 @@ export class WorkspaceStore {
                 const prepared = await prepareWorkspaceImage(file, {
                     retainObjectUrl: true,
                     role: `project-image-${index + 1}`,
+                    platform: this.root.platform,
                 });
                 const runtimeImage = {
                     src: prepared.url,
@@ -514,7 +543,10 @@ export class WorkspaceStore {
                 name: preparedImages[index].name,
             }));
             if (decoded.background) {
-                await prepareWorkspaceImage(decoded.background, { role: 'background-image' });
+                await prepareWorkspaceImage(decoded.background, {
+                    role: 'background-image',
+                    platform: this.root.platform,
+                });
                 this._assertOperation(operation);
                 backgroundAsset = this.root.assetStore.add(decoded.background);
                 if (!backgroundAsset) throw new Error('background-asset-unavailable');
@@ -539,7 +571,7 @@ export class WorkspaceStore {
         } catch (error) {
             if (!imagesCommitted) {
                 new Set(preparedImages.map((image) => image.src))
-                    .forEach((src) => browserPlatform.file.revokeObjectURL(src));
+                    .forEach((src) => this.root.platform.file.revokeObjectURL(src));
             }
             if (backgroundAsset) this.root.assetStore.release(backgroundAsset.id);
             throw error;
@@ -596,9 +628,9 @@ export class WorkspaceStore {
             this._assertOperation(operation);
             runInAction(() => {
                 this.projectName = normalizeWorkspaceName(record.name, '恢复的草稿');
-                this.fileHandle = null;
                 this.currentRecentId = null;
             });
+            this._setFileHandle(null);
             this._markClean({ saved: false });
             this.root.editor.message?.success?.('草稿已恢复');
             return true;
@@ -696,7 +728,10 @@ export class WorkspaceStore {
                 throw new Error('background-asset-missing');
             }
             if (record.backgroundBlob) {
-                await prepareWorkspaceImage(record.backgroundBlob, { role: 'background-image' });
+                await prepareWorkspaceImage(record.backgroundBlob, {
+                    role: 'background-image',
+                    platform: this.root.platform,
+                });
                 this._assertOperation(operation);
                 asset = this.root.assetStore.add(new File(
                     [record.backgroundBlob],
@@ -800,14 +835,14 @@ export class WorkspaceStore {
 
     async exportPreset(id) {
         const operation = this._operationGeneration;
+        let handle = null;
         try {
             const record = await this.root.draftStore.loadPreset(id);
             this._assertOperation(operation);
             if (!record?.preset) throw new Error('preset-missing');
             const name = fileNameFor(record.name, PRESET_EXTENSION);
-            let handle = null;
-            if (browserPlatform.file.supportsFileSystemAccess()) {
-                const selected = await browserPlatform.file.chooseSaveHandle({
+            if (this.root.platform.file.supportsFileSystemAccess()) {
+                const selected = await this.root.platform.file.chooseSaveHandle({
                     suggestedName: name,
                     types: presetPickerTypes,
                     excludeAcceptAllOption: true,
@@ -825,8 +860,8 @@ export class WorkspaceStore {
             const { createPresetArchive } = await loadArchiveTools();
             const blob = await createPresetArchive({ preset: record.preset, background });
             this._assertOperation(operation);
-            if (handle) await browserPlatform.file.writeToHandle(handle, blob);
-            else await browserPlatform.export.download(blob, name);
+            if (handle) await this.root.platform.file.writeToHandle(handle, blob);
+            else await this.root.platform.export.download(blob, name);
             this._assertOperation(operation);
             return true;
         } catch (error) {
@@ -834,6 +869,8 @@ export class WorkspaceStore {
                 this.root.editor.message?.error?.(this._messageForError(error, '预设导出失败'));
             }
             return false;
+        } finally {
+            if (handle) await this.root.platform.file.releaseHandle(handle).catch(() => {});
         }
     }
 
@@ -844,7 +881,10 @@ export class WorkspaceStore {
             const decoded = await readWorkspaceArchive(file, { expectedKind: 'preset' });
             this._assertOperation(operation);
             if (decoded.background) {
-                await prepareWorkspaceImage(decoded.background, { role: 'background-image' });
+                await prepareWorkspaceImage(decoded.background, {
+                    role: 'background-image',
+                    platform: this.root.platform,
+                });
                 this._assertOperation(operation);
             }
             const id = createId('preset');

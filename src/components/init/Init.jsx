@@ -8,7 +8,6 @@ import usePaste from '@hooks/usePaste';
 import useSetImg from '@hooks/useSetImg';
 import useImageDrop from '@hooks/useImageDrop';
 import Zoom from '@components/editor/Zoom';
-import { captureScreen } from '@utils/captureScreen';
 import { getBackgroundDefinition } from '@utils/backgroundConfig';
 
 const { Dragger } = Upload;
@@ -41,17 +40,7 @@ export default observer(function Init() {
         dragProps.onDrop(event);
     };
     const onCapture = async () => {
-        const dataURL = await captureScreen();
-        if (!dataURL) {
-            // getDisplayMedia 被拒绝或取消时给出可理解反馈（R-06），而不是静默返回。
-            stores.editor.message?.error?.('未能获取屏幕内容，请检查浏览器屏幕录制权限');
-            return;
-        }
-        try {
-            await getFile(dataURL, 'dataURL');
-        } catch {
-            showImageError();
-        }
+        await stores.commands.execute('file.captureScreen');
     };
     const onDemo = async () => {
         try {
@@ -129,8 +118,14 @@ export default observer(function Init() {
                     </div>
                 )}
                 <div className="shoteasy-quick-actions m-0 justify-center">
-                    <Tooltip placement="top" arrow={false} title="截取屏幕窗口">
-                        <Button type="default" size="middle" icon={<Icon.Camera size={18} />} onClick={onCapture}>
+                    <Tooltip placement="top" arrow={false} title="截取屏幕">
+                        <Button
+                            type="default"
+                            size="middle"
+                            icon={<Icon.Camera size={18} />}
+                            disabled={!stores.commands.get('file.captureScreen').enabled}
+                            onClick={onCapture}
+                        >
                             截取屏幕
                         </Button>
                     </Tooltip>

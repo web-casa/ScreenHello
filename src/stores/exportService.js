@@ -175,6 +175,7 @@ export class ExportService {
                 await this.platform.export.download(result.blob, filename);
             } catch (error) {
                 this._assertCurrent(context);
+                if (isExportCancelled(error)) throw error;
                 throw exportError('export-download-failed', error);
             }
             this._assertCurrent(context);
