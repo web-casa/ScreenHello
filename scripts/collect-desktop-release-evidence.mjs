@@ -63,6 +63,12 @@ const commandVersion = async (command, args) => {
     return `${stdout}${stderr}`.trim();
 };
 
+const pnpmCli = process.env.npm_execpath;
+if (!pnpmCli || !path.isAbsolute(pnpmCli)) {
+    throw new Error('desktop-evidence-run-via-pnpm');
+}
+const pnpmVersion = (args) => commandVersion(process.execPath, [pnpmCli, ...args]);
+
 const repositorySha = await commandVersion('git', ['rev-parse', 'HEAD']);
 if (repositorySha !== candidateSha) throw new Error('desktop-evidence-checkout-mismatch');
 if (process.env.SCREENHELLO_RUNNER_LABEL !== target.runner) throw new Error('desktop-evidence-runner-mismatch');
@@ -171,7 +177,7 @@ const checksumPath = path.join(targetDirectory, 'SHA256SUMS.txt');
 await writeFile(checksumPath, `${checksumLines.join('\n')}\n`, 'utf8');
 const checksums = (await artifactEvidence(checksumPath, 'desktop-checksums')).record;
 
-const tauriVersion = await commandVersion('pnpm', ['exec', 'tauri', '--version']);
+const tauriVersion = await pnpmVersion(['exec', 'tauri', '--version']);
 const buildDurationMs = Number.parseInt(process.env.SCREENHELLO_DESKTOP_BUILD_DURATION_MS || '', 10);
 if (!Number.isInteger(buildDurationMs) || buildDurationMs <= 0) throw new Error('desktop-build-duration-invalid');
 
@@ -201,7 +207,7 @@ const evidence = {
     },
     tools: {
         node: process.version,
-        pnpm: await commandVersion('pnpm', ['--version']),
+        pnpm: await pnpmVersion(['--version']),
         rustc: await commandVersion('rustc', ['--version']),
         cargo: await commandVersion('cargo', ['--version']),
         tauri: tauriVersion.replace(/^tauri-cli\s+/u, ''),
