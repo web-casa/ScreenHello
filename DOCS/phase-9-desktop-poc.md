@@ -47,12 +47,15 @@ pnpm desktop:build
 pnpm desktop:test:runtime
 pnpm audit:desktop
 pnpm audit:desktop:workflow
+pnpm desktop:sbom
 pnpm audit:desktop:release
 ```
 
 `desktop:build` 显式使用 `--no-bundle --ci`，只生成原始可执行文件，不生成安装包。Linux runtime smoke 需要 PATH 中存在 `tauri-driver`、`WebKitWebDriver`、`xvfb-run` 和 `dbus-run-session`；测试在隔离 XDG 目录中启动真实 release binary，断言编辑器挂载、Rust IPC 为 ready、桌面页面没有 PWA manifest，直接校验原生 640×480 PNG，再通过文件菜单/来源对话框导入同一区域，并验证图片剪贴板、快捷键/托盘状态和第二实例退出。
 
 桌面审计还会扫描普通 Web 与桌面两份 production 产物：Web 不得包含 Tauri runtime marker，桌面不得包含 manifest 或 Service Worker 注册。
+
+SBOM 必须经 `pnpm desktop:sbom` 运行；脚本使用当前 Node 和 pnpm 提供的 `npm_execpath` 启动 CLI，以兼容 Windows 命令包装文件和带空格的安装路径。依赖查询失败时不生成成功证据。
 
 Phase 9.3 的 embedded WebDriver 只允许存在于 `desktop-test-driver` Cargo feature。runner 完成真实 runtime 后必须 `cargo clean`，再用 `tauri.phase9.conf.json` 从无 feature 状态构建平台 bundle；普通 dependency tree 与 production binary 均不得包含测试 driver。最终包还会检查 ELF/Mach-O/PE 架构、DEB control/payload、macOS Info.plist/app ZIP 或 NSIS payload，检查报告与产物一起进入摘要。CI 只有 `contents: read`，不使用发布 action，也不接触签名凭据。汇总器会重新计算下载产物摘要，并强制所有平台引用同一公开 commit/run attempt；自动 Gate 通过也只产生 `conditional` 结果，人工项未完成时 `releaseReady=false`。
 

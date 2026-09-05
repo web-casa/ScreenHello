@@ -46,7 +46,13 @@ const baseBom = (component, components) => ({
     components,
 });
 
-const npmLicenses = await runJson('pnpm', ['licenses', 'list', '--json', '--long']);
+// pnpm's Windows .cmd shim cannot be launched by execFile. The package script
+// supplies the actual CLI entrypoint, which Node can execute on every platform.
+const pnpmCli = process.env.npm_execpath;
+if (!pnpmCli || !path.isAbsolute(pnpmCli)) {
+    throw new Error('desktop-sbom-run-via-pnpm-desktop-sbom');
+}
+const npmLicenses = await runJson(process.execPath, [pnpmCli, 'licenses', 'list', '--json', '--long']);
 const npmComponents = [];
 const npmSeen = new Set();
 for (const entries of Object.values(npmLicenses)) {
