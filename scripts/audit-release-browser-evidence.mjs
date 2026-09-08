@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { browserVersionIsAccepted } from './browser-version-policy.mjs';
+import { validateCompressionEvidence } from '../tests/release/compression-contract.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const evidenceDirectory = resolve(process.env.SCREENHELLO_BROWSER_EVIDENCE_DIR || 'artifacts/release/browser-matrix');
@@ -27,6 +28,10 @@ for (const target of matrix.targets) {
     }
 
     const targetFailures = [];
+    if (process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true' || evidence.compressionDownloads) {
+        try { validateCompressionEvidence(evidence.compressionDownloads); }
+        catch (error) { targetFailures.push(`compression evidence invalid: ${error.message}`); }
+    }
     if (evidence.schemaVersion !== 2) targetFailures.push('unsupported schemaVersion');
     if (evidence.target !== target.id) targetFailures.push('target mismatch');
     if (evidence.status !== 'passed') targetFailures.push(`status is ${evidence.status || 'missing'}`);

@@ -7,6 +7,13 @@ on:
         description: 'Run only the Firefox 128 diagnostic (not a full release matrix)'
         type: boolean
         default: false
+      compression_checks:
+        description: 'Add bounded compression download checks (not memory or full MG3 acceptance)'
+        type: boolean
+        default: false
+
+env:
+  SCREENHELLO_COMPRESSION_CHECKS: ${{ inputs.compression_checks && 'true' || 'false' }}
 
 permissions:
   contents: read

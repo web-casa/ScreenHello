@@ -9,6 +9,7 @@ import { createPngFixture } from '../fixtures/createPngFixture.js';
 import { readMobileAnnotation } from './mobileAnnotation.mjs';
 import { activateEditorWindow } from './foreground.mjs';
 import { firefoxDownloadOptions } from './firefoxDownloadOptions.mjs';
+import { checkCompressionDownloads } from './compression-downloads.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -17,6 +18,7 @@ const baseURL = process.env.SCREENHELLO_RELEASE_BASE_URL || 'http://host.docker.
 const outputPath = resolve(process.env.SCREENHELLO_BROWSER_EVIDENCE
     || `artifacts/release/browser-matrix/${targetId || 'unknown'}.json`);
 const target = matrix.targets.find(({ id }) => id === targetId);
+const compressionChecks = process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true';
 
 assert.ok(target, `SCREENHELLO_BROWSER_TARGET must be one of: ${matrix.targets.map(({ id }) => id).join(', ')}`);
 assert.ok(remoteUrl || target.localDriver, 'SELENIUM_REMOTE_URL is required unless the target uses a local driver');
@@ -515,7 +517,7 @@ try {
         }
     });
 
-    await driver.executeScript(() => {
+    await driver.executeScript((decodeDownloads) => {
         window.__screenhelloReleaseErrors = [];
         window.__screenhelloReleaseDownloads = [];
         // Test-only, bounded metadata: never retain image pixels or worker messages.
@@ -541,6 +543,20 @@ try {
         });
         addEventListener('visibilitychange', () => record('visibilitychange'));
         const blobs = new Map();
+        const blobIds = new WeakMap();
+        let blobSequence = 0;
+        const blobId = blob => {
+            if (!blobIds.has(blob)) blobIds.set(blob, ++blobSequence);
+            return blobIds.get(blob);
+        };
+        const decodeBitmap = window.createImageBitmap;
+        window.__screenhelloPreviewBlobIds = [];
+        if (decodeDownloads) window.createImageBitmap = function releaseDecode(...args) {
+            if (args[0] instanceof Blob && window.__screenhelloPreviewBlobIds.length < 64) {
+                window.__screenhelloPreviewBlobIds.push(blobId(args[0]));
+            }
+            return Reflect.apply(decodeBitmap, this, args);
+        };
         const createObjectURL = URL.createObjectURL.bind(URL);
         const revokeObjectURL = URL.revokeObjectURL.bind(URL);
         const anchorClick = HTMLAnchorElement.prototype.click;
@@ -557,16 +573,30 @@ try {
             const blob = blobs.get(this.href);
             if (this.download && blob) {
                 const name = this.download;
-                void blob.slice(0, 16).arrayBuffer().then((buffer) => {
+                void blob.slice(0, 16).arrayBuffer().then(async (buffer) => {
                     const hex = [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-                    window.__screenhelloReleaseDownloads.push({ name, type: blob.type, size: blob.size, hex });
+                    const result = { name, type: blob.type, size: blob.size, hex, blobId: blobId(blob) };
+                    if (decodeDownloads) {
+                        let bitmap;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = canvas.height = 1;
+                        try {
+                            bitmap = await decodeBitmap.call(window, blob);
+                            const context = canvas.getContext('2d', { willReadFrequently: true });
+                            context.drawImage(bitmap, 0, 0);
+                            result.decoded = { width: bitmap.width, height: bitmap.height,
+                                corner: [...context.getImageData(0, 0, 1, 1).data] };
+                        } catch (error) { result.decodeError = String(error?.message || error); }
+                        finally { bitmap?.close(); canvas.width = canvas.height = 0; }
+                    }
+                    window.__screenhelloReleaseDownloads.push(result);
                 });
             }
             return anchorClick.call(this);
         };
         addEventListener('error', (event) => window.__screenhelloReleaseErrors.push(String(event.error?.message || event.message)));
         addEventListener('unhandledrejection', (event) => window.__screenhelloReleaseErrors.push(String(event.reason?.message || event.reason)));
-    });
+    }, compressionChecks);
 
     const pngBase64 = createPngFixture(64, 48).toString('base64');
     const injected = await driver.executeScript((base64) => {
@@ -619,6 +649,8 @@ try {
             `${format} export drawer was not unmounted after closing`);
     }
 
+    if (compressionChecks) await checkCompressionDownloads({ driver, editorWindow, selectFormat, waitForEnabled,
+        clickMenuItem, waitForRemovedSelector, report, checkpoint: writeReport });
     await activateEditorWindow(driver, editorWindow);
     const mobileWeb = await checkMobileWeb();
 

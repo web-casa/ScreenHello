@@ -82,6 +82,12 @@ describe('browser release evidence audit', () => {
         }, audit)).rejects.toMatchObject({ code: 1 });
     });
 
+    it('does not accept a claimed compression pass without its registered results', async () => {
+        await expect(withEvidence(evidence => {
+            evidence.compressionDownloads = { status: 'passed' };
+        }, audit)).rejects.toMatchObject({ code: 1 });
+    });
+
     it.each([
         ['an oversized viewport', (evidence) => { evidence.checks.mobileWeb.viewport.width = 641; }],
         ['an incomplete topbar', (evidence) => { evidence.checks.mobileWeb.topbarActions.pop(); }],

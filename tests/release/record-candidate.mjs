@@ -18,6 +18,7 @@ await writeImmutableJson('artifacts/release/browser-matrix/candidate.json', {
     webBuildSha256: hashPaths('dist', ['./']),
     sourceSha256: hashPaths('.', ['src/', 'public/', 'config/', 'scripts/', 'index.html', 'package.json', 'pnpm-lock.yaml', 'vite.config.js']),
     runnerSha256: hashPaths('.', ['tests/release/', '.github/workflows/web-release-browser-matrix.yml']),
-    scope: 'standard-format-minimum-browser-smoke', optionalDevicePackIncluded: false,
+    scope: process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true'
+        ? 'standard-and-compression-download-smoke' : 'standard-format-minimum-browser-smoke', optionalDevicePackIncluded: false,
     deploymentAuthorized: false,
 });
