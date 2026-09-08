@@ -43,6 +43,9 @@ jobs:
       - name: Build release candidate
         run: pnpm build
 
+      - name: Record candidate bytes and native host
+        run: node tests/release/record-candidate.mjs
+
       - name: Start production preview
         run: |
           pnpm preview --host 0.0.0.0 --port 4197 --strictPort > "$RUNNER_TEMP/screenhello-preview.log" 2>&1 &
@@ -87,6 +90,7 @@ jobs:
           name: web-release-${{ matrix.target }}-${{ github.sha }}
           path: |
             artifacts/release/browser-matrix/${{ matrix.target }}.json
+            artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/selenium.log
           if-no-files-found: warn
@@ -117,6 +121,9 @@ jobs:
 
       - name: Build release candidate
         run: pnpm build
+
+      - name: Record candidate bytes and native host
+        run: node tests/release/record-candidate.mjs
 
       - name: Start production preview
         run: |
@@ -159,6 +166,7 @@ jobs:
           name: web-release-safari-macos-14-${{ github.sha }}
           path: |
             artifacts/release/browser-matrix/safari-macos-14.json
+            artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/safari-webdriver-logs
           if-no-files-found: warn

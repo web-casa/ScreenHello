@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { browserPlatform } from '../../src/platform/browserPlatform.js';
 import { createScreenHelloRuntime } from '../../src/stores/index.js';
 import { getBackgroundDefinition } from '../../src/utils/backgroundConfig.js';
 
 const runtimes = [];
-const createRuntime = () => {
-    const runtime = createScreenHelloRuntime();
+const createRuntime = (options) => {
+    const runtime = createScreenHelloRuntime(options);
     runtimes.push(runtime);
     return runtime;
 };
@@ -16,6 +17,64 @@ afterEach(() => {
 });
 
 describe('ScreenHelloRuntime isolation', () => {
+    it('device colors round-trip one frame ID through history without adding a color schema or sharing selection', () => {
+        const first = createRuntime(), second = createRuntime();
+        first.option.setFrameMode('fit'); first.history.reset();
+        first.option.setFrame('macbook-air-m2-silver-v1');
+        first.option.setFrame('macbook-air-m2-starlight-v1');
+        expect(first.option.mode).toBe('fit'); expect(second.option.frame).toBe('none');
+        first.history.undo(); expect(first.option.frame).toBe('macbook-air-m2-silver-v1');
+        first.history.redo(); expect(first.option.frame).toBe('macbook-air-m2-starlight-v1');
+        second.option.restoreFromDocument(first.option.toDocument());
+        expect(second.option.frame).toBe('macbook-air-m2-starlight-v1'); expect(second.option.mode).toBe('fit');
+        expect(second.option.toDocument()).not.toHaveProperty('frameColor');
+        first.option.setFrame('imac-24-purple-v1'); expect(second.option.frame).toBe('macbook-air-m2-starlight-v1');
+    });
+    it('round-trips raster device IDs/fit through documents and history without embedding device assets', () => {
+        const first = createRuntime(); const second = createRuntime();
+        first.history.reset();
+        first.option.setFrame('surface-pro-8');
+        first.option.setFrameMode('fit');
+        const option = first.option.toDocument();
+        second.option.restoreFromDocument(option);
+        expect(second.option.mode).toBe('fit');
+        expect(second.option.frame).toBe('surface-pro-8');
+        first.history.undo(); first.history.undo();
+        expect(first.option.frame).toBe('none');
+        first.history.redo(); first.history.redo();
+        expect(first.option.toDocument()).toMatchObject({ frame: 'surface-pro-8', frameMode: 'fit' });
+        expect(JSON.stringify(option)).not.toMatch(/local-device-assets|medialoot|blob:|\.png/);
+        expect(first.deviceLicense).not.toBe(second.deviceLicense);
+    });
+    it('injects one platform through owned stores and releases only its native file handle', async () => {
+        const releaseHandle = vi.fn().mockResolvedValue(undefined);
+        const createObjectURL = vi.fn().mockReturnValue('blob:desktop-owned');
+        const revokeObjectURL = vi.fn();
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                createObjectURL,
+                revokeObjectURL,
+                releaseHandle,
+            },
+        };
+        const runtime = createRuntime({ platform });
+        const handle = { platform: 'desktop', token: 'a'.repeat(48), kind: 'project' };
+        const asset = runtime.assetStore.add(new Blob(['background'], { type: 'image/png' }));
+
+        runtime.workspace._setFileHandle(handle);
+        expect(runtime.platform).toBe(platform);
+        expect(runtime.assetStore.platform).toBe(platform);
+        expect(runtime.exportService.platform).toBe(platform);
+        expect(runtime.batch.platform).toBe(platform);
+        expect(asset?.url).toBe('blob:desktop-owned');
+
+        runtime.dispose();
+        await vi.waitFor(() => expect(releaseHandle).toHaveBeenCalledWith(handle));
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:desktop-owned');
+    });
+
     it('keeps editor, option, history, theme, and draft configuration instance-local', () => {
         const first = createRuntime();
         const second = createRuntime();
@@ -38,6 +97,24 @@ describe('ScreenHelloRuntime isolation', () => {
         expect(() => structuredClone(first.option.toDocument())).not.toThrow();
         expect(first.draftService.getKey()).toBe('draft-first');
         expect(second.draftService.getKey()).toBe('draft-second');
+    });
+
+    it('keeps restored bitmap IDs and Surface display renaming independent of stored identifiers', () => {
+        const runtime = createRuntime();
+        const other = createRuntime();
+        for (const frame of ['surface-pro-8', 'macbook-pro-bitmap', 'macbook-air-bitmap', 'imac-bitmap', 'ipad-bitmap', 'iphone-bitmap']) {
+            runtime.option.setFrame(frame);
+            runtime.option.setFrameMode('stretch');
+            const saved = runtime.option.toDocument();
+            expect(saved).toMatchObject({ frame, frameMode: 'stretch' });
+            expect(runtime.option.mode).toBe('stretch');
+            other.option.restoreFromDocument(saved);
+            expect(other.option.frame).toBe(frame);
+            expect(other.option.mode).toBe('stretch');
+        }
+        runtime.option.restoreFromDocument({ frame: 'iphonepro', frameMode: 'cover' });
+        expect(runtime.option.frame).toBe('iphonepro');
+        expect(other.option.frame).toBe('iphone-bitmap');
     });
 
     it('persists generic devices in history and never leaks invalid runtime fill modes', () => {

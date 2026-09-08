@@ -41,12 +41,15 @@ export class History {
 
     _pruneResources() {
         const retained = new Set(this.root.imageStore.list.map((layer) => layer.assetId));
+        const backgrounds = new Set([this.root.option.backgroundAssetId]);
         this.manager?.stacks?.forEach((document) => {
+            if (document?.option?.backgroundAssetId) backgrounds.add(document.option.backgroundAssetId);
             document?.images?.forEach((image) => {
                 if (image.assetId) retained.add(image.assetId);
             });
         });
         this.root.imageStore.pruneResources(retained);
+        this.root.option.pruneBackgroundAssets(backgrounds);
     }
 
     /**

@@ -44,7 +44,6 @@ import SearchIcon from 'mage-icons-react/stroke/SearchIcon';
 import SettingsIcon from 'mage-icons-react/stroke/SettingsIcon';
 import ColorPickerIcon from 'mage-icons-react/stroke/ColorPickerIcon';
 import Trash2Icon from 'mage-icons-react/stroke/Trash2Icon';
-import SunIcon from 'mage-icons-react/stroke/SunIcon';
 import MoonIcon from 'mage-icons-react/stroke/MoonIcon';
 
 // --- 自绘 SVG（mage-icons 未覆盖的图标，24×24 网格，currentColor）---
@@ -58,6 +57,15 @@ const strokeProps = {
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
 };
+
+// The upstream Sun SVG contains a fixed clipPath ID. The rays fit inside the
+// viewBox, so this equivalent ID-free glyph is safe across editor instances.
+const SunGlyph = ({ className }) => (
+    <svg {...strokeProps} className={className}>
+        <circle cx="12" cy="12" r="5.885" />
+        <path d="M1.5 12h1.22M21.29 12h1.21M12 1.5v1.22M12 21.29v1.21M4.58 4.58l.86.86M18.56 18.56l.86.86M18.56 5.44l.86-.86M4.58 19.42l.86-.86" />
+    </svg>
+);
 
 const SquareGlyph = ({ className }) => (
     <svg {...strokeProps} className={className}>
@@ -274,7 +282,7 @@ export default {
     Settings2: wrap(SettingsIcon),
     Pipette: wrap(ColorPickerIcon),
     Trash2: wrap(Trash2Icon),
-    Sun: wrap(SunIcon),
+    Sun: wrap(SunGlyph),
     Moon: wrap(MoonIcon),
     Magnifier: wrap(SearchIcon),
     MessageCirclePlus: wrap(SearchIcon),

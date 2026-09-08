@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { createPwaOptions, normalizeWebBase } from './config/pwaConfig.js';
+import { upngCjsPlugin } from './config/upngCodecPlugin.mjs';
+import { devFaviconPlugin, readWebIconVersions, webFaviconPlugin } from './config/devFaviconPlugin.mjs';
+import { publicSitePlugin } from './config/seoPlugin.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const libraryPeers = Object.keys(pkg.peerDependencies || {});
@@ -13,14 +16,37 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const libraryPeerPatterns = libraryPeers.map((dependency) => new RegExp(`^${escapeRegExp(dependency)}(?:/|$)`));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const browserTargets = ['chrome111', 'edge111', 'firefox128', 'safari16.4'];
-
 const resolve = (url) => path.resolve(__dirname, url);
 const type = process.env.NODE_TYPE;
+const desktopMode = process.env.SCREENHELLO_TARGET === 'desktop';
+const tauriDevHost = process.env.TAURI_DEV_HOST;
 const webBase = normalizeWebBase(process.env.SCREENHELLO_BASE_PATH || '/');
+const webIconVersions = type === 'lib' || desktopMode ? {} : readWebIconVersions(resolve('./public'));
 const buildConf = {
-    base: type === 'lib' ? './' : webBase,
-    build: { target: browserTargets },
+    base: type === 'lib' || desktopMode ? './' : webBase,
+    build: {
+        target: browserTargets,
+        rolldownOptions: {
+            output: {
+                // Keep all translations available offline without pushing the entry
+                // past the existing 1 MiB per-file precache budget.
+                codeSplitting: {
+                    groups: [{ name: 'i18n-catalogs', test: /\/src\/i18n\/(?:catalog\.js|[^/]+\.json)$/ }],
+                },
+            },
+        },
+    },
 };
+
+if (desktopMode) {
+    buildConf.root = resolve('./desktop');
+    buildConf.publicDir = false;
+    buildConf.build = {
+        ...buildConf.build,
+        outDir: resolve('./dist-desktop'),
+        emptyOutDir: true,
+    };
+}
 
 // Vite library mode emits `new URL("assets/...", import.meta.url)` for `?no-inline`
 // assets. A consumer's dependency optimizer may relocate that JS chunk without the
@@ -39,7 +65,8 @@ const preserveLibraryAssetImports = () => ({
                 // 把包内 .js?url 作为普通依赖导入会被 Rolldown 优化器当成 JS 模块。
                 if (/\.worker-[^/]+\.js$/.test(assetPath)) return match;
                 if (!imports.has(assetPath)) {
-                    const assetQuery = assetPath.endsWith('.wasm') ? '?url&no-inline' : '';
+                    const assetQuery = assetPath.endsWith('.wasm') ? '?url&no-inline'
+                        : /\/bg-(?:image|thumb)-/.test(assetPath) ? '?no-inline' : '';
                     imports.set(assetPath, {
                         identifier: `__screenhello_asset_${imports.size}`,
                         // 裸 `.wasm` import 会被宿主 Vite 当成原生 WASM 模块；
@@ -97,11 +124,16 @@ if (type === 'lib') {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    appType: type === 'lib' || desktopMode ? undefined : 'mpa',
+    define: { 'import.meta.env.SCREENHELLO_PUBLIC_SITE': JSON.stringify(type !== 'lib' && !desktopMode) },
+    clearScreen: desktopMode ? false : undefined,
     optimizeDeps: {
         // 根应用只扫描自己的入口；tests/consumer 是独立安装、独立启动的真实包消费端。
         entries: ['index.html'],
         // jSquash 官方文档要求 Vite 不预构建其动态 WASM 路径；实际生产构建仍由 Vite 接管资源 URL。
-        exclude: ['@jsquash/avif', '@jsquash/webp'],
+        exclude: ['@jsquash/avif', '@jsquash/webp', '@jsquash/oxipng'],
+        include: ['upng-js'],
+        rolldownOptions: { plugins: [upngCjsPlugin()] },
     },
     resolve: {
         // 根应用与嵌套/已安装 consumer fixture 必须解析到同一组宿主实例。
@@ -120,12 +152,34 @@ export default defineConfig({
         // Release browsers run in a sibling Docker container and reach the host through this explicit gateway name.
         allowedHosts: ['host.docker.internal'],
     },
+    server: {
+        watch: { ignored: ['**/src-tauri/**'] },
+        ...(desktopMode ? {
+            port: 1420,
+            strictPort: true,
+            host: tauriDevHost || false,
+            hmr: tauriDevHost ? {
+                protocol: 'ws',
+                host: tauriDevHost,
+                port: 1421,
+            } : undefined,
+        } : {}),
+    },
     plugins: [
+        devFaviconPlugin(resolve('./src/assets/favicon.png')),
+        ...(type === 'lib' || desktopMode ? [] : [webFaviconPlugin(resolve('./public'), webIconVersions)]),
+        ...(type === 'lib' || desktopMode ? [] : [publicSitePlugin({
+            base: webBase,
+            origin: process.env.SCREENHELLO_SITE_ORIGIN || 'https://screenhello.com',
+            indexable: process.env.SCREENHELLO_SITE_INDEXABLE !== 'false',
+        })]),
+        upngCjsPlugin(),
         tailwindcss(),
         react(),
         ...(type === 'lib'
             ? [preserveLibraryAssetImports()]
-            : [VitePWA(createPwaOptions(webBase))]),
+            : (desktopMode ? [] : [VitePWA(createPwaOptions(webBase, webIconVersions))])),
     ],
+    worker: { plugins: () => [upngCjsPlugin()] },
     ...buildConf
 });

@@ -9,6 +9,8 @@ import {
     createBatchEntryNamer,
 } from '@utils/batchContract';
 import { normalizeExportSettings, validateStylePreset } from '@utils/stylePreset';
+import { validateExportSettings } from '@utils/exportSettings';
+import { waitWithSignal } from '@utils/exportAsync';
 import { isExportCancelled } from '@stores/exportService';
 
 const defaultRendererFactory = async (options) => {
@@ -36,7 +38,7 @@ const fetchBackground = async (url, signal) => {
     if (!isTrustedBackgroundUrl(url) || typeof fetch !== 'function') return null;
     let response;
     try {
-        response = await fetch(url, { signal });
+        response = await fetch(url, { signal, redirect: 'error', credentials: 'omit' });
     } catch (error) {
         if (signal?.aborted) throw batchError('batch-cancelled');
         throw batchError('batch-background-unavailable', error);
@@ -48,13 +50,14 @@ const fetchBackground = async (url, signal) => {
     return blob;
 };
 
-export async function resolveBatchStyle(root, source, signal) {
+async function readBatchStyle(root, source, signal) {
     if (source?.kind === 'snapshot') {
         const backgroundBlob = source.backgroundBlob || await fetchBackground(source.backgroundUrl, signal);
         if (source.option?.frameConf?.background?.type === 'image' && !backgroundBlob) {
             throw batchError('batch-background-unavailable');
         }
         return {
+            theme: source.theme,
             option: structuredClone(source.option),
             exportSettings: normalizeExportSettings(source.exportSettings),
             backgroundBlob,
@@ -71,15 +74,59 @@ export async function resolveBatchStyle(root, source, signal) {
             throw batchError('batch-background-unavailable');
         }
         return {
+            theme: source.theme,
             option: validation.preset.option,
             exportSettings: validation.preset.exportSettings,
             backgroundBlob: record.backgroundBlob || null,
             backgroundName: record.backgroundName || 'background',
             backgroundType: record.backgroundType || record.backgroundBlob?.type || null,
+            warnings: validation.exportSettingsWarnings,
         };
     }
     throw batchError('batch-style-invalid');
 }
+
+export async function resolveBatchStyle(root, source, signal) {
+    const controller = new AbortController();
+    const abort = () => controller.abort(batchError('batch-cancelled'));
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
+    const timer = setTimeout(() => controller.abort(batchError('batch-style-timeout')), 10_000);
+    try {
+        if (controller.signal.aborted) throw batchError('batch-cancelled');
+        return await waitWithSignal(readBatchStyle(root, source, controller.signal), controller.signal);
+    } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
+    }
+}
+
+// JSON is owned and deeply frozen; immutable Blob bytes are retained, never live URLs.
+const freezeJson = value => {
+    if (value && typeof value === 'object') {
+        Object.values(value).forEach(freezeJson);
+        Object.freeze(value);
+    }
+    return value;
+};
+const freezeStyle = style => {
+    const option = structuredClone(style.option);
+    option.backgroundAssetId = null;
+    if (option.frameConf?.background?.type === 'image') {
+        if (!isBlob(style.backgroundBlob) || style.backgroundBlob.size <= 0) throw batchError('batch-background-unavailable');
+        option.frameConf.background.url = null;
+    }
+    return Object.freeze({
+        // FrameBox strokes depend on theme; retain output pixels without persisting UI preferences.
+        theme: style.theme === 'dark' ? 'dark' : 'light',
+        option: freezeJson(option),
+        exportSettings: Object.freeze(validateExportSettings(style.exportSettings)),
+        backgroundBlob: style.backgroundBlob || null,
+        backgroundName: style.backgroundName || 'background',
+        backgroundType: style.backgroundType || style.backgroundBlob?.type || null,
+        warnings: Object.freeze([...(style.warnings || [])]),
+    });
+};
 
 const archiveName = (now) => {
     const stamp = new Date(now()).toISOString().replace(/[-:]/g, '').slice(0, 13);
@@ -105,6 +152,7 @@ export class BatchExportService {
         this._currentController = null;
         this._disposed = false;
         this._running = false;
+        this._snapshots = new WeakSet();
     }
 
     get isRunning() {
@@ -127,6 +175,8 @@ export class BatchExportService {
     async run({
         jobs,
         styleSource,
+        styleSnapshot = null,
+        onStyleReady = () => {},
         signal,
         onUpdate = () => {},
         maxOutputBytes = MAX_BATCH_OUTPUT_BYTES,
@@ -147,11 +197,15 @@ export class BatchExportService {
         let archive = null;
         let stoppedByBudget = false;
         try {
-            const style = await this.styleResolver(this.root, styleSource, signal);
+            if (styleSnapshot && !this._snapshots.has(styleSnapshot)) throw batchError('batch-style-invalid');
+            const style = styleSnapshot || freezeStyle(await this.styleResolver(this.root, styleSource, signal));
             this._assertAvailable(signal);
             renderer = await this.rendererFactory({ root: this.root, style, signal });
             this._assertAvailable(signal);
-            const { format, ratio } = normalizeExportSettings(style.exportSettings);
+            // Background decode/renderer initialization must succeed before retry becomes available.
+            this._snapshots.add(style);
+            onStyleReady(style);
+            const { format, ratio } = style.exportSettings;
             const nextEntryName = createBatchEntryNamer({ format, ratio });
             archive = this.archiveFactory({ maxOutputBytes, maxArchiveBytes });
 
@@ -180,8 +234,7 @@ export class BatchExportService {
                         exported = await this.root.exportService.exportImage({
                             target: renderer.target,
                             size: renderer.size,
-                            format,
-                            ratio,
+                            ...style.exportSettings,
                             signal: controller.signal,
                             baseName: current.file.name,
                         });

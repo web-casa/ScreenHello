@@ -345,13 +345,44 @@ describe('BatchStore', () => {
         workspace: { exportSettings: { format: 'png', ratio: 1 } },
     });
 
+    it.each(['resolve', 'reject', 'cancel', 'disposed'])('serializes ZIP handoff and safely settles %s', async outcome => {
+        let resolve, reject;
+        const platform = { export: { download: vi.fn(() => new Promise((yes, no) => { resolve = yes; reject = no; })) } };
+        const store = new BatchStore(root(), { platform });
+        store.selectFiles([file('one.png')]);
+        store.archive = new Blob(['zip']); store.archiveFilename = 'one.zip';
+        const archive = store.archive;
+        const pending = store.download();
+        expect(store.isHandingOff).toBe(true); expect(store.isBusy).toBe(true);
+        await expect(store.download()).resolves.toBe(false);
+        await expect(store.start()).resolves.toBe(false);
+        await expect(store.retryFailed()).resolves.toBe(false);
+        expect(store.clear()).toBe(false);
+        expect(() => store.selectFiles([file('two.png')])).toThrow('batch-busy');
+        store.setPreset('another'); expect(store.presetId).toBeNull();
+        if (outcome === 'disposed') { store.dispose(); reject(new Error('late failure')); }
+        else if (outcome === 'cancel') reject(Object.assign(new Error('cancelled'), { code: 'export-cancelled' }));
+        else if (outcome === 'reject') reject(new Error('save failed'));
+        else resolve();
+        await expect(pending).resolves.toBe(outcome === 'resolve');
+        expect(platform.export.download).toHaveBeenCalledTimes(1);
+        expect(store.isBusy).toBe(false);
+        expect(store.errorCode).toBe(outcome === 'reject' ? 'batch-download-failed' : null);
+        expect(store.archive).toBe(outcome === 'disposed' ? null : archive);
+        if (outcome !== 'disposed') {
+            platform.export.download.mockResolvedValueOnce();
+            await expect(store.download()).resolves.toBe(true);
+        } else await expect(store.download()).resolves.toBe(false);
+    });
+
     it('freezes current style before the lazy service loads and downloads one archive', async () => {
         let resolveService;
         const serviceReady = new Promise((resolve) => { resolveService = resolve; });
         let receivedSource = null;
         const service = {
-            run: vi.fn(async ({ jobs, styleSource, onUpdate }) => {
+            run: vi.fn(async ({ jobs, styleSource, onStyleReady, onUpdate }) => {
                 receivedSource = styleSource;
+                onStyleReady(styleSource);
                 jobs.forEach(({ id }) => onUpdate(id, { status: 'completed' }));
                 return {
                     archive: new Blob(['zip'], { type: 'application/zip' }),
@@ -385,12 +416,33 @@ describe('BatchStore', () => {
         await expect(store.download()).resolves.toBe(true);
         expect(platform.export.download).toHaveBeenCalledOnce();
         expect(platform.export.download).toHaveBeenCalledWith(store.archive, 'ScreenHello-batch.zip');
+
+        const savedArchive = store.archive;
+        platform.export.download.mockRejectedValueOnce(
+            Object.assign(new Error('desktop-file-exists'), { code: 'desktop-file-exists' }),
+        );
+        await expect(store.download()).resolves.toBe(false);
+        expect(store.errorCode).toBe('desktop-file-exists');
+        expect(store.archive).toBe(savedArchive);
+        expect(store.jobs[0].status).toBe('completed');
+
+        await expect(store.download()).resolves.toBe(true);
+        expect(store.errorCode).toBeNull();
+        expect(store.archive).toBe(savedArchive);
+
+        platform.export.download.mockRejectedValueOnce(
+            Object.assign(new Error('cancelled'), { code: 'export-cancelled' }),
+        );
+        store.errorCode = null;
+        await expect(store.download()).resolves.toBe(false);
+        expect(store.errorCode).toBeNull();
     });
 
     it('retries only failed or cancelled files and keeps store instances isolated', async () => {
         const runs = [];
         const makeService = () => ({
-            run: vi.fn(async ({ jobs, onUpdate }) => {
+            run: vi.fn(async ({ jobs, styleSource, styleSnapshot, onStyleReady, onUpdate }) => {
+                onStyleReady(styleSnapshot || styleSource);
                 runs.push(jobs.map(({ file: input }) => input.name));
                 jobs.forEach(({ id, file: input }) => onUpdate(id, {
                     status: runs.length === 1 && input.name === 'bad.png' ? 'failed' : 'completed',

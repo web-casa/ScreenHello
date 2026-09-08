@@ -1,8 +1,8 @@
 import { normalizeOption } from '@utils/projectDocument';
+import { exportSettingsWarnings, normalizeExportSettings } from './exportSettings';
+export { EXPORT_FORMATS, EXPORT_RATIOS, normalizeExportSettings } from './exportSettings';
 
 export const STYLE_PRESET_VERSION = 1;
-export const EXPORT_FORMATS = ['png', 'jpg', 'webp', 'avif'];
-export const EXPORT_RATIOS = [1, 2, 3];
 
 export const normalizeWorkspaceName = (value, fallback = '未命名') => {
     const printable = Array.from(String(value ?? ''))
@@ -15,11 +15,6 @@ export const normalizeWorkspaceName = (value, fallback = '未命名') => {
         .slice(0, 80);
     return clean || fallback;
 };
-
-export const normalizeExportSettings = (value = {}) => ({
-    format: EXPORT_FORMATS.includes(value?.format) ? value.format : 'png',
-    ratio: EXPORT_RATIOS.includes(Number(value?.ratio)) ? Number(value.ratio) : 1,
-});
 
 export function createStylePreset({ id = null, name, option, exportSettings } = {}) {
     const normalizedOption = normalizeOption(option);
@@ -54,6 +49,7 @@ export function validateStylePreset(input) {
     return {
         ok: errors.length === 0,
         preset: createStylePreset(input),
+        exportSettingsWarnings: exportSettingsWarnings(input.exportSettings),
         errors,
     };
 }

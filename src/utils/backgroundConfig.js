@@ -1,3 +1,5 @@
+import { PRESET_BACKGROUNDS } from './presetBackgrounds';
+
 const ADDITIONAL_GRADIENT_STOPS = [
     ['#f5f7fa', '#c3cfe2', '#e0c3fc','#8ec5fc'],
     ['#ff9a9e', '#fecfef', '#c1dfc4', '#deecdd'],
@@ -418,6 +420,7 @@ const getBackgroundCategory = (key) => {
 };
 
 const normalizedBackgroundConfig = {
+    ...Object.fromEntries(PRESET_BACKGROUNDS.map(entry => [entry.key, entry])),
     none: {
         key: 'none',
         type: 'none',
@@ -468,6 +471,8 @@ export const normalizeBackgroundKey = (value) => {
 };
 
 export const getBackgroundDefinition = (value) => normalizedBackgroundConfig[normalizeBackgroundKey(value)];
+
+export const isImageBackgroundKey = (value) => ['upload-image', 'preset-image'].includes(getBackgroundDefinition(value)?.type);
 
 /**
  * 检查器「预设」区直出的代码原生精选渐变（恰好两行五列）。

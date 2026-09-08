@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { App, ResizeEvent, ZoomEvent, DragEvent, PointerEvent, PropertyEvent, Rect, Cursor } from 'leafer-ui';
@@ -13,7 +14,6 @@ import Watermark from './layers/Watermark';
 import ShapeLine from './layers/ShapeLine';
 import { ScrollBar } from '@leafer-in/scroll'
 import { nanoid } from '@utils/utils';
-import HotKeys from './HotKeys';
 import '@leafer-in/view';
 import '@leafer-in/viewport';
 
@@ -22,6 +22,7 @@ Cursor.set('pencil', pencilCursor);
 const isImageNode = (node) => Boolean(node?.__screenhelloImageId);
 
 export default observer(function View({ target }) {
+    const t = useI18n();
     const stores = useStores();
     const imageSelectionSignature = stores.imageStore.selectedIds.join('|');
     useEffect(() => {
@@ -106,14 +107,8 @@ export default observer(function View({ target }) {
             clearImageTimer = setTimeout(() => {
                 clearImageTimer = null;
                 if (!stores.imageStore.layers.has(imageId)) return;
-                if (stores.imageStore.list.length === 1) {
-                    stores.editor.destroy();
-                    stores.editor.clearImg();
-                    stores.editor.clearFun && stores.editor.clearFun();
-                } else {
-                    stores.imageStore.select([imageId]);
-                    stores.imageStore.removeSelected();
-                }
+                stores.imageStore.select([imageId]);
+                void stores.commands.execute('edit.deleteSelection', { imagesOnly: true });
             }, 0);
         };
         closeButton.on(PointerEvent.TAP, clearCurrentImage);
@@ -300,6 +295,12 @@ export default observer(function View({ target }) {
         app.editor.on(EditorRotateEvent.ROTATE, syncSelectionGeometry);
 
         let shapeId = null;
+        const unregisterExportFlusher = stores.renderTaskTracker?.registerFlusher(() => {
+            if (shapeId) throw Object.assign(new Error('export-render-interacting'), { code: 'export-render-interacting' });
+            app.editor.closeInnerEditor();
+            finishScreenshotTransform();
+            syncSelectionGeometry.flush();
+        });
         const onStart = (arg) => {
             if (!stores.editor.useTool) return;
             const { target } = arg;
@@ -329,7 +330,7 @@ export default observer(function View({ target }) {
             if (type === 'Step') {
                 newShape.text = stores.editor.nextStep;
             } else if (type === 'text') {
-                newShape.text = '双击编辑文字';
+                newShape.text = t("双击编辑文字");
                 newShape.textStyle = {
                     fontSize: 24,
                     fontWeight: 'normal',
@@ -409,6 +410,7 @@ export default observer(function View({ target }) {
 
         return (() => {
             removeListener(target, onResize);
+            unregisterExportFlusher?.();
             onResize.cancel();
             syncSelectionGeometry.cancel();
             clearTimeout(closeSyncTimer);
@@ -465,10 +467,9 @@ export default observer(function View({ target }) {
                 return <ShapeLine key={id} {...props} />;
             })}
             {stores.imageStore.list.map((layer) => (
-                <Screenshot key={`${layer.id}:${layer.zIndex}`} layer={layer} />
+                <Screenshot key={layer.id} layer={layer} />
             ))}
             {stores.option.waterImg && <Watermark />}
         </FrameBox>
-        <HotKeys />
     </>);
 });

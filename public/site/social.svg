@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><linearGradient id="wash" x2="1" y2="1"><stop stop-color="#cde7d7"/><stop offset="1" stop-color="#81b398"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="#f5f4ef"/>
+  <text x="68" y="107" font-family="sans-serif" font-weight="700" font-size="32" fill="#17382a">ScreenHello</text>
+  <text x="68" y="261" font-family="serif" font-size="62" fill="#17382a">Better screenshots.</text>
+  <text x="68" y="337" font-family="serif" font-size="62" fill="#17382a">On your device.</text>
+  <text x="70" y="407" font-family="sans-serif" font-size="21" fill="#53645b">Style · Annotate · Compress · Export</text>
+  <text x="70" y="556" font-family="sans-serif" font-size="19" fill="#115e59">screenhello.com</text>
+  <rect x="683" y="124" width="450" height="386" rx="18" fill="url(#wash)"/>
+  <rect x="722" y="193" width="372" height="266" rx="12" fill="#16492f" opacity=".15"/>
+  <rect x="714" y="177" width="372" height="266" rx="12" fill="#fcfcf8"/>
+  <circle cx="736" cy="198" r="4" fill="#829c8b"/><circle cx="751" cy="198" r="4" fill="#829c8b"/><circle cx="766" cy="198" r="4" fill="#829c8b"/>
+  <rect x="812" y="191" width="161" height="14" rx="5" fill="#e6eee7"/>
+  <rect x="736" y="229" width="161" height="14" rx="5" fill="#17382a"/>
+  <rect x="736" y="260" width="323" height="149" rx="7" fill="#e6eee7"/>
+  <path d="M756 381l42-38 45 14 47-58 42 22 45-39 59 15" stroke="#257350" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+</svg>

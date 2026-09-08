@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><g clip-path="url(#SvgjsClipPath1059)"><rect width="1000" height="1000" fill="#151515"></rect><g transform="matrix(0.7974481658692185,0,0,0.7974481658692185,0,0)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" width="1254" height="1254"><defs>
+    <!-- Top-left ribbon -->
+    <linearGradient id="topBase" x1="270" y1="300" x2="720" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2DE4CF"></stop>
+      <stop offset="0.34" stop-color="#34C9EC"></stop>
+      <stop offset="0.72" stop-color="#4A91F4"></stop>
+      <stop offset="1" stop-color="#69A8FA"></stop>
+    </linearGradient>
+    <linearGradient id="topFold" x1="270" y1="565" x2="720" y2="290" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#425CF0"></stop>
+      <stop offset="0.30" stop-color="#235CDE"></stop>
+      <stop offset="0.67" stop-color="#2C82ED"></stop>
+      <stop offset="1" stop-color="#62B1FA"></stop>
+    </linearGradient>
+    <radialGradient id="topPurple" cx="0" cy="0" r="1" gradientTransform="translate(370 602) rotate(-42) scale(190 150)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7557F3" stop-opacity="0.9"></stop>
+      <stop offset="1" stop-color="#7557F3" stop-opacity="0"></stop>
+    </radialGradient>
+
+    <!-- Bottom-left ribbon -->
+    <linearGradient id="blBase" x1="260" y1="690" x2="590" y2="955" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#33D9E5"></stop>
+      <stop offset="0.32" stop-color="#3DAEF5"></stop>
+      <stop offset="0.68" stop-color="#527BF5"></stop>
+      <stop offset="1" stop-color="#B05DF1"></stop>
+    </linearGradient>
+    <linearGradient id="blFold" x1="300" y1="660" x2="575" y2="940" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4DA9F8"></stop>
+      <stop offset="0.36" stop-color="#345EE6"></stop>
+      <stop offset="0.72" stop-color="#5C55EA"></stop>
+      <stop offset="1" stop-color="#8556EF"></stop>
+    </linearGradient>
+    <radialGradient id="blGlow" cx="0" cy="0" r="1" gradientTransform="translate(272 858) rotate(15) scale(220 160)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#45D2E9" stop-opacity="0.58"></stop>
+      <stop offset="1" stop-color="#45D2E9" stop-opacity="0"></stop>
+    </radialGradient>
+
+    <!-- Bottom-right ribbon -->
+    <linearGradient id="brBase" x1="665" y1="935" x2="1000" y2="650" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#48B5F7"></stop>
+      <stop offset="0.40" stop-color="#6579F2"></stop>
+      <stop offset="0.72" stop-color="#A169EC"></stop>
+      <stop offset="1" stop-color="#D792F0"></stop>
+    </linearGradient>
+    <linearGradient id="brFold" x1="675" y1="955" x2="990" y2="670" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3C9CF4"></stop>
+      <stop offset="0.33" stop-color="#3E69E7"></stop>
+      <stop offset="0.68" stop-color="#5851D9"></stop>
+      <stop offset="1" stop-color="#8C68E7"></stop>
+    </linearGradient>
+    <radialGradient id="brPink" cx="0" cy="0" r="1" gradientTransform="translate(990 870) rotate(135) scale(220 170)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E598ED" stop-opacity="0.72"></stop>
+      <stop offset="1" stop-color="#E598ED" stop-opacity="0"></stop>
+    </radialGradient>
+
+    <!-- Sparkle -->
+    <linearGradient id="starBase" x1="785" y1="360" x2="820" y2="744" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38C9E6"></stop>
+      <stop offset="0.34" stop-color="#2EA7F0"></stop>
+      <stop offset="0.67" stop-color="#4D6CF0"></stop>
+      <stop offset="1" stop-color="#B264EC"></stop>
+    </linearGradient>
+    <radialGradient id="starCyan" cx="0" cy="0" r="1" gradientTransform="translate(792 405) rotate(90) scale(235 205)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#56D6E8" stop-opacity="0.9"></stop>
+      <stop offset="1" stop-color="#56D6E8" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="starBlue" cx="0" cy="0" r="1" gradientTransform="translate(688 585) rotate(-10) scale(210 170)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1689EF" stop-opacity="0.85"></stop>
+      <stop offset="1" stop-color="#1689EF" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="starPink" cx="0" cy="0" r="1" gradientTransform="translate(925 555) rotate(180) scale(210 165)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CF74EA" stop-opacity="0.9"></stop>
+      <stop offset="1" stop-color="#CF74EA" stop-opacity="0"></stop>
+    </radialGradient>
+
+    <clipPath id="clipTop">
+      <path d="M383 415V584C383 601 371 612 354 612H329C287 612 254 582 254 542V414C254 340 316 281 393 281H675C706 281 722 285 722 302V336C722 380 690 414 647 414H390C386 414 383 414 383 415Z"></path>
+    </clipPath>
+    <clipPath id="clipBL">
+      <path d="M383 832V681C383 664 371 654 355 654H323C286 654 256 684 256 721V851C256 911 304 958 364 958H565C579 958 586 950 586 937V910C586 867 552 833 510 833H394C388 833 383 832 383 832Z"></path>
+    </clipPath>
+    <clipPath id="clipBR">
+      <path d="M872 830V681C872 651 896 627 928 627H944C976 627 999 651 999 680V836C999 905 944 958 878 958H689C675 958 664 947 664 933V899C664 862 693 833 729 833H861C867 833 872 831 872 830Z"></path>
+    </clipPath>
+    <clipPath id="clipStar">
+      <path d="M793 357C797 357 799 363 800 370C812 448 845 495 906 526C930 538 955 545 983 550C988 551 990 553 990 556C990 559 987 561 982 562C911 576 862 601 831 644C811 672 800 704 795 738C794 744 792 747 789 747C786 747 784 744 783 738C770 667 742 622 696 593C669 576 638 565 604 560C599 559 597 557 597 554C597 551 599 549 604 548C676 534 725 507 754 467C774 439 785 405 789 366C790 360 791 357 793 357Z"></path>
+    </clipPath>
+  <clipPath id="SvgjsClipPath1059"><rect width="1000" height="1000" x="0" y="0" rx="350" ry="350"></rect></clipPath></defs><g clip-path="url(#clipTop)">
+    <rect x="245" y="270" width="490" height="355" fill="url(#topBase)"></rect>
+    <path d="M244 566C322 442 460 350 640 291L735 270V430H383V620H244Z" fill="url(#topFold)"></path>
+    <rect x="245" y="270" width="500" height="370" fill="url(#topPurple)"></rect>
+  </g><g clip-path="url(#clipBL)">
+    <rect x="245" y="640" width="355" height="330" fill="url(#blBase)"></rect>
+    <path d="M247 681C281 747 337 792 400 837C459 879 523 924 598 956L598 638H247Z" fill="url(#blFold)" opacity="0.92"></path>
+    <rect x="245" y="640" width="365" height="335" fill="url(#blGlow)"></rect>
+  </g><g clip-path="url(#clipBR)">
+    <rect x="650" y="615" width="365" height="355" fill="url(#brBase)"></rect>
+    <path d="M651 965C734 933 803 886 868 835C923 792 967 745 1006 680V615H650Z" fill="url(#brFold)" opacity="0.9"></path>
+    <rect x="650" y="615" width="365" height="355" fill="url(#brPink)"></rect>
+  </g><g clip-path="url(#clipStar)">
+    <rect x="585" y="345" width="420" height="415" fill="url(#starBase)"></rect>
+    <rect x="585" y="345" width="420" height="415" fill="url(#starCyan)"></rect>
+    <rect x="585" y="345" width="420" height="415" fill="url(#starBlue)"></rect>
+    <rect x="585" y="345" width="420" height="415" fill="url(#starPink)"></rect>
+  </g></svg></g></g></svg>

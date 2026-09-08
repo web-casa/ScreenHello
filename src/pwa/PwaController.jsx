@@ -1,3 +1,4 @@
+import useI18n from '../i18n/useI18n';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -19,6 +20,7 @@ const currentInstallDetails = (hasPrompt) => ({
 });
 
 export default observer(function PwaController() {
+    const t = useI18n();
     const stores = useStores();
     const mounted = useRef(false);
     const [installPrompt, setInstallPrompt] = useState(null);
@@ -26,7 +28,6 @@ export default observer(function PwaController() {
     const [showIosSteps, setShowIosSteps] = useState(false);
     const [offlineReady, setOfflineReady] = useState(false);
     const [offlineDismissed, setOfflineDismissed] = useState(false);
-    const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [statusError, setStatusError] = useState(null);
 
@@ -48,6 +49,9 @@ export default observer(function PwaController() {
         updateServiceWorker,
     } = useRegisterSW({
         immediate: true,
+        onNeedReload: () => {
+            stores.commands.runApprovedPageUnload(() => window.location.reload());
+        },
         onOfflineReady: () => { void confirmOfflineReady(); },
         onRegisteredSW: (_scriptUrl, registration) => { void confirmOfflineReady(registration); },
         onRegisterError: () => setStatusError('离线模式暂未启用，在线编辑不受影响。'),
@@ -82,11 +86,10 @@ export default observer(function PwaController() {
     const mode = stores.editor.isDark ? 'dark' : 'light';
 
     const updateMessage = useMemo(() => {
-        if (updateBlockReason === 'busy') return '正在处理本地任务，完成后再更新。';
-        if (updateBlockReason === 'dirty' && confirmDiscard) return '确认放弃未保存更改并载入新版本？';
-        if (updateBlockReason === 'dirty') return '新版本已下载，当前项目还有未保存更改。';
-        return '新版本已下载，可以安全刷新。';
-    }, [confirmDiscard, updateBlockReason]);
+        if (updateBlockReason === 'busy') return t("正在处理本地任务，完成后再更新。");
+        if (updateBlockReason === 'dirty') return t("新版本已下载，当前项目还有未保存更改。");
+        return t("新版本已下载，可以安全刷新。");
+    }, [t, updateBlockReason]);
 
     const dismissOffline = () => {
         setOfflineDismissed(true);
@@ -95,7 +98,6 @@ export default observer(function PwaController() {
 
     const dismissUpdate = () => {
         setNeedRefresh(false);
-        setConfirmDiscard(false);
         setStatusError(null);
     };
 
@@ -105,19 +107,24 @@ export default observer(function PwaController() {
             setStatusError('本地任务仍在处理中，请完成或取消任务后再更新。');
             return;
         }
-        if (currentBlock === 'dirty' && !confirmDiscard) {
-            setConfirmDiscard(true);
-            return;
-        }
-        setUpdating(true);
-        setStatusError(null);
-        try {
-            await updateServiceWorker();
-        } catch {
-            if (mounted.current) {
-                setUpdating(false);
-                setStatusError('新版本激活失败，请稍后重试。');
+        const activateUpdate = async () => {
+            setUpdating(true);
+            setStatusError(null);
+            try {
+                await updateServiceWorker();
+                return true;
+            } catch {
+                if (mounted.current) {
+                    setUpdating(false);
+                    setStatusError('新版本激活失败，请稍后重试。');
+                }
+                return false;
             }
+        };
+        if (currentBlock === 'dirty') {
+            await stores.commands.requestWorkspaceReplacement(activateUpdate, { label: t("载入新版本") });
+        } else {
+            await activateUpdate();
         }
     };
 
@@ -136,12 +143,12 @@ export default observer(function PwaController() {
     if (!needRefresh && !showOfflineStatus && !showInstall && !statusError) return null;
 
     return (
-        <aside className="shoteasy-pwa-tray" data-mode={mode} aria-label="ScreenHello 应用状态">
+        <aside className="shoteasy-pwa-tray" data-mode={mode} aria-label={t("ScreenHello 应用状态")}>
             {needRefresh && (
                 <section className="shoteasy-pwa-card" role="alert" aria-live="assertive">
                     <div className="shoteasy-pwa-card__marker" aria-hidden="true">UP</div>
                     <div className="shoteasy-pwa-card__body">
-                        <strong>ScreenHello 有新版本</strong>
+                        <strong>{t("ScreenHello 有新版本")}</strong>
                         <p>{updateMessage}</p>
                         <div className="shoteasy-pwa-card__actions">
                             {updateBlockReason !== 'busy' && (
@@ -152,17 +159,11 @@ export default observer(function PwaController() {
                                     onClick={() => { void applyUpdate(); }}
                                 >
                                     {updating
-                                        ? '正在更新…'
-                                        : (updateBlockReason === 'dirty'
-                                            ? (confirmDiscard ? '确认更新' : '放弃更改并更新')
-                                            : '立即更新')}
+                                        ? t("正在更新…")
+                                        : (updateBlockReason === 'dirty' ? t("处理更改并更新") : t("立即更新"))}
                                 </button>
                             )}
-                            {confirmDiscard ? (
-                                <button type="button" className="shoteasy-pwa-action" onClick={() => setConfirmDiscard(false)}>返回</button>
-                            ) : (
-                                <button type="button" className="shoteasy-pwa-action" onClick={dismissUpdate}>稍后</button>
-                            )}
+                            <button type="button" className="shoteasy-pwa-action" onClick={dismissUpdate}>{t("稍后")}</button>
                         </div>
                     </div>
                 </section>
@@ -172,10 +173,10 @@ export default observer(function PwaController() {
                 <section className="shoteasy-pwa-card" role="status" aria-live="polite">
                     <div className="shoteasy-pwa-card__marker is-ready" aria-hidden="true">OK</div>
                     <div className="shoteasy-pwa-card__body">
-                        <strong>离线已就绪</strong>
-                        <p>核心编辑器已缓存；AVIF 等重功能需先在线成功使用一次。</p>
+                        <strong>{t("离线已就绪")}</strong>
+                        <p>{t("核心编辑器已缓存；AVIF 等重功能需先在线成功使用一次。")}</p>
                     </div>
-                    <button type="button" className="shoteasy-pwa-card__close" aria-label="关闭离线就绪提示" onClick={dismissOffline}>×</button>
+                    <button type="button" className="shoteasy-pwa-card__close" aria-label={t("关闭离线就绪提示")} onClick={dismissOffline}>×</button>
                 </section>
             )}
 
@@ -183,20 +184,20 @@ export default observer(function PwaController() {
                 <section className="shoteasy-pwa-card shoteasy-pwa-card--install" role="status">
                     <div className="shoteasy-pwa-card__marker" aria-hidden="true">APP</div>
                     <div className="shoteasy-pwa-card__body">
-                        <strong>{installMode === 'prompt' ? '安装 ScreenHello' : '添加到主屏幕'}</strong>
+                        <strong>{installMode === 'prompt' ? t("安装 ScreenHello") : t("添加到主屏幕")}</strong>
                         {installMode === 'prompt' ? (
-                            <p>安装后可以从桌面直接打开，图片仍只在本机处理。</p>
+                            <p>{t("安装后可以从桌面直接打开，图片仍只在本机处理。")}</p>
                         ) : (
                             <p>{showIosSteps
-                                ? '打开浏览器分享菜单，选择“添加到主屏幕”，再启用“作为 Web App 打开”。'
-                                : 'iPhone / iPad 使用系统分享菜单手动安装。'}</p>
+                                ? t("打开浏览器分享菜单，选择“添加到主屏幕”，再启用“作为 Web App 打开”。")
+                                : t("iPhone / iPad 使用系统分享菜单手动安装。")}</p>
                         )}
                         <div className="shoteasy-pwa-card__actions">
                             {installMode === 'prompt' ? (
-                                <button type="button" className="shoteasy-pwa-action shoteasy-pwa-action--primary" onClick={() => { void requestInstall(); }}>安装</button>
+                                <button type="button" className="shoteasy-pwa-action shoteasy-pwa-action--primary" onClick={() => { void requestInstall(); }}>{t("安装")}</button>
                             ) : (
                                 <button type="button" className="shoteasy-pwa-action" onClick={() => setShowIosSteps((value) => !value)}>
-                                    {showIosSteps ? '收起步骤' : '查看步骤'}
+                                    {showIosSteps ? t("收起步骤") : t("查看步骤")}
                                 </button>
                             )}
                         </div>
@@ -204,7 +205,7 @@ export default observer(function PwaController() {
                     <button
                         type="button"
                         className="shoteasy-pwa-card__close"
-                        aria-label="关闭安装提示"
+                        aria-label={t("关闭安装提示")}
                         onClick={() => setInstallDismissed(true)}
                     >×</button>
                 </section>
@@ -213,8 +214,8 @@ export default observer(function PwaController() {
             {statusError && (
                 <section className="shoteasy-pwa-card shoteasy-pwa-card--error" role="status" aria-live="polite">
                     <div className="shoteasy-pwa-card__marker" aria-hidden="true">!</div>
-                    <div className="shoteasy-pwa-card__body"><p>{statusError}</p></div>
-                    <button type="button" className="shoteasy-pwa-card__close" aria-label="关闭应用状态提示" onClick={() => setStatusError(null)}>×</button>
+                    <div className="shoteasy-pwa-card__body"><p>{t(statusError)}</p></div>
+                    <button type="button" className="shoteasy-pwa-card__close" aria-label={t("关闭应用状态提示")} onClick={() => setStatusError(null)}>×</button>
                 </section>
             )}
         </aside>

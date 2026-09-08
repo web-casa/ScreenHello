@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { lazy, Suspense, useId, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
@@ -14,7 +15,9 @@ import TextProperties from './TextProperties';
 import EffectProperties from './EffectProperties';
 import { BackgroundSelect } from './BackgroundSelect';
 import UploadBackground from './UploadBackground';
+import PresetBackgroundPicker from './PresetBackgroundPicker';
 import ImageLayersPanel from './ImageLayersPanel';
+import ContextSuggestion from './ContextSuggestion';
 
 const DrawerBar = lazy(() => import('./DrawerBar'));
 
@@ -49,6 +52,7 @@ function Section({ title, defaultOpen = true, children }) {
  * 滑杆受 max 限制，输入框可用 inputMax 放开更大的手动写入范围。
  */
 function SliderRow({ label, min, max, step = 1, value, onChange, inputMax, inputMin, extra, disabled }) {
+    const t = useI18n();
     return (
         <div className="pb-3">
             <div className="flex justify-between items-center gap-2">
@@ -65,7 +69,7 @@ function SliderRow({ label, min, max, step = 1, value, onChange, inputMax, input
                         onChange={(v) => onChange(Number.isFinite(v) ? v : (inputMin ?? min))}
                         className="w-[64px]"
                         style={{ fontFamily: 'var(--font-mono)' }}
-                        aria-label={`${label}数值`}
+                        aria-label={t("{0}数值", { 0: label })}
                     />
                 </div>
             </div>
@@ -108,12 +112,13 @@ function ShadowField({ label, value, min, max, onChange }) {
  * 背景的「更多」(DrawerBar) 沿用 getContainer=false 内联抽屉，挂在 relative 祖先上。
  */
 export const InspectorContent = observer(() => {
+    const t = useI18n();
     const stores = useStores();
     const [showMore, setShowMore] = useState(false);
     const onBgChange = (e) => stores.option.setBackground(e.target.value);
     const onFeaturedGradientChange = (key) => {
         stores.option.applyBackground(key).catch(() => {
-            stores.editor.message?.error?.('背景应用失败，请重试');
+            stores.editor.message?.error?.(t("背景应用失败，请重试"));
         });
     };
     const deviceFrame = isDeviceFrame(stores.option.frame);
@@ -121,34 +126,35 @@ export const InspectorContent = observer(() => {
         <div className="shoteasy-inspector relative h-full flex flex-col">
             <div className="shoteasy-inspector__scroll flex-1 overflow-y-auto overflow-x-hidden px-4">
                 {stores.imageStore.list.length > 0 && (
-                    <Section title={`图片图层 · ${stores.imageStore.list.length}`}>
+                    <Section title={t("图片图层 · {0}", { 0: stores.imageStore.list.length })}>
                         <ImageLayersPanel />
                     </Section>
                 )}
                 {/* 文字（仅单选文字标注时出现，桌面右栏与移动端抽屉共用） */}
                 {stores.editor.selectedTextShape && (
-                    <Section title="文字">
+                    <Section title={t("文字")}>
                         <TextProperties />
                     </Section>
                 )}
 
                 {/* 区域效果（仅单选模糊/马赛克/聚光标注时出现） */}
                 {stores.editor.selectedEffectShape && (
-                    <Section title="区域效果">
+                    <Section title={t("区域效果")}>
                         <EffectProperties />
                     </Section>
                 )}
 
                 {/* 背景 */}
-                <Section title="背景">
+                <Section title={t("背景")}>
+                    <ContextSuggestion kind="background" />
                     <div className="flex justify-between items-center">
-                        <label>预设</label>
+                        <label>{t("预设")}</label>
                         <Button
                             type="text"
                             size="small"
                             className="text-xs flex items-center opacity-80 m-0"
                             onClick={() => setShowMore(true)}
-                        >更多 <Icon.ChevronRight size={16} /></Button>
+                        >{t("更多")}<Icon.ChevronRight size={16} /></Button>
                     </div>
                     <div className="py-3">
                         <Radio.Group
@@ -157,7 +163,7 @@ export const InspectorContent = observer(() => {
                             rootClassName="grid grid-cols-7 [&_span]:ps-0"
                         >
                             <Radio className="[&_.ant-radio]:hidden [&_span]:p-0 mr-0" value="none">
-                                <div className={cn("w-8 h-8 rounded-full", backgroundConfig.none.class)} title="无背景"></div>
+                                <div className={cn("w-8 h-8 rounded-full", backgroundConfig.none.class)} title={t("无背景")}></div>
                             </Radio>
                             <Radio className="[&_.ant-radio]:hidden [&_span]:p-0 mr-0" value='default_1'>
                                 <div className={cn("w-8 h-8 rounded-full", backgroundConfig.default_1.class)} style={backgroundConfig.default_1.previewStyle}></div>
@@ -174,7 +180,7 @@ export const InspectorContent = observer(() => {
                         {/* 代码渐变快选；上传图片仍只读取用户选择的本地文件。 */}
                         <div className="pt-3">
                             <div className="flex justify-between items-center pb-1.5">
-                                <label>精选渐变</label>
+                                <label>{t("精选渐变")}</label>
                                 <div className="flex items-center gap-1">
                                     <UploadBackground compact />
                                     <Button
@@ -182,7 +188,7 @@ export const InspectorContent = observer(() => {
                                         size="small"
                                         className="text-xs flex items-center opacity-80 m-0"
                                         onClick={() => setShowMore(true)}
-                                    >更多 <Icon.ChevronRight size={16} /></Button>
+                                    >{t("更多")}<Icon.ChevronRight size={16} /></Button>
                                 </div>
                             </div>
                             <BackgroundSelect
@@ -193,22 +199,23 @@ export const InspectorContent = observer(() => {
                                 value={stores.option.background}
                             />
                         </div>
+                        <PresetBackgroundPicker compact onShowMore={() => setShowMore(true)} />
                     </div>
                 </Section>
 
                 {/* 图片 */}
-                <Section title="图片">
+                <Section title={t("图片")}>
                     <div className="pb-3">
-                        <label>快速</label>
+                        <label>{t("快速")}</label>
                         <div className="flex gap-3 items-center py-2">
                             <CropperImage />
-                            <Button type="text" shape="circle" aria-label="水平翻转" onClick={() => stores.option.toggleFlip('x')} icon={<Icon.FlipHorizontal2 size={18} />} />
-                            <Button type="text" shape="circle" aria-label="垂直翻转" onClick={() => stores.option.toggleFlip('y')} icon={<Icon.FlipVertical2 size={18} />} />
+                            <Button type="text" shape="circle" aria-label={t("水平翻转")} onClick={() => stores.option.toggleFlip('x')} icon={<Icon.FlipHorizontal2 size={18} />} />
+                            <Button type="text" shape="circle" aria-label={t("垂直翻转")} onClick={() => stores.option.toggleFlip('y')} icon={<Icon.FlipVertical2 size={18} />} />
                             <Position />
                         </div>
                     </div>
                     <div className="pb-3">
-                        <label>缩放</label>
+                        <label>{t("缩放")}</label>
                         <Slider
                             min={0.1}
                             max={3}
@@ -216,23 +223,23 @@ export const InspectorContent = observer(() => {
                             onChange={(e) => stores.option.setScale(e, { commit: false })}
                             onChangeComplete={() => stores.history.commit('slider:scale')}
                             value={typeof stores.option.scale === 'number' ? stores.option.scale : 1}
-                            ariaLabelForHandle="图片缩放"
+                            ariaLabelForHandle={t("图片缩放")}
                         />
                     </div>
                     <div className="pb-1">
                         <SliderRow
-                            label="内边距"
+                            label={t("内边距")}
                             min={0}
                             max={200}
                             value={stores.option.padding}
                             onChange={(e) => stores.option.setPadding(e)}
                             inputMax={500}
-                            extra={<ColorPicker value={stores.option.paddingBg} onChange={(e) => stores.option.setPaddingBg(e.toRgbString())} size="small" aria-label="内边距颜色" />}
+                            extra={<ColorPicker value={stores.option.paddingBg} onChange={(e) => stores.option.setPaddingBg(e.toRgbString())} size="small" aria-label={t("内边距颜色")} />}
                         />
                     </div>
                     <div className="pb-3">
                         <div className="flex items-center justify-between">
-                            <label>旋转</label>
+                            <label>{t("旋转")}</label>
                             <span className="text-xs text-[var(--se-muted-contrast)]">{stores.option.rotation}°</span>
                         </div>
                         <Slider
@@ -242,16 +249,16 @@ export const InspectorContent = observer(() => {
                             onChange={(value) => stores.option.setRotation(value, { commit: false })}
                             onChangeComplete={() => stores.history.commit('rotation')}
                             value={stores.option.rotation}
-                            ariaLabelForHandle="图片旋转"
+                            ariaLabelForHandle={t("图片旋转")}
                         />
                     </div>
                 </Section>
 
                 {/* 边框·阴影 */}
-                <Section title="边框 · 阴影">
+                <Section title={t("边框 · 阴影")}>
                     {deviceFrame && (
                         <div className="pb-3">
-                            <label>图片填充</label>
+                            <label>{t("图片填充")}</label>
                             <div className="py-1">
                                 <Segmented
                                     block
@@ -259,9 +266,9 @@ export const InspectorContent = observer(() => {
                                     value={stores.option.frameMode}
                                     onChange={(v) => stores.option.setFrameMode(v)}
                                     options={[
-                                        { label: '覆盖', value: 'cover' },
-                                        { label: '包含', value: 'fit' },
-                                        { label: '拉伸', value: 'stretch' },
+                                        { label: t("覆盖"), value: 'cover' },
+                                        { label: t("包含"), value: 'fit' },
+                                        { label: t("拉伸"), value: 'stretch' },
                                     ]}
                                 />
                             </div>
@@ -269,26 +276,27 @@ export const InspectorContent = observer(() => {
                     )}
                     <div className="pb-3">
                         <div className="flex justify-between items-center gap-2 pb-1">
-                            <label>内描边</label>
+                            <label>{t("内描边")}</label>
                             <div className="flex items-center gap-2">
                                 <ColorPicker
                                     value={stores.option.innerBorder.color}
                                     onChange={(color) => stores.option.setInnerBorder({ color: color.toRgbString() })}
                                     size="small"
                                     disabled={!stores.option.innerBorder.visible}
-                                    aria-label="内描边颜色"
+                                    aria-label={t("内描边颜色")}
                                 />
                                 <Switch
                                     size="small"
                                     checked={stores.option.innerBorder.visible}
                                     onChange={(visible) => stores.option.setInnerBorder({ visible })}
-                                    aria-label="启用内描边"
+                                    aria-label={t("启用内描边")}
                                 />
                             </div>
                         </div>
+                        <ContextSuggestion kind="inner-border" />
                         {stores.option.innerBorder.visible && (
                             <SliderRow
-                                label="描边宽度"
+                                label={t("描边宽度")}
                                 min={1}
                                 max={12}
                                 value={stores.option.innerBorder.width}
@@ -298,7 +306,7 @@ export const InspectorContent = observer(() => {
                     </div>
                     <div className="pb-1">
                         <SliderRow
-                            label="圆角"
+                            label={t("圆角")}
                             min={0}
                             max={100}
                             value={stores.option.round}
@@ -308,41 +316,41 @@ export const InspectorContent = observer(() => {
                     </div>
                     <div className="pb-3">
                         <div className="flex justify-between items-center gap-2">
-                            <label>阴影</label>
+                            <label>{t("阴影")}</label>
                             <div className="flex items-center gap-2">
                                 <ColorPicker
                                     value={stores.option.shadow?.color}
                                     onChange={(e) => stores.option.setShadowConf({ color: e.toRgbString() })}
                                     size="small"
                                     disabled={!stores.option.shadow?.visible}
-                                    aria-label="阴影颜色"
+                                    aria-label={t("阴影颜色")}
                                 />
                                 <Switch
                                     size="small"
                                     checked={!!stores.option.shadow?.visible}
                                     onChange={(v) => stores.option.setShadowConf({ visible: v })}
-                                    aria-label="启用阴影"
+                                    aria-label={t("启用阴影")}
                                 />
                             </div>
                         </div>
                         {stores.option.shadow?.visible && (
                             <div className="grid grid-cols-2 gap-x-3 pt-1">
-                                <ShadowField label="偏移 X" min={-200} max={200} value={stores.option.shadow.x} onChange={(v) => stores.option.setShadowConf({ x: v })} />
-                                <ShadowField label="偏移 Y" min={-200} max={200} value={stores.option.shadow.y} onChange={(v) => stores.option.setShadowConf({ y: v })} />
-                                <ShadowField label="模糊" min={0} max={400} value={stores.option.shadow.blur} onChange={(v) => stores.option.setShadowConf({ blur: v })} />
-                                <ShadowField label="扩展" min={-100} max={200} value={stores.option.shadow.spread} onChange={(v) => stores.option.setShadowConf({ spread: v })} />
+                                <ShadowField label={t("偏移 X")} min={-200} max={200} value={stores.option.shadow.x} onChange={(v) => stores.option.setShadowConf({ x: v })} />
+                                <ShadowField label={t("偏移 Y")} min={-200} max={200} value={stores.option.shadow.y} onChange={(v) => stores.option.setShadowConf({ y: v })} />
+                                <ShadowField label={t("模糊")} min={0} max={400} value={stores.option.shadow.blur} onChange={(v) => stores.option.setShadowConf({ blur: v })} />
+                                <ShadowField label={t("扩展")} min={-100} max={200} value={stores.option.shadow.spread} onChange={(v) => stores.option.setShadowConf({ spread: v })} />
                             </div>
                         )}
                     </div>
                 </Section>
 
                 {/* 水印·HDR */}
-                <Section title="水印 · HDR" defaultOpen={false}>
+                <Section title={t("水印 · HDR")} defaultOpen={false}>
                     <Watermark />
                 </Section>
             </div>
             {showMore && (
-                <Suspense fallback={<div role="status" className="p-4 text-xs">正在加载背景面板…</div>}>
+                <Suspense fallback={<div role="status" className="p-4 text-xs">{t("正在加载背景面板…")}</div>}>
                     <DrawerBar showMore onChange={setShowMore} />
                 </Suspense>
             )}
@@ -353,10 +361,14 @@ export const InspectorContent = observer(() => {
 /**
  * 桌面右栏。仅 lg 以上显示；平板/手机由 TopBar 抽屉提供。
  */
-const RightInspector = observer(() => (
-    <div className="shoteasy-right-inspector hidden lg:flex relative shrink-0 overflow-hidden flex-col">
-        <InspectorContent />
-    </div>
-));
+const RightInspector = observer(() => {
+    const stores = useStores();
+    if (!stores.commands.inspectorVisible) return null;
+    return (
+        <div className="shoteasy-right-inspector hidden lg:flex relative shrink-0 overflow-hidden flex-col">
+            <InspectorContent />
+        </div>
+    );
+});
 
 export default RightInspector;

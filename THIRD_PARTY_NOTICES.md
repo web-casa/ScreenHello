@@ -2,6 +2,284 @@
 
 ScreenHello uses build-time or bundled runtime code from the following projects.
 
+## Optional third-party device artwork
+
+On 2026-09-08 the maintainer confirmed the listed assets for use in ScreenHello's
+public website. See the [asset provenance record](ASSET_PROVENANCE.md) for scope.
+This confirmation does not change the original licenses or independently verify
+previously unknown artwork permissions. The exclusions below continue to apply
+to public source and standalone/package redistribution, not to the existence
+of the newly recorded maintainer approval for website use.
+
+Local builds may include separately installed Surface Studio artwork by
+Tony Thomas / Medialoot ([source](https://medialoot.com/item/surface-studio-mockup/),
+[license](https://medialoot.com/member/license/)) and Surface Pro 8 artwork by
+MockupFree.co ([source](https://mockupfree.co/product/free-microsoft-surface-pro-8-mockup-psd-template/),
+[license](https://mockupfree.co/licence/)). These assets are not MIT-licensed,
+are excluded from the public source export, and retain their original terms.
+The editor shows attribution/source links and a notice before delivering images
+or batch archives. That notice does not replace the original license or grant
+additional rights. See [asset provenance](ASSET_PROVENANCE.md).
+
+The optional local pack can also contain historical MacBook Pro, MacBook Air,
+iMac, iPad, and iPhone PNGs recovered from Shoteasy. Their original artwork
+authors and licenses have not been verified. The upstream code license is not
+presented as an artwork license. The UI retains source links, while the
+unverified status is recorded here rather than repeated as a UI warning;
+these files are excluded from public source and are not cleared for public
+distribution. Surface Pro is a display name for the unchanged Pro 8 asset.
+
+## Compression codecs (lazy runtime integration; C1)
+
+- `@jsquash/oxipng` 2.3.0: Apache-2.0 wrapper (the shared `jsquash-apache` text below applies); packaged codec README identifies Oxipng v3.0.0 / MIT. Only the scalar single-threaded codec is bundled.
+- `upng-js` 2.1.0: MIT. Pinned build-time changes remove the obsolete runtime require probe and allocate the static PNG container from its actual compressed/chunk lengths (the original raw+100 allocation truncates tiny PNGs). Quantization and pixel algorithms are unchanged; this adapter explicitly rejects APNG. The transformations and original source hash live in `config/upngCodecPlugin.mjs`, shared by production, development prebundling and the isolated test fixture.
+- `pako` 1.0.11: UPNG dependency, `(MIT AND Zlib)` package metadata; the MIT package license and zlib-derived source notice are reproduced below.
+- `pngjs` 7.0.0: MIT, independent Node test decoder only.
+- PNG codecs are now loaded on demand by the instance-local export kernel. Standard exports do not load them; compression controls and preview UI are scheduled for C2. `pngjs` remains test-only.
+
+### oxipng license
+
+<!-- license:compression-oxipng:start -->
+The MIT License (MIT)
+Copyright (c) 2016 Joshua Holmer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+<!-- license:compression-oxipng:end -->
+
+### upng license
+
+<!-- license:compression-upng:start -->
+MIT License
+
+Copyright (c) 2017 Photopea
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+<!-- license:compression-upng:end -->
+
+### pngjs license
+
+<!-- license:compression-pngjs:start -->
+pngjs original work Copyright (c) 2015 Luke Page & Original Contributors
+pngjs derived work Copyright (c) 2012 Kuba Niegowski
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+<!-- license:compression-pngjs:end -->
+
+### pako license
+
+<!-- license:compression-pako:start -->
+(The MIT License)
+
+Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+<!-- license:compression-pako:end -->
+
+### Pako zlib-derived source notice
+
+<!-- license:compression-pako-zlib:start -->
+(C) 1995-2013 Jean-loup Gailly and Mark Adler
+(C) 2014-2017 Vitaly Puzrin and Andrey Tupitsin
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+  claim that you wrote the original software. If you use this software
+  in a product, an acknowledgment in the product documentation would be
+  appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+  misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+<!-- license:compression-pako-zlib:end -->
+
+## Tauri 2
+
+- Projects: <https://github.com/tauri-apps/tauri>, <https://github.com/tauri-apps/plugins-workspace>
+- Included direct components: `@tauri-apps/api` 2.11.1, `tauri` 2.11.5, `tauri-plugin-dialog` 2.7.3, `tauri-plugin-clipboard-manager` 2.3.3, `tauri-plugin-global-shortcut` 2.3.2, `tauri-plugin-single-instance` 2.4.4
+- Copyright: Copyright (c) 2017 - Present Tauri Apps Contributors
+- License selected for ScreenHello redistribution: MIT (upstream also offers Apache-2.0)
+- Use in ScreenHello: desktop WebView API, Rust application runtime, build tooling, native file dialogs, PNG clipboard writes, global shortcut and single-instance lifecycle
+
+The complete selected upstream license text follows.
+
+<!-- license:tauri-mit:start -->
+MIT License
+
+Copyright (c) 2017 - Present Tauri Apps Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+<!-- license:tauri-mit:end -->
+
+## getrandom 0.3.4
+
+- Project: <https://github.com/rust-random/getrandom>
+- Copyright: Copyright (c) 2018-2025 The rust-random Project Developers; Copyright (c) 2014 The Rust Project Developers
+- License selected for ScreenHello redistribution: MIT (upstream also offers Apache-2.0)
+- Use in ScreenHello: operating-system entropy for opaque, process-local screenshot source tokens
+
+The complete selected upstream license text follows.
+
+<!-- license:getrandom-mit:start -->
+Copyright (c) 2018-2025 The rust-random Project Developers
+Copyright (c) 2014 The Rust Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+<!-- license:getrandom-mit:end -->
+
+## tempfile 3.27.0
+
+- Project: <https://github.com/Stebalien/tempfile>
+- Copyright: Copyright (c) 2015 Steven Allen
+- License selected for ScreenHello redistribution: MIT (upstream also offers Apache-2.0)
+- Use in ScreenHello: atomic same-directory project and image export writes
+
+The complete selected upstream license text follows.
+
+<!-- license:tempfile-mit:start -->
+Copyright (c) 2015 Steven Allen
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+<!-- license:tempfile-mit:end -->
+
+## xcap 0.9.8
+
+- Project: <https://github.com/nashaofu/xcap>
+- Copyright: Copyright 2024 nashaofu
+- License: Apache License 2.0
+- Use in ScreenHello: bounded local monitor, window and region capture in the desktop application
+
+The Apache License 2.0 terms are reproduced once in the `@jsquash` section below; they apply to xcap as well. The xcap copyright notice above is retained separately.
+
 ## vite-plugin-pwa 1.3.0
 
 - Project: <https://github.com/vite-pwa/vite-plugin-pwa>
@@ -352,3 +630,46 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <!-- license:libwebp:end -->
+
+## telephone — optional Pixel 9 Pro device artwork
+
+Source: [pixel-9-pro.html.ts at c1644a3](https://github.com/sneas/telephone/blob/c1644a3d49dcd50ebf8c76306409c4b1d9b7a2b4/packages/telephone/src/pixel-9-pro.html.ts).
+The optional local pack removes the simulated status-bar paths and rasterizes
+the static body SVG to a bounded transparent PNG and thumbnail. No telephone
+Web Component or JavaScript runtime is bundled. The artwork is not included in
+the default public source export. This notice is retained for local builds and
+library packages that include it; no attribution is painted onto user images.
+
+<!-- license:telephone-mit:start -->
+MIT License
+
+Copyright (c) 2024 Dimah Snisarenko
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+<!-- license:telephone-mit:end -->
+
+## Monkr — optional local Air M2 / iMac 24-inch images
+
+Nine PNG bodies and their thumbnails derive from [Monkr's device directory at
+33e69fb](https://github.com/blaineam/Monkr/tree/33e69fb008d3ea53718ac19dae87260bd72c9cfb/static/devices).
+The original image authors and artwork-specific permissions remain unverified;
+the repository's code MIT license is not asserted to license these images.
+Local visual approval and the export notice do not resolve that provenance.
+These images are excluded from public source exports. See
+[asset provenance](ASSET_PROVENANCE.md) for model, color and distribution scope.

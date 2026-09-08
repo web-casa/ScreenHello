@@ -1,0 +1,81 @@
+@layer components {
+    .shoteasy-capture-dialog__intro {
+        margin: 0 0 14px;
+        color: var(--ant-color-text-secondary);
+    }
+
+    .shoteasy-capture-dialog__sources {
+        min-height: 150px;
+        max-height: 280px;
+        margin: 14px 0;
+        padding: 8px;
+        overflow: auto;
+        border: 1px solid var(--ant-color-border);
+        border-radius: var(--ant-border-radius-lg);
+        background: var(--ant-color-fill-quaternary);
+    }
+
+    .shoteasy-capture-dialog__sources .ant-radio-group {
+        display: grid;
+        gap: 6px;
+        width: 100%;
+    }
+
+    .shoteasy-capture-dialog__sources .ant-radio-wrapper {
+        display: flex;
+        align-items: flex-start;
+        width: 100%;
+        margin: 0;
+        padding: 10px 12px;
+        border: 1px solid transparent;
+        border-radius: var(--ant-border-radius);
+    }
+
+    .shoteasy-capture-dialog__sources .ant-radio-wrapper-checked {
+        border-color: var(--ant-color-primary);
+        background: var(--ant-color-primary-bg);
+    }
+
+    .shoteasy-capture-source__copy {
+        display: grid;
+        min-width: 0;
+        gap: 2px;
+    }
+
+    .shoteasy-capture-source__copy strong,
+    .shoteasy-capture-source__copy small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .shoteasy-capture-source__copy small {
+        color: var(--ant-color-text-secondary);
+    }
+
+    .shoteasy-capture-dialog__loading {
+        min-height: 128px;
+    }
+
+    .shoteasy-capture-dialog__region {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .shoteasy-capture-dialog__region-fields {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .shoteasy-capture-dialog__region-fields .ant-input-number {
+        width: 100%;
+    }
+
+    @media (max-width: 640px) {
+        .shoteasy-capture-dialog__region-fields {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+}

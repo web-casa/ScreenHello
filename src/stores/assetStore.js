@@ -9,13 +9,14 @@ const createAssetId = () => {
 export class AssetStore {
     assets = new Map();
 
-    constructor() {
-        makeAutoObservable(this);
+    constructor({ platform = browserPlatform } = {}) {
+        this.platform = platform;
+        makeAutoObservable(this, { platform: false });
     }
 
     add(file) {
         if (typeof Blob === 'undefined' || !(file instanceof Blob)) return null;
-        const url = browserPlatform.file.createObjectURL(file);
+        const url = this.platform.file.createObjectURL(file);
         if (!url) return null;
         const id = createAssetId();
         const asset = {
@@ -37,7 +38,7 @@ export class AssetStore {
      */
     restore(id, blob, meta = {}) {
         if (!id || !blob) return null;
-        const url = browserPlatform.file.createObjectURL(blob);
+        const url = this.platform.file.createObjectURL(blob);
         if (!url) return null;
         // StrictMode 重复恢复或同一草稿重新载入时，先释放旧 URL，避免同一个 id 泄漏。
         if (this.assets.has(id)) this.release(id);
@@ -78,7 +79,7 @@ export class AssetStore {
     release(id) {
         const asset = this.get(id);
         if (!asset) return;
-        browserPlatform.file.revokeObjectURL(asset.url);
+        this.platform.file.revokeObjectURL(asset.url);
         this.assets.delete(id);
     }
 

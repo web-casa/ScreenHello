@@ -1,4 +1,5 @@
 import avifWasmUrl from '@jsquash/avif/codec/enc/avif_enc.wasm?url&no-inline';
+import { compressionTimeoutMs, MAX_COMPRESSED_PIXELS, validateExportSettings } from './exportSettings';
 
 export const AVIF_MIME_TYPE = 'image/avif';
 export const AVIF_ENCODE_TIMEOUT_MS = 120_000;
@@ -79,10 +80,12 @@ export class AvifEncoder {
         this._idleTimer = setTimeout(() => this._terminateWorker(), this.idleMs);
     }
 
-    async encode({ pixels, width, height, signal } = {}) {
+    async encode({ pixels, width, height, signal, compression, quality } = {}) {
         if (this._disposed || signal?.aborted) throw avifError('export-cancelled');
         if (this._active) throw avifError('avif-encoder-busy');
         if (!validPixels(pixels, width, height)) throw avifError('avif-input-invalid');
+        const settings = validateExportSettings({ format: 'avif', compression, quality });
+        if (width > 8192 || height > 8192 || width * height > (settings.compression ? MAX_COMPRESSED_PIXELS : 4_194_304)) throw avifError('avif-input-invalid');
 
         clearTimeout(this._idleTimer);
         this._idleTimer = null;
@@ -112,7 +115,7 @@ export class AvifEncoder {
                 const onAbort = () => fail(avifError('export-cancelled'));
                 const timeout = setTimeout(
                     () => fail(avifError('avif-encode-timeout')),
-                    this.timeoutMs
+                    settings.compression ? Math.min(this.timeoutMs, compressionTimeoutMs(width, height)) : this.timeoutMs
                 );
                 this._cancelActive = () => fail(avifError('export-cancelled'));
                 worker.onmessage = ({ data }) => {
@@ -137,6 +140,8 @@ export class AvifEncoder {
                         pixels: transferBuffer,
                         width,
                         height,
+                        compression: settings.compression,
+                        quality: settings.quality,
                         wasmUrl: avifWasmUrl,
                     }, [transferBuffer]);
                 } catch (error) {

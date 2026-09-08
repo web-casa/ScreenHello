@@ -9,6 +9,12 @@ const results = [];
 const releaseCandidates = new Set();
 
 const normalize = (value) => String(value || '').toLowerCase();
+const hasExactValues = (actual, expected) => (
+    Array.isArray(actual)
+    && actual.length === expected.length
+    && new Set(actual).size === expected.length
+    && expected.every((value) => actual.includes(value))
+);
 
 for (const target of matrix.targets) {
     const path = resolve(evidenceDirectory, `${target.id}.json`);
@@ -21,7 +27,7 @@ for (const target of matrix.targets) {
     }
 
     const targetFailures = [];
-    if (evidence.schemaVersion !== 1) targetFailures.push('unsupported schemaVersion');
+    if (evidence.schemaVersion !== 2) targetFailures.push('unsupported schemaVersion');
     if (evidence.target !== target.id) targetFailures.push('target mismatch');
     if (evidence.status !== 'passed') targetFailures.push(`status is ${evidence.status || 'missing'}`);
     if (!target.acceptedBrowserNames.map(normalize).includes(normalize(evidence.observed?.browserName))) {
@@ -47,6 +53,24 @@ for (const target of matrix.targets) {
     }
     if (!evidence.checks?.coreEditUndoRedo) targetFailures.push('core edit check missing');
     if (!evidence.checks?.localResourceRequests) targetFailures.push('local request check missing');
+    const mobileWeb = evidence.checks?.mobileWeb;
+    if (
+        !mobileWeb
+        || !Number.isFinite(mobileWeb.viewport?.width)
+        || mobileWeb.viewport.width <= 0
+        || mobileWeb.viewport.width > 640
+        || !Number.isFinite(mobileWeb.viewport?.height)
+        || mobileWeb.viewport.height <= 0
+        || !hasExactValues(mobileWeb.topbarActions, ['menu', 'project-status', 'export'])
+        || !hasExactValues(mobileWeb.menuSections, ['file', 'edit', 'view', 'help'])
+        || mobileWeb.annotationSheet !== true
+        || mobileWeb.zoomMenu !== true
+        || !Number.isFinite(mobileWeb.minimumTargetSize)
+        || mobileWeb.minimumTargetSize < 44
+        || mobileWeb.noHorizontalOverflow !== true
+    ) {
+        targetFailures.push('Phase 8.5 mobile Web evidence missing or invalid');
+    }
     const exports = evidence.checks?.imageExports;
     const expectedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/avif']);
     if (!Array.isArray(exports) || exports.length !== 4) {

@@ -68,7 +68,7 @@ export class Editor {
 
     ensureEditing() {
         if (this.isEditing) return true;
-        this.message?.info?.('请先添加图片');
+        this.message?.info?.(this.root.i18n.t("请先添加图片"));
         this.setInvalid();
         return false;
     }
@@ -90,13 +90,13 @@ export class Editor {
      * - 其他（'update'）：仅在存在快照消费者或已有快照时更新，避免没有放大镜时每次截图调整都空跑整帧导出。
      * revision 未变时由服务复用缓存，不重复生成。
      */
-    createSnap(type) {
+    createSnap(type, options) {
         if (type === 'init') {
-            this.root.baseSnapshot.schedule(this);
+            this.root.baseSnapshot.schedule(this, options);
             return;
         }
         if (this.snap || this._hasSnapshotConsumer()) {
-            this.root.baseSnapshot.schedule(this);
+            this.root.baseSnapshot.schedule(this, options);
         }
     }
 
@@ -272,6 +272,7 @@ export class Editor {
 
     setApp(app) {
         this.app = app;
+        this.root.renderTaskTracker?.attachTree?.(app?.tree);
     }
 
     setScale(value) {

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "targets": [
+    {
+      "id": "linux-x64",
+      "runner": "ubuntu-24.04",
+      "platform": "linux",
+      "nodePlatform": "linux",
+      "arch": "x64",
+      "rustTarget": "x86_64-unknown-linux-gnu",
+      "bundleKind": "deb",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "elf",
+      "binaryArchitecture": "x86_64",
+      "packageIdentity": "screen-hello",
+      "packageIdentitySource": "deb-control",
+      "packageArchitecture": "amd64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "wayland-portal",
+        "remote-desktop",
+        "no-display"
+      ]
+    },
+    {
+      "id": "macos-14-arm64",
+      "runner": "macos-14",
+      "platform": "macos",
+      "nodePlatform": "darwin",
+      "arch": "arm64",
+      "rustTarget": "aarch64-apple-darwin",
+      "bundleKind": "app",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "mach-o",
+      "binaryArchitecture": "arm64",
+      "packageIdentity": "com.webcasa.screenhello",
+      "packageIdentitySource": "info-plist",
+      "packageArchitecture": "arm64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "screen-recording-permission-prompt",
+        "remote-desktop",
+        "no-display"
+      ]
+    },
+    {
+      "id": "windows-x64",
+      "runner": "windows-2025",
+      "platform": "windows",
+      "nodePlatform": "win32",
+      "arch": "x64",
+      "rustTarget": "x86_64-pc-windows-msvc",
+      "bundleKind": "nsis",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "pe",
+      "binaryArchitecture": "x86_64",
+      "packageIdentity": "com.webcasa.screenhello",
+      "packageIdentitySource": "tauri-config",
+      "packageArchitecture": "x64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "screen-capture-permission-policy",
+        "remote-desktop",
+        "no-display"
+      ]
+    }
+  ],
+  "requiredRuntimeChecks": [
+    "webviewBoot",
+    "environmentIpc",
+    "capture",
+    "editorImport",
+    "clipboard",
+    "shortcut",
+    "tray",
+    "singleInstance"
+  ],
+  "requiredBuildChecks": [
+    "lockedInstall",
+    "dependencyAudit",
+    "licenseAudit",
+    "rustTests",
+    "desktopAudit",
+    "workflowAudit",
+    "testDriverFeatureBuild",
+    "productionRebuild",
+    "testDriverExcluded",
+    "bundleBuilt",
+    "artifactInspection",
+    "sbomGenerated",
+    "checksumsGenerated"
+  ]
+}

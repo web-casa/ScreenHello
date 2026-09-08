@@ -16,6 +16,7 @@
       "@assets/*": ["src/assets/*"],
       "@style/*": ["src/style/*"],
       "@stores/*": ["src/stores/*"],
+      "@stores": ["src/stores/index.js"],
       "@utils/*": ["src/utils/*"],
       "@hooks/*": ["src/hooks/*"]
     }

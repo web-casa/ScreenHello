@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import Icon from '@components/Icon';
 import useStores from '@stores/useStores';
 
@@ -6,6 +7,7 @@ import useStores from '@stores/useStores';
  * 默认渲染抽屉里的大虚线卡片；compact 渲染检查器「图片」行的图标按钮。
  */
 export default function UploadBackground({ compact = false }) {
+    const t = useI18n();
     const stores = useStores();
     const handleUpload = (event) => {
         const file = event.target.files?.[0];
@@ -18,16 +20,22 @@ export default function UploadBackground({ compact = false }) {
     };
     if (compact) {
         return (
-            <label className="shoteasy-bg-upload-compact" aria-label="上传本地图片" title="上传本地图片">
+            <label className="shoteasy-bg-upload-compact" title={t("上传本地图片")}>
                 <Icon.Upload size={16} />
-                <input type="file" accept="image/*" className="sr-only" onChange={handleUpload} />
+                <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    aria-label={t("上传本地图片")}
+                    onChange={handleUpload}
+                />
             </label>
         );
     }
     return (
         <label className="shoteasy-bg-upload-tile">
             <Icon.ImagePlus size={18} />
-            <span>选择本地图片</span>
+            <span>{t("选择本地图片")}</span>
             <input type="file" accept="image/*" className="sr-only" onChange={handleUpload} />
         </label>
     );

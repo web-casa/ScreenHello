@@ -9,7 +9,7 @@
     right: 18px;
     bottom: max(18px, env(safe-area-inset-bottom));
     /* Keep application drawers and modals operable while status remains visible. */
-    z-index: 900;
+    z-index: var(--se-z-pwa, 900);
     display: grid;
     width: min(360px, calc(100vw - 24px));
     gap: 8px;
@@ -140,14 +140,25 @@
     color: #ffb56b;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
     .shoteasy-pwa-tray {
         right: 12px;
-        bottom: max(12px, env(safe-area-inset-bottom));
+        bottom: max(68px, calc(env(safe-area-inset-bottom) + 56px));
     }
 
     .shoteasy-pwa-card {
         padding: 12px;
+    }
+
+    .shoteasy-pwa-action {
+        min-height: 44px;
+        padding-inline: 14px;
+    }
+
+    .shoteasy-pwa-card__close {
+        width: 44px;
+        height: 44px;
+        margin: -10px -10px 0 0;
     }
 }
 

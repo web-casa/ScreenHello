@@ -52,14 +52,25 @@ jobs:
       - name: Unit tests
         run: pnpm test:unit
 
+      - name: Audit translations
+        run: pnpm audit:i18n
+
       - name: Current browser smoke and E2E
         run: pnpm test:e2e
 
       - name: Web build
         run: pnpm build
 
+      - name: Compression evidence tool contracts (no memory stress)
+        run: |
+          pnpm test:compression:build
+          node --test tests/compression-product/benchmark-contract.test.mjs tests/compression-product/memory-policy.test.mjs
+
       - name: Audit PWA build
         run: pnpm audit:pwa
+
+      - name: Audit static SEO and GEO pages
+        run: pnpm audit:seo
 
       - name: Production PWA tests
         run: pnpm test:pwa
@@ -72,6 +83,9 @@ jobs:
 
       - name: Audit library PWA boundary
         run: pnpm audit:pwa:library
+
+      - name: Audit compression assets and pinned codec source
+        run: pnpm audit:compression
 
       - name: Packaged library consumer
         run: pnpm test:consumer

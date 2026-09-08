@@ -9,6 +9,11 @@ import { ImageStore } from './imageStore';
 import { Option } from './option';
 import { WorkspaceStore } from './workspaceStore';
 import { BatchStore } from './batchStore';
+import { CommandService } from './commandService';
+import { browserPlatform } from '../platform/browserPlatform';
+import { I18nStore } from '../i18n/i18n';
+import { RenderTaskTracker } from './renderTaskTracker';
+import { DeviceLicenseService } from './deviceLicenseService';
 
 let runtimeSequence = 0;
 let activeRuntime = null;
@@ -18,15 +23,18 @@ let activeRuntime = null;
  * Store 只通过这个 root 引用同一实例内的兄弟 Store，禁止回退到模块单例。
  */
 export class ScreenHelloRuntime {
-    constructor({ draftDatabaseName, renderTaskTracker = null, batchEnabled = true } = {}) {
+    constructor({ draftDatabaseName, renderTaskTracker = null, batchEnabled = true, platform = browserPlatform, locale, messages, webExportSafety = false } = {}) {
         runtimeSequence += 1;
         this.id = `screenhello-${runtimeSequence}`;
         this._disposeTimer = null;
         this._disposed = false;
-        this.renderTaskTracker = renderTaskTracker;
+        this.renderTaskTracker = renderTaskTracker || new RenderTaskTracker();
+        this.platform = platform;
+        this.i18n = new I18nStore({ locale, messages });
+        this.deviceLicense = new DeviceLicenseService();
 
-        this.assetStore = new AssetStore();
-        this.draftStore = new DraftStore({ databaseName: draftDatabaseName });
+        this.assetStore = new AssetStore({ platform: this.platform });
+        this.draftStore = new DraftStore({ databaseName: draftDatabaseName, storage: this.platform.storage });
         this.baseSnapshot = new BaseSnapshotService(this);
         this.imageStore = new ImageStore(this);
         this.editor = new Editor(this);
@@ -34,8 +42,10 @@ export class ScreenHelloRuntime {
         this.option = new Option(this);
         this.draftService = new DraftService(this);
         this.workspace = new WorkspaceStore(this);
-        this.exportService = new ExportService(this);
-        this.batch = batchEnabled ? new BatchStore(this) : null;
+        this.exportService = new ExportService(this, { platform: this.platform, webExportSafety });
+        this.batch = batchEnabled ? new BatchStore(this, { platform: this.platform }) : null;
+        this.commands = new CommandService(this);
+        this.renderTaskTracker.bind?.(this);
     }
 
     scheduleDispose() {
@@ -52,7 +62,10 @@ export class ScreenHelloRuntime {
     }
 
     activate({ onlyIfNone = false } = {}) {
-        if (!onlyIfNone || !activeRuntime) activeRuntime = this;
+        if (!onlyIfNone || !activeRuntime) {
+            if (activeRuntime && activeRuntime !== this) activeRuntime.exportService.deactivate();
+            activeRuntime = this;
+        }
     }
 
     get isActive() {
@@ -69,7 +82,10 @@ export class ScreenHelloRuntime {
         if (activeRuntime === this) activeRuntime = null;
         this.cancelScheduledDispose();
         this.batch?.dispose();
+        this.deviceLicense.dispose();
+        this.commands.dispose();
         this.exportService.dispose();
+        this.renderTaskTracker.dispose?.();
         this.draftService.teardown();
         this.workspace.dispose();
         this.option.destroy();

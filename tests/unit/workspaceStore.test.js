@@ -15,8 +15,8 @@ const deferred = () => {
     return { promise, resolve, reject };
 };
 
-const createRuntime = () => {
-    const runtime = createScreenHelloRuntime();
+const createRuntime = (options) => {
+    const runtime = createScreenHelloRuntime(options);
     runtimes.push(runtime);
     runtime.testMessages = {
         success: vi.fn(),
@@ -43,6 +43,54 @@ afterEach(() => {
 });
 
 describe('WorkspaceStore', () => {
+    it('keeps a project dirty and releases the new handle when an appended save name collides', async () => {
+        const handle = { platform: 'desktop', token: 'a'.repeat(48), kind: 'project' };
+        const releaseHandle = vi.fn().mockResolvedValue(undefined);
+        const runtime = createRuntime({ platform: {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                supportsFileSystemAccess: () => true,
+                chooseSaveHandle: vi.fn().mockResolvedValue({ status: 'selected', handle }),
+                writeToHandle: vi.fn().mockRejectedValue(Object.assign(new Error('desktop-file-exists'), { code: 'desktop-file-exists' })),
+                releaseHandle,
+            },
+        } });
+        runtime.workspace.resetProject();
+        runtime.option.setPadding(40);
+        runtime.workspace.isDirty = true;
+        const before = runtime.option.toDocument();
+        await expect(runtime.workspace.saveProject()).resolves.toBe(false);
+        expect(runtime.workspace.isDirty).toBe(true);
+        expect(runtime.workspace.fileHandle).toBeNull();
+        expect(runtime.workspace.lastSavedAt).toBeNull();
+        expect(runtime.workspace.saveErrorCode).toBe('desktop-file-exists');
+        expect(runtime.option.toDocument()).toEqual(before);
+        expect(releaseHandle).toHaveBeenCalledWith(handle);
+        expect(runtime.testMessages.success).not.toHaveBeenCalled();
+        expect(runtime.testMessages.error).toHaveBeenCalledWith(expect.stringContaining('未覆盖原文件'));
+    });
+
+    it('keeps project-file status independent from draft persistence', () => {
+        const runtime = createRuntime();
+
+        runtime.workspace.resetProject();
+        expect(runtime.workspace.projectFileStatus).toBe('never-saved');
+        expect(runtime.workspace.lastSavedAt).toBeNull();
+
+        runtime.workspace.isDirty = true;
+        expect(runtime.workspace.projectFileStatus).toBe('dirty');
+        runtime.workspace.busy = 'save';
+        expect(runtime.workspace.projectFileStatus).toBe('saving');
+        runtime.workspace.busy = null;
+        runtime.workspace.saveErrorCode = 'write-failed';
+        expect(runtime.workspace.projectFileStatus).toBe('error');
+
+        runtime.workspace._markClean();
+        expect(runtime.workspace.projectFileStatus).toBe('saved');
+        expect(runtime.workspace.lastSavedAt).toEqual(expect.any(Number));
+    });
+
     it('keeps the current project when a later image fails decoding', async () => {
         class FakeImage {
             width = 64;
@@ -326,6 +374,49 @@ describe('WorkspaceStore', () => {
         expect(browserPlatform.file.writeToHandle).toHaveBeenCalledWith(handle, expect.any(Blob));
         expect(runtime.testMessages.warning).toHaveBeenCalledWith('项目文件已保存，但浏览器存储空间不足，未加入最近项目');
         expect(runtime.testMessages.error).not.toHaveBeenCalled();
+    });
+
+    it('retains the active desktop project handle and releases replaced or failed handles', async () => {
+        const first = { platform: 'desktop', token: 'a'.repeat(48), kind: 'project' };
+        const second = { platform: 'desktop', token: 'b'.repeat(48), kind: 'project' };
+        const failed = { platform: 'desktop', token: 'c'.repeat(48), kind: 'project' };
+        const releaseHandle = vi.fn().mockResolvedValue(undefined);
+        const chooseSaveHandle = vi.fn()
+            .mockResolvedValueOnce({ status: 'selected', handle: first })
+            .mockResolvedValueOnce({ status: 'selected', handle: second })
+            .mockResolvedValueOnce({ status: 'selected', handle: failed });
+        const writeToHandle = vi.fn()
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('/private/path/write-failed'));
+        const platform = {
+            ...browserPlatform,
+            file: {
+                ...browserPlatform.file,
+                supportsFileSystemAccess: () => true,
+                chooseSaveHandle,
+                writeToHandle,
+                releaseHandle,
+            },
+        };
+        const runtime = createRuntime({ platform });
+        vi.spyOn(runtime.draftStore, 'saveRecentProject').mockResolvedValue(undefined);
+        vi.spyOn(runtime.draftStore, 'listRecentProjects').mockResolvedValue([]);
+        vi.spyOn(runtime.draftStore, 'listPresets').mockResolvedValue([]);
+        vi.spyOn(runtime.draftStore, 'listProjects').mockResolvedValue([]);
+
+        await expect(runtime.workspace.saveProject()).resolves.toBe(true);
+        expect(runtime.workspace.fileHandle).toBe(first);
+        expect(releaseHandle).not.toHaveBeenCalledWith(first);
+
+        await expect(runtime.workspace.saveProject({ saveAs: true })).resolves.toBe(true);
+        await vi.waitFor(() => expect(releaseHandle).toHaveBeenCalledWith(first));
+        expect(runtime.workspace.fileHandle).toBe(second);
+
+        await expect(runtime.workspace.saveProject({ saveAs: true })).resolves.toBe(false);
+        expect(runtime.workspace.fileHandle).toBe(second);
+        expect(releaseHandle).toHaveBeenCalledWith(failed);
+        expect(runtime.testMessages.error).toHaveBeenCalledWith('项目保存失败，请重试');
     });
 
     it('stores, duplicates, renames, applies, and deletes style presets', async () => {

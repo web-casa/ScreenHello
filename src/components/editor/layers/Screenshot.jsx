@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Box, Rect } from 'leafer-ui';
+import { Box, ImageEvent, Rect } from 'leafer-ui';
 import useStores from '@stores/useStores';
 import { computedSize, enhanceImageToHdr, getPosition, getRotatedPosition, getMargin } from '@utils/utils';
 import { createFrameDecorations, getBrowserHeaderHeight, getFrameDefinition, getFrameMetrics, isDeviceFrame } from '@utils/frameConfig';
 import { debounce } from 'lodash';
+import { getRasterDevice } from '@utils/rasterDeviceConfig';
 
 const addBefore = (parent, node, reference) => {
     const index = parent.children?.indexOf?.(reference);
     parent.add(node, Number.isInteger(index) && index >= 0 ? index : undefined);
 };
+
+// 图片层保持在 0～1 之间：按 ProjectDocument zIndex 排序，同时继续位于
+// zIndex>=1 的标注/上层水印之下，并让 zIndex=-1 的下层水印保持在图片之后。
+const imageLayerZIndex = (zIndex) => Math.max(0, Number(zIndex) || 0) / 100;
 
 export default observer(function Screenshot({ parent, layer }) {
     const stores = useStores();
@@ -19,8 +24,9 @@ export default observer(function Screenshot({ parent, layer }) {
     }, 100), [stores]);
     const hdrTaskRef = useRef(0);
     const [hdrImageUrl, setHdrImageUrl] = useState(null);
-    const [image, box, container] = useMemo(() => {
+    const [image, box, container, raster] = useMemo(() => {
         const image = new Rect({ origin: 'center' });
+        const raster = new Rect({ hittable: false, visible: false });
         const box = new Box({ overflow: 'hide', strokeAlign: 'inside', children: [image] });
         const container = new Box({
             id: `screenhello-image:${layer.id}`,
@@ -29,6 +35,7 @@ export default observer(function Screenshot({ parent, layer }) {
             editable: true,
             hittable: true,
             cursor: 'grab',
+            zIndex: imageLayerZIndex(layer.zIndex),
             editConfig: {
                 moveable: true,
                 resizeable: true,
@@ -54,13 +61,16 @@ export default observer(function Screenshot({ parent, layer }) {
             skewX: 0,
             skewY: 0,
             fill: '#ffffff00',
-            children: [box],
+            children: [box, raster],
         });
         container.__screenhelloImageId = layer.id;
-        return [image, box, container];
+        return [image, box, container, raster];
     }, [layer.id]);
 
-    useEffect(() => () => createSnap.cancel(), [createSnap]);
+    useEffect(() => {
+        const unregister = stores.renderTaskTracker?.registerFlusher(() => createSnap.flush());
+        return () => { createSnap.cancel(); unregister?.(); };
+    }, [createSnap, stores]);
 
     useEffect(() => {
         const source = runtimeImage?.src;
@@ -71,6 +81,7 @@ export default observer(function Screenshot({ parent, layer }) {
             return undefined;
         }
         let cancelled = false;
+        const effect = stores.renderTaskTracker?.beginEffect(container);
         setHdrImageUrl(null);
         const isCurrent = () => !cancelled
             && hdrTaskRef.current === taskId
@@ -80,12 +91,13 @@ export default observer(function Screenshot({ parent, layer }) {
             ? enhanceImageToHdr(source, { shouldContinue: isCurrent })
             : null).then((result) => {
             if (!result || !isCurrent()) return;
+            if (result === source) effect?.fallback('hdr-fallback');
             setHdrImageUrl(result);
         }).catch(() => {
-            if (isCurrent()) setHdrImageUrl(null);
+            if (isCurrent()) { setHdrImageUrl(null); effect?.fallback('hdr-fallback'); }
         });
         stores.renderTaskTracker?.track(operation);
-        return () => { cancelled = true; };
+        return () => { cancelled = true; effect?.dispose(); };
     }, [layer.id, runtimeImage?.src, stores, stores.option.hdrEnabled]);
 
     useEffect(() => {
@@ -96,13 +108,18 @@ export default observer(function Screenshot({ parent, layer }) {
             align: stores.option.mode === 'fit' ? 'center' : 'top',
             mode: stores.option.mode,
         };
-        createSnap();
+        stores.editor.createSnap('update', { force: true });
     }, [image, hdrImageUrl, runtimeImage?.src, stores.option.mode, stores.option.hdrEnabled]);
 
     useEffect(() => {
         container.editable = !layer.locked;
         container.cursor = layer.locked ? 'not-allowed' : 'grab';
     }, [container, layer.locked]);
+
+    useEffect(() => {
+        container.zIndex = imageLayerZIndex(layer.zIndex);
+        createSnap();
+    }, [container, createSnap, layer.zIndex]);
 
     useEffect(() => {
         box.fill = stores.option.padding === 0 && !isDeviceFrame(stores.option.frame)
@@ -120,7 +137,7 @@ export default observer(function Screenshot({ parent, layer }) {
 
     useEffect(() => {
         const definition = getFrameDefinition(stores.option.frame);
-        container.cornerRadius = stores.option.round;
+        container.cornerRadius = definition.kind === 'raster-device' ? 0 : stores.option.round;
         image.cornerRadius = definition.kind === 'browser' || definition.kind === 'arc' ? null : stores.option.round;
         createSnap();
     }, [container, image, stores.option.frame, stores.option.round]);
@@ -175,7 +192,9 @@ export default observer(function Screenshot({ parent, layer }) {
         const maxWidth = Math.max(1, frameConf.width - margin - inset * 2);
         const browserHeaderHeight = getBrowserHeaderHeight(frame, browserHeaderSize);
         const maxHeight = Math.max(1, frameConf.height - margin - inset - bottomInset - browserHeaderHeight);
-        const baseContentSize = computedSize(img.width || 1, img.height || 1, maxWidth, maxHeight);
+        const baseContentSize = definition.kind === 'raster-device'
+            ? computedSize(definition.width, definition.height, maxWidth, maxHeight)
+            : computedSize(img.width || 1, img.height || 1, maxWidth, maxHeight);
         const hasIndependentBrowserHeader = definition.kind === 'browser' || definition.kind === 'arc';
         // 浏览器顶部栏由 browserHeaderSize 独立控制。缩放只折算到网页内容区域，
         // 避免拖动四角时地址栏、圆点、图标和 URL 文字被一起放大或缩小。
@@ -233,6 +252,10 @@ export default observer(function Screenshot({ parent, layer }) {
         box.x = metrics.boxX;
         box.y = metrics.boxY;
         box.cornerRadius = metrics.screenRadius ?? null;
+        raster.x = metrics.deviceX || 0;
+        raster.y = metrics.deviceY || 0;
+        raster.width = metrics.deviceWidth || totalWidth;
+        raster.height = metrics.deviceHeight || totalHeight;
         const effectivePadding = hasIndependentBrowserHeader ? padding * scale : padding;
         const imageWidth = Math.max(1, metrics.boxWidth - effectivePadding);
         const imageHeight = Math.max(1, Math.round(imageWidth * metrics.boxHeight / Math.max(1, metrics.boxWidth)));
@@ -303,6 +326,10 @@ export default observer(function Screenshot({ parent, layer }) {
             image.height = liveImageHeight + 2;
             image.x = livePadding / 2 - 1;
             image.y = (box.height - liveImageHeight) / 2 - 1;
+            raster.x = (metrics.deviceX || 0) * localRatioX;
+            raster.y = (metrics.deviceY || 0) * localRatioY;
+            raster.width = (metrics.deviceWidth || totalWidth) * localRatioX;
+            raster.height = (metrics.deviceHeight || totalHeight) * localRatioY;
         };
         const allDecorations = [...decorations, ...overlays];
         const decorationEntries = allDecorations.map((node) => ({
@@ -359,9 +386,50 @@ export default observer(function Screenshot({ parent, layer }) {
             container.skewY = 0;
             container.rotation = 0;
             box.cornerRadius = null;
-            container.cornerRadius = stores.option.round;
+            container.cornerRadius = getRasterDevice(stores.option.frame) ? 0 : stores.option.round;
         };
-    }, [box, container, image, layer, layer.id, layer.transform.x, layer.transform.y, layer.transform.rotation, layer.transform.scale, runtimeImage?.width, runtimeImage?.height, stores.option.align, stores.option.browserHeaderSize, stores.option.browserUrl, stores.option.frame, stores.option.frameConf.width, stores.option.frameConf.height, stores.option.padding, stores.option.shadow]);
+    }, [box, container, image, raster, layer, layer.id, layer.transform.x, layer.transform.y, layer.transform.rotation, layer.transform.scale, runtimeImage?.width, runtimeImage?.height, stores.option.align, stores.option.browserHeaderSize, stores.option.browserUrl, stores.option.frame, stores.option.frameConf.width, stores.option.frameConf.height, stores.option.padding, stores.option.shadow]);
+
+    useEffect(() => {
+        const device = getRasterDevice(stores.option.frame);
+        box.visible = !device;
+        raster.visible = Boolean(device);
+        if (!device) return undefined;
+        const controller = new AbortController();
+        const effect = stores.renderTaskTracker.beginEffect(raster);
+        let ownedUrl;
+        const loadFailed = () => { if (!controller.signal.aborted) effect.fail('device-render-failed'); };
+        raster.on(ImageEvent.ERROR, loadFailed);
+        raster.fill = null;
+        const displaySrc = stores.option.hdrEnabled && hdrImageUrl ? hdrImageUrl : runtimeImage?.src;
+        const factor = 1440 / Math.max(1, raster.width);
+        const options = { mode: stores.option.frameMode, padding: stores.option.padding * factor,
+            paddingBg: stores.option.paddingBg, round: stores.option.round * factor,
+            border: { ...stores.option.innerBorder, width: (stores.option.innerBorder?.width || 0) * factor },
+            flipX: stores.option.scaleX, flipY: stores.option.scaleY };
+        const operation = stores.imageStore.enqueueProcessing(async () => {
+            if (controller.signal.aborted) return null;
+            const { renderRasterDevice } = await import('@utils/renderRasterDevice');
+            return renderRasterDevice(device, displaySrc, options, controller.signal);
+        }).then(url => {
+            if (!url) return;
+            if (controller.signal.aborted) { URL.revokeObjectURL(url); return; }
+            ownedUrl = url;
+            raster.fill = { type: 'image', url, mode: 'stretch' };
+            stores.editor.createSnap('update', { force: true });
+        }).catch(() => {
+            if (!controller.signal.aborted) effect.fail('device-render-failed');
+        });
+        stores.renderTaskTracker.track(operation);
+        return () => {
+            controller.abort(); effect.dispose(); raster.off(ImageEvent.ERROR, loadFailed); raster.fill = null;
+            if (ownedUrl) URL.revokeObjectURL(ownedUrl);
+        };
+    }, [box, raster, stores, stores.option.frame, stores.option.frameMode, stores.option.padding,
+        stores.option.paddingBg, stores.option.round, stores.option.innerBorder?.visible,
+        stores.option.innerBorder?.color, stores.option.innerBorder?.width, stores.option.scaleX,
+        stores.option.scaleY, stores.option.hdrEnabled, hdrImageUrl, runtimeImage?.src,
+        runtimeImage?.width, runtimeImage?.height, stores.option.frameConf.width, stores.option.frameConf.height]);
 
     useEffect(() => {
         parent.add(container);

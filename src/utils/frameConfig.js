@@ -1,4 +1,5 @@
 import { Rect, Text } from 'leafer-ui';
+import { RASTER_DEVICES, isDeviceFrameId } from './rasterDeviceConfig';
 import { svgToDataURL } from '@utils/utils';
 import browserFavicon from '@assets/favicon.png?no-inline';
 import sidebarSvg from '@assets/icon/toggle.svg?raw';
@@ -115,6 +116,9 @@ Object.assign(VECTOR_DEVICE_INFO, {
 });
 
 export const FRAME_DEFINITIONS = [
+    ...Object.values(RASTER_DEVICES).map(device => ({ ...device, group: 'device', kind: 'raster-device',
+        hidden: !device.available || Boolean(device.replacedBy && Object.values(RASTER_DEVICES).some(candidate => candidate.model === device.replacedBy && candidate.available)),
+    })),
     { id: 'none', title: '无外框', description: '保留原图', group: 'basic', kind: 'none', thumbnail: 'none' },
     { id: 'light', title: '浅色描边', description: '半透明亮边', group: 'basic', kind: 'stroke', color: '#ffffff80', thumbnail: 'light' },
     { id: 'dark', title: '深色描边', description: '半透明暗边', group: 'basic', kind: 'stroke', color: '#00000050', thumbnail: 'dark' },
@@ -129,10 +133,10 @@ export const FRAME_DEFINITIONS = [
     { id: 'windowsBarLight', title: '标签浏览器', description: '浅色标签与地址栏', group: 'browser', kind: 'browser', browserStyle: 'chrome', theme: 'light', baseHeaderHeight: 86, thumbnail: 'windows-light' },
     { id: 'windowsBarDark', title: '标签浏览器 深色', description: '深色标签与地址栏', group: 'browser', kind: 'browser', browserStyle: 'chrome', theme: 'dark', baseHeaderHeight: 86, thumbnail: 'windows-dark' },
     { id: 'arc', title: '极简浏览器', description: '圆角轻量单栏', group: 'browser', kind: 'arc', browserStyle: 'arc', theme: 'light', baseHeaderHeight: 56, inset: 0, thumbnail: 'arc' },
-    { id: 'genericLaptop', title: '通用笔记本', description: '无品牌矢量机身', group: 'device', kind: 'vector-device', thumbnail: 'generic-laptop' },
-    { id: 'genericDesktop', title: '通用显示器', description: '无品牌矢量支架', group: 'device', kind: 'vector-device', thumbnail: 'generic-desktop' },
-    { id: 'genericTablet', title: '通用平板', description: '无品牌矢量边框', group: 'device', kind: 'vector-device', thumbnail: 'generic-tablet' },
-    { id: 'genericPhone', title: '通用手机', description: '无品牌矢量机身', group: 'device', kind: 'vector-device', thumbnail: 'generic-phone' },
+    { id: 'genericLaptop', title: '通用笔记本', description: '无品牌矢量机身', group: 'simple-device', kind: 'vector-device', thumbnail: 'generic-laptop', hidden: true },
+    { id: 'genericDesktop', title: '通用显示器', description: '无品牌矢量支架', group: 'simple-device', kind: 'vector-device', thumbnail: 'generic-desktop', hidden: true },
+    { id: 'genericTablet', title: '通用平板', description: '无品牌矢量边框', group: 'simple-device', kind: 'vector-device', thumbnail: 'generic-tablet', hidden: true },
+    { id: 'genericPhone', title: '通用手机', description: '无品牌矢量机身', group: 'simple-device', kind: 'vector-device', thumbnail: 'generic-phone', hidden: true },
     { id: 'macbookpro16', title: '通用笔记本（兼容）', group: 'device', kind: 'vector-device', thumbnail: 'generic-laptop', hidden: true },
     { id: 'macbookair', title: '通用笔记本（兼容）', group: 'device', kind: 'vector-device', thumbnail: 'generic-laptop', hidden: true },
     { id: 'imacpro', title: '通用显示器（兼容）', group: 'device', kind: 'vector-device', thumbnail: 'generic-desktop', hidden: true },
@@ -145,19 +149,47 @@ export const FRAME_GROUPS = [
     { id: 'creative', title: '创意外框' },
     { id: 'browser', title: '浏览器' },
     { id: 'device', title: '设备' },
+    { id: 'simple-device', title: '简约设备框' },
 ];
 
 const FRAME_MAP = Object.fromEntries(FRAME_DEFINITIONS.map((item) => [item.id, item]));
 
-export const getFrameDefinition = (frame) => FRAME_MAP[frame] || FRAME_MAP.none;
-export const getFrameGroups = () => FRAME_GROUPS.map((group) => ({
-    ...group,
-    items: FRAME_DEFINITIONS.filter((item) => item.group === group.id && !item.hidden),
-}));
-export const isDeviceFrame = (frame) => {
-    const kind = getFrameDefinition(frame).kind;
-    return kind === 'vector-device';
+export const getFrameDefinition = frame => Object.hasOwn(FRAME_MAP, frame) ? FRAME_MAP[frame] : FRAME_MAP.none;
+export const getFrameGroups = () => FRAME_GROUPS.map(group => {
+    const models = new Set();
+    return { ...group, items: FRAME_DEFINITIONS.filter(item => {
+        if (item.group !== group.id || item.hidden) return false;
+        if (!item.model) return true;
+        if (models.has(item.model)) return false;
+        models.add(item.model); return true;
+    }) };
+});
+
+// Small, discoverable defaults; full lists and old project IDs remain unchanged.
+// Derive from available models so a clean build never advertises missing assets.
+export const getQuickFrameGroups = (frame = 'none', groups = getFrameGroups()) => {
+    const browsers = groups.find(group => group.id === 'browser')?.items || [];
+    const devices = groups.find(group => group.id === 'device')?.items || [];
+    const preferred = ['macbook-air-m2', 'imac-24', 'surface-pro-8', 'pixel-9-pro'];
+    const rank = item => {
+        const index = preferred.indexOf(item.model || item.id);
+        return index < 0 ? preferred.length : index;
+    };
+    const selected = getFrameDefinition(frame);
+    const matches = item => item.id === selected.id || Boolean(item.model && item.model === selected.model);
+    const includeSelected = (items, available) => {
+        if (selected.hidden || !available.some(matches)) return items;
+        const index = items.findIndex(matches);
+        if (index >= 0) items[index] = selected;
+        else items[Math.min(items.length, 3)] = selected;
+        return items;
+    };
+    return {
+        browser: includeSelected([getFrameDefinition('none'), ...browsers.slice(0, 3)], browsers),
+        device: includeSelected([...devices].sort((a, b) => rank(a) - rank(b)).slice(0, 4), devices),
+    };
 };
+export const isDeviceFrame = isDeviceFrameId;
 export const getBrowserHeaderHeight = (frame, headerSize = BROWSER_HEADER_SIZE_DEFAULT) => {
     const definition = getFrameDefinition(frame);
     if (definition.kind !== 'browser' && definition.kind !== 'arc') return 0;
@@ -189,6 +221,13 @@ export const getFrameMetrics = (frame, width, height, options = {}) => {
         metrics.headerHeight = getBrowserHeaderHeight(frame, options.headerSize);
         metrics.totalHeight = height + metrics.headerHeight;
         metrics.boxY = metrics.headerHeight;
+    } else if (definition.kind === 'raster-device') {
+        const scale = Math.max(0, Math.min(width / definition.width, height / definition.height));
+        metrics.deviceScale = scale;
+        metrics.deviceWidth = definition.width * scale;
+        metrics.deviceHeight = definition.height * scale;
+        metrics.deviceX = Math.max(0, (width - metrics.deviceWidth) / 2);
+        metrics.deviceY = Math.max(0, (height - metrics.deviceHeight) / 2);
     } else if (definition.kind === 'vector-device') {
         const device = VECTOR_DEVICE_INFO[frame];
         const scale = Math.max(0, Math.min(width / device.width, height / device.height));

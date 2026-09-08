@@ -1,7 +1,9 @@
 import '@leafer-in/export';
-import { observable } from 'mobx';
+import { observable, runInAction } from 'mobx';
 import { browserPlatform } from '../platform/browserPlatform';
-import { EXPORT_FORMATS, EXPORT_RATIOS, normalizeWorkspaceName } from '@utils/stylePreset';
+import { normalizeWorkspaceName } from '@utils/stylePreset';
+import { validateExportSettings, exportSettingsKey, MAX_PREVIEW_PIXELS, compressionTimeoutMs, compressedDownloadPixelLimit } from '@utils/exportSettings';
+import { waitWithSignal } from '@utils/exportAsync';
 
 export const MAX_EXPORT_EDGE = 8_192;
 export const MAX_EXPORT_PIXELS = 16_777_216;
@@ -22,6 +24,11 @@ const defaultAvifEncoderFactory = async () => {
 const defaultWebpEncoderFactory = async () => {
     const { WebpEncoder } = await import('@utils/webpEncoder');
     return new WebpEncoder();
+};
+
+const defaultPngEncoderFactory = async () => {
+    const { PngEncoder } = await import('@utils/pngEncoder');
+    return new PngEncoder();
 };
 
 const defaultNativeWebpSupport = async () => {
@@ -131,14 +138,19 @@ export class ExportService {
         now = () => globalThis.performance?.now?.() ?? Date.now(),
         avifEncoderFactory = defaultAvifEncoderFactory,
         webpEncoderFactory = defaultWebpEncoderFactory,
+        pngEncoderFactory = defaultPngEncoderFactory,
         nativeWebpSupport = defaultNativeWebpSupport,
+        webExportSafety = false,
     } = {}) {
         this.root = root;
         this.platform = platform;
         this.now = now;
         this.avifEncoderFactory = avifEncoderFactory;
         this.webpEncoderFactory = webpEncoderFactory;
+        this.pngEncoderFactory = pngEncoderFactory;
         this.nativeWebpSupport = nativeWebpSupport;
+        // Fixed per service, never read from requests, projects or presets.
+        Object.defineProperty(this, '_webExportSafety', { value: webExportSafety === true });
         this._tail = Promise.resolve();
         this._pendingOperations = 0;
         this._busyState = observable.box(false, { deep: false });
@@ -150,43 +162,142 @@ export class ExportService {
         this._webpEncoder = null;
         this._webpEncoderPromise = null;
         this._nativeWebpSupportPromise = null;
+        this._pngEncoder = null;
+        this._contexts = new Set();
+        this._stage = observable.box('idle');
+        this._prepared = null;
+        this._stopPrepared = root.renderTaskTracker?.subscribe(() => {
+            if (this._prepared && !root.renderTaskTracker.matches(this._prepared.stamp)) this.discardPrepared('stale');
+        });
     }
 
     get isDisposed() {
         return this._disposed;
     }
 
+    compressedPixelLimit(format) {
+        return compressedDownloadPixelLimit(format, this._webExportSafety);
+    }
+
     get isBusy() {
         return this._busyState.get();
     }
 
-    /** @param {ExportRequest} [request] */
-    exportImage(request = {}) {
-        return this._enqueue((context) => this._renderImage(request, context), request.signal);
+    get stage() { return this._stage.get(); }
+    get isHandingOff() { return this.stage === 'handing-off'; }
+    _setStage(value) { runInAction(() => this._stage.set(value)); }
+
+    isPreparedCurrent(token) {
+        return Boolean(token && this._prepared?.token === token && !this._disposed
+            && (!this._prepared.stamp || this.root.renderTaskTracker.matches(this._prepared.stamp)));
+    }
+
+    discardPrepared(stage = 'idle', token) {
+        if (token && this._prepared?.token !== token) return;
+        this._prepared = null;
+        if (!this.isHandingOff) this._setStage(stage);
+    }
+
+    deactivate() {
+        this.discardPrepared('stale');
+        for (const context of this._contexts) {
+            if (context.requireActive && !context.handingOff) context.controller.abort(exportError('export-stale'));
+        }
+    }
+
+    // Internal capability, not a public Blob-injection API. The UI owns display URLs.
+    async prepareImage(request = {}) {
+        if (this.isBusy) throw exportError('export-busy');
+        const settings = validateExportSettings(request);
+        request = { ...request, ...settings, ...(request.size ? { size: { ...request.size } } : {}) };
+        this.discardPrepared('preparing');
+        return this._enqueue(async context => {
+            const rendered = await this._renderImage({ ...request, ...settings, preview: true }, context);
+            if (request.verifyPreview) {
+                const { validateExportPreview } = await import('../utils/exportPreview');
+                this._assertCurrent(context);
+                await validateExportPreview(rendered, context.controller.signal);
+            }
+            const result = Object.freeze({ ...rendered, settings: Object.freeze({ ...settings }),
+                summary: Object.freeze({ ...rendered.summary, warnings: Object.freeze([...rendered.summary.warnings]) }) });
+            this._assertCurrent(context);
+            const token = Object.freeze({});
+            this._prepared = { token, result, settings: result.settings, stamp: context.stamp, baseName: request.baseName };
+            this._setStage('ready');
+            return Object.freeze({ token, result, settings: result.settings });
+        }, request.signal, request);
+    }
+
+    async downloadPreparedImage(token, request = {}) {
+        if (this.isBusy) throw exportError('export-busy');
+        const prepared = this._prepared;
+        if (!prepared || prepared.token !== token
+            || (request.settings !== undefined && exportSettingsKey(request.settings) !== exportSettingsKey(prepared.settings))) {
+            throw exportError('export-stale');
+        }
+        if (prepared.stamp && !this.root.renderTaskTracker.matches(prepared.stamp)) throw exportError('export-stale');
+        // Validate actual prepared dimensions, not the current scene or an
+        // untrusted request.size. Output dimensions already include ratio.
+        this._validateRequest({ ...prepared.settings, ratio: 1,
+            size: { width: prepared.result.width, height: prepared.result.height } });
+        return this._enqueue(async context => {
+            context.stamp = prepared.stamp;
+            context.frozen = true;
+            return this._handoff(prepared.result, { ...request, baseName: prepared.baseName }, context);
+        }, request.signal, request);
     }
 
     /** @param {ExportRequest} [request] */
-    downloadImage(request = {}) {
+    async exportImage(request = {}) {
+        const settings = validateExportSettings(request);
+        request = { ...request, ...settings, ...(request.size ? { size: { ...request.size } } : {}) };
+        return this._enqueue((context) => this._renderImage({ ...request, ...settings }, context), request.signal, request);
+    }
+
+    /** @param {ExportRequest} [request] */
+    async downloadImage(request = {}) {
+        const settings = validateExportSettings(request);
+        request = { ...request, ...settings, ...(request.size ? { size: { ...request.size } } : {}) };
         return this._enqueue(async (context) => {
-            const result = await this._renderImage(request, context);
-            this._assertCurrent(context);
-            const filename = this._filename(request.baseName, result.format, result.pixelRatio);
-            try {
-                await this.platform.export.download(result.blob, filename);
-            } catch (error) {
-                this._assertCurrent(context);
-                throw exportError('export-download-failed', error);
+            const result = await this._renderImage({ ...request, ...settings }, context);
+            return this._handoff(result, request, context);
+        }, request.signal, request);
+    }
+
+    async _handoff(result, request, context) {
+        this._assertCurrent(context);
+        await this.root.deviceLicense?.request(this.root.option?.frame, { signal: context.controller.signal });
+        this._assertCurrent(context);
+        const filename = this._filename(request.baseName, result.format, result.pixelRatio);
+        context.handingOff = true;
+        this._setStage('handing-off');
+        const prepared = this._prepared?.result === result ? this._prepared : null;
+        try {
+            // After this call the platform owns the write. Keep busy until it settles.
+            await this.platform.export.download(result.blob, filename);
+        } catch (error) {
+            if (prepared && this._prepared === prepared && !this._disposed
+                && (!prepared.stamp || this.root.renderTaskTracker.matches(prepared.stamp))
+                && (!context.requireActive || this.root.isActive !== false)) {
+                context.keepPrepared = true;
+                this._setStage('ready');
             }
-            this._assertCurrent(context);
-            return { ...result, filename };
-        }, request.signal);
+            if (isExportCancelled(error)) throw error;
+            throw exportError('export-download-failed', error);
+        }
+        this._prepared = null;
+        return { ...result, filename, current: !this._disposed && !this.root.isDisposed
+            && (!context.requireActive || this.root.isActive !== false)
+            && (!context.stamp || this.root.renderTaskTracker.matches(context.stamp, { paint: false })) };
     }
 
     /** @param {ExportRequest} [request] */
     copyImage(request = {}) {
-        const nextRequest = { ...request, format: 'png' };
+        const nextRequest = { ...request, format: 'png', compression: undefined, quality: undefined, paletteColors: undefined, preview: false };
         return this._enqueue(async (context) => {
             const result = await this._renderImage(nextRequest, context);
+            this._assertCurrent(context);
+            await this.root.deviceLicense?.request(this.root.option?.frame, { signal: context.controller.signal });
             this._assertCurrent(context);
             try {
                 await this.platform.clipboard.writeImage(result.blob);
@@ -196,18 +307,26 @@ export class ExportService {
             }
             this._assertCurrent(context);
             return result;
-        }, request.signal);
+        }, request.signal, request);
     }
 
     /** @param {ExportRequest} [request] */
     exportCanvas(request = {}) {
-        return this._enqueue((context) => this._renderCanvas(request, context), request.signal);
+        return this._enqueue(async context => {
+            await this._prepareScene(request, context);
+            return this._renderCanvas(request, context);
+        }, request.signal, request);
     }
 
     dispose() {
         if (this._disposed) return;
         this._disposed = true;
         this._generation += 1;
+        this._stopPrepared?.();
+        this._prepared = null;
+        for (const context of this._contexts) if (!context.handingOff) context.controller.abort(exportError('export-cancelled'));
+        try { this._pngEncoder?.dispose(); } catch { /* Continue owner cleanup. */ }
+        this._pngEncoder = null;
         try {
             this._avifEncoder?.dispose?.();
         } catch {
@@ -230,45 +349,98 @@ export class ExportService {
         this._canvasLeases.clear();
     }
 
-    _enqueue(task, signal) {
-        const context = { generation: this._generation, signal };
+    _enqueue(task, signal, request = {}) {
+        const controller = new AbortController();
+        const abort = () => { if (!context.handingOff) controller.abort(exportError('export-cancelled')); };
+        const context = { generation: this._generation, signal: controller.signal, controller, requireActive: request.requireActive };
+        signal?.addEventListener('abort', abort, { once: true });
+        if (signal?.aborted) abort();
+        this._contexts.add(context);
         this._pendingOperations += 1;
-        this._busyState.set(true);
+        runInAction(() => this._busyState.set(true));
         const operation = this._tail
             .catch(() => undefined)
             .then(async () => {
                 this._assertCurrent(context);
+                const tracker = request.target ? null : this.root.renderTaskTracker;
+                tracker?.flushEdits();
+                context.stamp = tracker?.stamp();
+                context.unsubscribe = tracker?.subscribe(() => {
+                    if (!context.handingOff && !this.root.renderTaskTracker.matches(context.stamp, { paint: !!context.frozen })) {
+                        controller.abort(exportError('export-stale'));
+                    }
+                });
+                this._setStage('preparing');
                 return task(context);
             });
-        const trackedOperation = operation.finally(() => {
+        const trackedOperation = operation.catch(error => {
+            if (!context.handingOff && typeof context.signal.reason?.code === 'string') error = context.signal.reason;
+            if (!context.keepPrepared) {
+                this._prepared = null;
+                this._setStage(error?.code === 'export-stale' ? 'stale' : 'failed');
+            }
+            throw error;
+        }).finally(() => {
+            context.unsubscribe?.();
+            signal?.removeEventListener('abort', abort);
+            this._contexts.delete(context);
             this._pendingOperations = Math.max(0, this._pendingOperations - 1);
-            this._busyState.set(this._pendingOperations > 0);
+            runInAction(() => this._busyState.set(this._pendingOperations > 0));
+            if (!['ready', 'stale', 'failed'].includes(this.stage)) this._setStage('idle');
         });
         this._tail = trackedOperation.then(() => undefined, () => undefined);
         return trackedOperation;
     }
 
-    _assertCurrent({ generation, signal }) {
+    _assertCurrent({ generation, signal, requireActive, stamp, frozen }) {
         if (this._disposed || generation !== this._generation || signal?.aborted) {
-            throw exportError('export-cancelled');
+            throw typeof signal?.reason?.code === 'string' ? signal.reason : exportError('export-cancelled');
         }
+        if (requireActive && this.root.isActive === false) throw exportError('export-stale');
+        if (stamp && !this.root.renderTaskTracker.matches(stamp, { paint: !!frozen })) throw exportError('export-stale');
+    }
+
+    async _prepareScene(request, context) {
+        this._validateRequest(request);
+        const tree = this._tree(request.target);
+        const tracker = request.target ? null : this.root.renderTaskTracker;
+        if (tracker?.waitForExport) context.stamp = await tracker.waitForExport(tree, context.stamp, context.signal);
+        this._assertCurrent(context);
+    }
+
+    async _capture(request, context, format, options) {
+        const capture = async () => {
+            context.frozen = true;
+            this._assertCurrent(context);
+            const result = await this._tree(request.target).export(format, options);
+            // Always return late canvases to their owner for cleanup. The caller
+            // checks freshness before reading or handing the result off.
+            return result;
+        };
+        const tracker = request.target ? null : this.root.renderTaskTracker;
+        return tracker?.withCapture(capture) ?? capture();
     }
 
     _validateRequest(request) {
-        const format = request.format ?? 'png';
-        const ratio = Number(request.ratio ?? 1);
-        if (!EXPORT_FORMATS.includes(format)) throw exportError('export-format-unsupported');
-        if (!EXPORT_RATIOS.includes(ratio)) throw exportError('export-ratio-unsupported');
+        const settings = validateExportSettings(request);
+        const { format, ratio } = settings;
 
         const sourceSize = request.target ? request.size : (request.size ?? this.root.option?.frameConf);
         if (!sourceSize) throw exportError('export-size-too-large');
-        const width = Number(sourceSize.width) * ratio;
-        const height = Number(sourceSize.height) * ratio;
+        const width = Math.ceil(Number(sourceSize.width) * ratio);
+        const height = Math.ceil(Number(sourceSize.height) * ratio);
         this._assertSize(width, height);
+        if (request.preview && width * height > MAX_PREVIEW_PIXELS) {
+            throw exportError('export-preview-size-too-large');
+        }
+        if (settings.compression && width * height > this.compressedPixelLimit(format)) {
+            if (this._webExportSafety && format === 'avif') throw exportError('export-web-avif-compression-size-too-large');
+            throw exportError('export-compression-size-too-large');
+        }
         if (format === 'avif' && width * height > MAX_AVIF_EXPORT_PIXELS) {
             throw exportError('export-avif-size-too-large');
         }
-        return { format, ratio, width, height };
+        return { ...settings, width, height };
     }
 
     _assertSize(width, height) {
@@ -301,6 +473,9 @@ export class ExportService {
     }
 
     async _renderImage(request, context) {
+        await this._prepareScene(request, context);
+        const settings = validateExportSettings(request);
+        if (settings.compression || request.preview) return this._renderCompressed(request, context);
         const { format, ratio, width, height } = this._validateRequest(request);
         if (format === 'avif') {
             return this._renderAvif(request, context, { format, ratio, width, height });
@@ -316,7 +491,7 @@ export class ExportService {
         try {
             let result;
             try {
-                result = await this._tree(request.target).export(
+                result = await this._capture(request, context,
                     format,
                     this._imageOptions(format, ratio, (canvas) => canvases.add(canvas))
                 );
@@ -386,6 +561,100 @@ export class ExportService {
         const encoder = await this._avifEncoderPromise;
         this._assertCurrent(context);
         return encoder;
+    }
+
+    async _getPngEncoder(context) {
+        if (!this._pngEncoder) {
+            const encoder = await this.pngEncoderFactory();
+            if (!encoder?.encode || !encoder?.dispose) throw exportError('export-png-unavailable');
+            if (this._disposed) { encoder.dispose(); throw exportError('export-cancelled'); }
+            this._pngEncoder = encoder;
+        }
+        this._assertCurrent(context);
+        return this._pngEncoder;
+    }
+
+    async _canvasBlob(canvas, format, quality, context) {
+        const mime = FORMAT_MIME_TYPES[format][0];
+        const blob = await waitWithSignal(new Promise((resolve, reject) => {
+            try { canvas.toBlob(resolve, mime, quality); }
+            catch (error) { reject(exportError('export-encode-failed', error)); }
+        }), context.signal);
+        this._assertCurrent(context);
+        if (!isBlob(blob) || blob.size <= 0 || !FORMAT_MIME_TYPES[format].includes(blob.type.toLowerCase())) {
+            throw exportError('export-result-invalid');
+        }
+        return blob;
+    }
+
+    async _encodeCanvas(canvas, dimensions, settings, context, releaseCanvas) {
+        const { format, compression, quality, paletteColors } = settings;
+        if (format === 'jpg' || (format === 'png' && !compression)) {
+            return this._canvasBlob(canvas, format, format === 'jpg' ? (quality ?? 90) / 100 : undefined, context);
+        }
+        if (format === 'webp' && !compression && await this._supportsNativeWebp(context)) {
+            return this._canvasBlob(canvas, 'webp', 0.9, context);
+        }
+        const encoder = format === 'png' ? await this._getPngEncoder(context)
+            : format === 'webp' ? await this._getWebpEncoder(context) : await this._getAvifEncoder(context);
+        const pixels = canvas.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, dimensions.width, dimensions.height)?.data;
+        // getImageData owns its buffer; a direct download no longer needs the
+        // source Canvas while the Worker processes that transferred copy.
+        releaseCanvas?.();
+        const blob = await encoder.encode({ pixels, ...dimensions, compression, quality, paletteColors, signal: context.signal });
+        this._assertCurrent(context);
+        if (!isBlob(blob) || blob.size <= 0 || !FORMAT_MIME_TYPES[format].includes(blob.type.toLowerCase())) {
+            throw exportError('export-result-invalid');
+        }
+        return blob;
+    }
+
+    async _renderCompressed(request, context) {
+        const settings = validateExportSettings(request);
+        const { format, ratio, width, height } = this._validateRequest(request);
+        const startedAt = this.now();
+        const lease = await this._renderCanvas(request, context,
+            ['jpg', 'webp'].includes(format) ? { fill: '#ffffff' } : {});
+        const timer = setTimeout(() => context.controller.abort(exportError('export-compression-timeout')), compressionTimeoutMs(width, height));
+        let operationError;
+        let output;
+        try {
+            // Both comparison and output originate from this ONE complete scene.
+            const needsReference = request.preview || (format === 'png' && settings.compression === 'lossless');
+            const referenceBlob = needsReference
+                ? await this._encodeCanvas(lease.canvas, { width, height }, { format, ratio }, context) : null;
+            let blob = referenceBlob;
+            let noGain = false;
+            if (settings.compression === 'lossless' && format === 'png') {
+                if (!request.preview) lease.release();
+                const encoder = await this._getPngEncoder(context);
+                blob = await encoder.encode({ png: await referenceBlob.arrayBuffer(), width, height, compression: 'lossless', signal: context.signal });
+                if (!isBlob(blob) || blob.size <= 0 || blob.type !== 'image/png') throw exportError('export-result-invalid');
+                noGain = blob.size >= referenceBlob.size;
+                if (noGain) blob = referenceBlob;
+            } else if (settings.compression) {
+                blob = await this._encodeCanvas(lease.canvas, { width, height }, settings, context, request.preview ? undefined : lease.release);
+            }
+            this._assertCurrent(context);
+            output = {
+                blob, referenceBlob, format, mimeType: blob.type, pixelRatio: ratio, width, height,
+                durationMs: Math.max(0, this.now() - startedAt),
+                settings,
+                summary: {
+                    referenceBytes: referenceBlob?.size ?? null, outputBytes: blob.size,
+                    savedBytes: referenceBlob ? referenceBlob.size - blob.size : null,
+                    savingsPercent: referenceBlob ? (1 - blob.size / referenceBlob.size) * 100 : null,
+                    noGain, warnings: request.target ? [] : this.root.renderTaskTracker?.warnings ?? [],
+                },
+            };
+        } catch (error) {
+            operationError = error;
+        }
+        clearTimeout(timer);
+        try { lease.release(); }
+        catch (error) { if (operationError) operationError.releaseCause = error; else operationError = error; }
+        if (operationError) throw operationError;
+        return output;
     }
 
     async _supportsNativeWebp(context) {
@@ -533,11 +802,20 @@ export class ExportService {
     }
 
     async _renderCanvas(request, context, renderOptions = {}) {
-        const { ratio, width, height } = this._validateRequest({ ...request, format: 'png' });
+        const { ratio, width, height } = this._validateRequest({ ...request, format: 'png', compression: undefined, quality: undefined, paletteColors: undefined });
         this._assertCurrent(context);
         let result;
         try {
-            result = await this._tree(request.target).export('canvas', { pixelRatio: ratio, ...renderOptions });
+            // Readback hints must be present when Leafer creates the context;
+            // supplying them to a later getContext() cannot reconfigure it.
+            result = await this._capture(request, context, 'canvas', {
+                pixelRatio: ratio, ...renderOptions,
+                contextSettings: {
+                    ...this._tree(request.target).leafer?.config?.contextSettings,
+                    ...renderOptions.contextSettings,
+                    willReadFrequently: true,
+                },
+            });
         } catch (error) {
             throw exportError('export-render-failed', error);
         }

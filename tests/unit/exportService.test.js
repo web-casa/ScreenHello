@@ -152,7 +152,7 @@ describe('ExportService', () => {
             webpEncoderFactory: async () => encoder,
             exportImpl: async (format, options) => {
                 expect(format).toBe('canvas');
-                expect(options).toEqual({ pixelRatio: 1, fill: '#ffffff' });
+                expect(options).toEqual({ pixelRatio: 1, contextSettings: { willReadFrequently: true }, fill: '#ffffff' });
                 return { data: wrapper, width: 2, height: 1 };
             },
         });
@@ -169,7 +169,7 @@ describe('ExportService', () => {
             pixels: imageData.data,
             width: 2,
             height: 1,
-            signal: undefined,
+            signal: expect.any(AbortSignal),
         });
         expect(wrapper.destroy).toHaveBeenCalledOnce();
         expect(nativeCanvas).toMatchObject({ width: 0, height: 0 });
@@ -214,7 +214,7 @@ describe('ExportService', () => {
             avifEncoderFactory,
             exportImpl: async (format, options) => {
                 expect(format).toBe('canvas');
-                expect(options).toEqual({ pixelRatio: 1 });
+                expect(options).toEqual({ pixelRatio: 1, contextSettings: { willReadFrequently: true } });
                 return { data: wrapper, width: 800, height: 600 };
             },
         });
@@ -234,7 +234,7 @@ describe('ExportService', () => {
         expect(encodeOptions).toMatchObject({
             width: 800,
             height: 600,
-            signal: undefined,
+            signal: expect.any(AbortSignal),
         });
         expect(encodeOptions.pixels).toBe(imageData.data);
         expect(wrapper.destroy).toHaveBeenCalledOnce();

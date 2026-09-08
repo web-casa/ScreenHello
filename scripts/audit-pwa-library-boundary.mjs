@@ -16,6 +16,9 @@ const basenames = files.map((file) => path.basename(file));
 for (const forbidden of [
     /^sw\.js$/,
     /^manifest\.webmanifest$/,
+    /^site\.webmanifest$/,
+    /^(?:robots\.txt|sitemap\.xml|llms\.txt|social\.(?:png|svg)|before\.svg|after\.svg|site\.css)$/,
+    /^(?:favicon(?:-96x96)?\.(?:svg|png|ico)|apple-touch-icon\.png|web-app-manifest-(?:192x192|512x512)\.png)$/,
     /^workbox-[\w-]+\.js$/,
     /^pwa-(?:maskable-)?(?:192x192|512x512)\.png$/,
 ]) {

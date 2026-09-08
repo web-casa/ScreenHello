@@ -51,11 +51,13 @@ const FrameBox = observer(({ width, height, background, parent, children, cursor
             return undefined;
         }
         let cancelled = false;
+        const effect = stores.renderTaskTracker?.beginEffect(frame);
+        setBlurredUrl(null);
         const operation = blurImageUrl(baseUrl, blur)
             .then((url) => { if (!cancelled) setBlurredUrl(url); })
-            .catch(() => { if (!cancelled) setBlurredUrl(null); });
+            .catch(() => { if (!cancelled) { setBlurredUrl(null); effect?.fallback('background-blur-fallback'); } });
         stores.renderTaskTracker?.track(operation);
-        return () => { cancelled = true; };
+        return () => { cancelled = true; effect?.dispose(); };
     }, [baseUrl, blur]);
 
     const effectiveFill = useMemo(() => buildLayeredFill({
@@ -79,6 +81,7 @@ const FrameBox = observer(({ width, height, background, parent, children, cursor
         // buildLayeredFill 无背景（无背景选项）时返回 null；Leafer 的 fill=null
         // 会回退到 Frame 默认白底，导致透明画布渲染/导出不透明，需显式赋透明色。
         frame.fill = effectiveFill ?? 'rgba(0,0,0,0)';
+        stores.editor.createSnap('update', { force: true });
     }, [width, height, effectiveFill, stores.editor.isDark]);
 
     useEffect(() => {

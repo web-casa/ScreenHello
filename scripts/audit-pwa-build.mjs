@@ -1,11 +1,13 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PWA_APP_SHELL_MAX_BYTES, normalizeWebBase } from '../config/pwaConfig.js';
+import { PWA_APP_SHELL_MAX_BYTES, WEB_ICON_FILES, normalizeWebBase, versionWebIconUrl } from '../config/pwaConfig.js';
+import { readWebIconVersions } from '../config/devFaviconPlugin.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.resolve(root, process.env.SCREENHELLO_PWA_OUT_DIR || 'dist');
 const expectedBase = normalizeWebBase(process.env.SCREENHELLO_BASE_PATH || '/');
+const iconVersions = readWebIconVersions(outDir);
 
 const fail = (message) => { throw new Error(`pwa-audit:${message}`); };
 const read = (filename) => readFileSync(path.join(outDir, filename), 'utf8');
@@ -24,6 +26,7 @@ for (const required of ['index.html', 'manifest.webmanifest', 'sw.js']) {
 
 const manifest = JSON.parse(read('manifest.webmanifest'));
 const expectedManifest = {
+    id: expectedBase,
     name: 'ScreenHello — 本地截图美化工具',
     short_name: 'ScreenHello',
     start_url: expectedBase,
@@ -37,8 +40,8 @@ for (const [key, value] of Object.entries(expectedManifest)) {
 }
 
 const expectedIcons = new Map([
-    ['pwa-192x192.png', { width: 192, height: 192, purpose: 'any', alpha: true }],
-    ['pwa-512x512.png', { width: 512, height: 512, purpose: 'any', alpha: true }],
+    ['web-app-manifest-192x192.png', { width: 192, height: 192, purpose: 'any', alpha: true }],
+    ['web-app-manifest-512x512.png', { width: 512, height: 512, purpose: 'any', alpha: true }],
     ['pwa-maskable-192x192.png', { width: 192, height: 192, purpose: 'maskable', alpha: false }],
     ['pwa-maskable-512x512.png', { width: 512, height: 512, purpose: 'maskable', alpha: false }],
 ]);
@@ -49,7 +52,7 @@ for (const icon of manifest.icons) {
     if (!expected || icon.sizes !== `${expected.width}x${expected.height}` || icon.type !== 'image/png' || icon.purpose !== expected.purpose) {
         fail(`manifest-icon-${filename}`);
     }
-    const expectedSrc = `${expectedBase}${filename}`;
+    const expectedSrc = `${expectedBase}${versionWebIconUrl(filename, iconVersions)}`;
     if (icon.src !== expectedSrc) fail(`manifest-icon-base-${filename}`);
     const data = readFileSync(path.join(outDir, filename));
     if (data.toString('ascii', 1, 4) !== 'PNG') fail(`icon-format-${filename}`);
@@ -61,6 +64,10 @@ for (const icon of manifest.icons) {
 
 const html = read('index.html');
 if (!html.includes(`href="${expectedBase}manifest.webmanifest"`)) fail('manifest-link-base');
+if ((html.match(/rel="manifest"/g) || []).length !== 1 || exists('site.webmanifest')) fail('duplicate-manifest');
+for (const filename of WEB_ICON_FILES.slice(0, 4)) {
+    if (!html.includes(`href="${expectedBase}${versionWebIconUrl(filename, iconVersions)}"`)) fail(`html-icon-${filename}`);
+}
 const shellReferences = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
     .map((match) => new globalThis.URL(match[1], 'https://screenhello.invalid'))
     .filter((url) => url.pathname.startsWith(`${expectedBase}assets/`) && /\.(?:js|css)$/.test(url.pathname))
@@ -79,11 +86,12 @@ const precacheObjectCount = (precacheSource.match(/\{url:/g) || []).length;
 if (precacheUrls.length !== precacheObjectCount || precacheUrls.length === 0) fail('precache-token-count');
 const uniqueUrls = new Set(precacheUrls);
 if (uniqueUrls.size !== precacheUrls.length) fail('precache-duplicate-url');
-for (const required of ['index.html', 'manifest.webmanifest', ...expectedIcons.keys(), ...shellReferences, `assets/${pwaWindowRuntime}`]) {
+for (const required of ['index.html', 'manifest.webmanifest', ...new Set([...expectedIcons.keys(), ...WEB_ICON_FILES].map(filename => versionWebIconUrl(filename, iconVersions))), ...shellReferences, `assets/${pwaWindowRuntime}`]) {
     if (!uniqueUrls.has(required)) fail(`precache-missing-${required}`);
 }
 
 const forbiddenPrecache = [
+    /assets\/demo-(?:mobile|desktop)-[^/]+\.webp$/,
     /\.wasm$/,
     /\.worker-[^/]+\.js$/,
     /\.jpe?g$/,
@@ -95,8 +103,9 @@ for (const url of precacheUrls) {
 
 let precacheBytes = 0;
 for (const url of uniqueUrls) {
-    const target = path.join(outDir, url);
-    if (!exists(url)) fail(`precache-file-missing-${url}`);
+    const filename = new globalThis.URL(url, 'https://screenhello.invalid/').pathname.slice(1);
+    const target = path.join(outDir, filename);
+    if (!exists(filename)) fail(`precache-file-missing-${url}`);
     precacheBytes += statSync(target).size;
 }
 if (precacheBytes > PWA_APP_SHELL_MAX_BYTES) fail(`precache-budget-${precacheBytes}`);
