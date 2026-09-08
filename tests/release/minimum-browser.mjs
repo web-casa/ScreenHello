@@ -7,6 +7,7 @@ import { browserVersionIsAccepted } from '../../scripts/browser-version-policy.m
 import { createSessionWithRetry } from '../../scripts/webdriver-session-retry.mjs';
 import { createPngFixture } from '../fixtures/createPngFixture.js';
 import { readMobileAnnotation } from './mobileAnnotation.mjs';
+import { activateEditorWindow } from './foreground.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -472,6 +473,7 @@ try {
     );
 
     await driver.get(baseURL);
+    const editorWindow = await driver.getWindowHandle();
     await driver.wait(until.elementLocated(By.css('.shoteasy-upload-card input[type="file"]')), 30_000);
     const loadedOrigin = await driver.executeScript(() => location.origin);
     assert.equal(loadedOrigin, new URL(baseURL).origin, `${target.id}: redirected to an unexpected origin`);
@@ -527,9 +529,9 @@ try {
             return abort.call(this, reason);
         };
         window.Worker = new Proxy(window.Worker, {
-            construct(Target, args) {
+            construct(Target, args, NewTarget) {
                 record('worker-created', { name: String(args[1]?.name || '') });
-                return Reflect.construct(Target, args);
+                return Reflect.construct(Target, args, NewTarget);
             },
         });
         addEventListener('visibilitychange', () => record('visibilitychange'));
@@ -582,9 +584,17 @@ try {
     await clickMenuItem('编辑', '重做');
 
     const downloads = [];
+    report.foregroundExports = [];
     for (const format of ['png', 'jpg', 'webp', 'avif']) {
+        const windowCount = (await driver.getAllWindowHandles()).length;
+        const foreground = await activateEditorWindow(driver, editorWindow);
+        report.foregroundExports.push({ format, windowCount, ...foreground });
         await selectFormat(format);
-        await driver.executeScript((value) => window.__screenhelloReleaseMark('export-click', { format: value }), format);
+        const visibleBeforeClick = await driver.executeScript((value) => {
+            window.__screenhelloReleaseMark('export-click', { format: value });
+            return document.visibilityState === 'visible' && document.hasFocus();
+        }, format);
+        assert.equal(visibleBeforeClick, true, `${target.id}: ${format} export requires a foreground editor`);
         const previousCount = downloads.length;
         await (await waitForEnabled('[data-testid="export-download"]')).click();
         await driver.wait(async () => {
@@ -604,6 +614,7 @@ try {
             `${format} export drawer was not unmounted after closing`);
     }
 
+    await activateEditorWindow(driver, editorWindow);
     const mobileWeb = await checkMobileWeb();
 
     const browserState = await driver.executeScript(() => ({
@@ -611,6 +622,7 @@ try {
         resourceUrls: performance.getEntriesByType('resource').map(({ name }) => name),
         secureContext: window.isSecureContext,
         serviceWorker: 'serviceWorker' in navigator,
+        exportTrace: window.__screenhelloReleaseTrace,
     }));
     assert.deepEqual(browserState.errors, [], `${target.id}: uncaught browser error`);
     assert.equal(browserState.resourceUrls.every((url) => {
@@ -620,6 +632,7 @@ try {
     assert.equal(browserState.resourceUrls.some((url) => decodeURIComponent(url).includes('screenhello-private-minimum-browser')), false);
 
     report.status = 'passed';
+    report.exportTrace = browserState.exportTrace;
     report.checks = {
         coreEditUndoRedo: true,
         imageExports: downloads.map(({ name, type, size }) => ({ name, type, size })),
