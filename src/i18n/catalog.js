@@ -1,5 +1,7 @@
 // Source-language messages are stable lookup keys, never persisted document keys.
 export const englishMessages = Object.freeze({
+    '正在检查 AVIF 预览能力；你仍可直接下载。': 'Checking AVIF preview support; you can still download directly.',
+    '当前浏览器无法预览 AVIF，但仍可直接下载 AVIF 文件。需要预览时，请选择 PNG、JPG 或 WebP。': 'AVIF preview is unavailable in this browser. You can still download AVIF files. For a preview, choose PNG, JPG or WebP.',
   "网页版 AVIF 压缩暂时最多支持约 105 万像素。请主动选择 PNG、JPG 或 WebP；不会自动缩小图片或更换格式。": "AVIF compression on the website currently supports up to about 1.05 million pixels. Please choose PNG, JPG or WebP; images are not automatically resized or converted to another format.",
   "晨雾山脉": "Misty mountains",
   "静谧海岸": "Quiet coast",

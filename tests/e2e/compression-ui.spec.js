@@ -3,6 +3,67 @@ import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { createPngFixture } from '../fixtures/createPngFixture.js';
 
+test('AVIF unavailable preview is detected before encoding while direct AVIF download remains available', async ({ page }) => {
+    await openEditor(page);
+    await page.evaluate(() => {
+        const original = globalThis.createImageBitmap;
+        window.__avifProbe = { calls: 0 };
+        globalThis.createImageBitmap = function (...args) {
+            if (args[0]?.type === 'image/avif') { window.__avifProbe.calls++; return Promise.reject(new Error('native AVIF unavailable')); }
+            return Reflect.apply(original, this, args);
+        };
+    });
+    await page.locator('.shoteasy-export-drawer').getByText('AVIF', { exact: true }).click();
+    await expect(page.getByTestId('export-preview')).toBeDisabled();
+    await expect(page.getByTestId('export-preview')).toHaveAccessibleDescription(/当前浏览器无法预览 AVIF/);
+    expect(await page.evaluate(() => window.__avifProbe.calls)).toBe(1);
+    expect(await page.evaluate(() => window.__shoteasyStores.exportService.isBusy)).toBe(false);
+    await page.getByTestId('compression-lossy').click();
+    for (const locale of ['zh-CN', 'en-US', 'zh-TW', 'de-DE', 'ko-KR', 'es-ES', 'pt-PT']) {
+        await page.evaluate(locale => window.__shoteasyStores.i18n.setOptions(locale), locale);
+        await expect(page.getByTestId('export-preview')).toHaveAccessibleDescription(/AVIF.*PNG.*JPG.*WebP/);
+        await expect(page.getByTestId('export-download')).toBeEnabled();
+    }
+    await page.evaluate(() => window.__shoteasyStores.i18n.setOptions('zh-CN'));
+    const downloaded = page.waitForEvent('download');
+    await page.getByTestId('export-download').click();
+    const download = await downloaded;
+    expect(await download.failure()).toBeNull();
+    expect(download.suggestedFilename()).toMatch(/\.avif$/);
+    expect((await readFile(await download.path())).subarray(4, 12).toString()).toBe('ftypavif');
+    await expect(page.locator('.shoteasy-export-drawer')).toHaveCount(0);
+    await page.getByRole('button', { name: '导出图片', exact: true }).click();
+    await expect(page.getByTestId('avif-preview-support')).toContainText('当前浏览器无法预览');
+    await page.locator('.shoteasy-export-drawer').getByText('PNG', { exact: true }).first().click();
+    await expect(page.getByTestId('avif-preview-support')).toHaveCount(0);
+    await preview(page);
+});
+
+test('AVIF probe timeout and late results cannot disable another format or retain a closed panel', async ({ page }) => {
+    await openEditor(page);
+    await page.evaluate(() => {
+        const original = globalThis.createImageBitmap;
+        window.__lateAvif = [];
+        globalThis.createImageBitmap = function (...args) {
+            if (args[0]?.type === 'image/avif') return new Promise((resolve, reject) => window.__lateAvif.push(() => Reflect.apply(original, this, args).then(resolve, reject)));
+            return Reflect.apply(original, this, args);
+        };
+    });
+    const avif = () => page.locator('.shoteasy-export-drawer').getByText('AVIF', { exact: true }).click();
+    await avif();
+    await expect(page.getByTestId('avif-preview-support')).toContainText('正在检查');
+    await expect(page.getByTestId('export-download')).toBeEnabled();
+    await expect(page.getByTestId('avif-preview-support')).toContainText('当前浏览器无法预览');
+    await page.locator('.shoteasy-export-drawer').getByText('PNG', { exact: true }).first().click();
+    await page.evaluate(async () => { for (const release of window.__lateAvif.splice(0)) await release(); });
+    await expect(page.getByTestId('export-preview')).toBeEnabled();
+    await avif();
+    await expect(page.getByTestId('avif-preview-support')).toContainText('正在检查');
+    await page.getByTestId('export-cancel').click();
+    await page.evaluate(async () => { for (const release of window.__lateAvif.splice(0)) await release(); });
+    await expect(page.locator('.shoteasy-export-drawer')).toHaveCount(0);
+});
+
 for (const [format, compression] of [
     ['png', 'lossless'], ['png', 'lossy'], ['webp', 'lossless'],
     ['webp', 'lossy'], ['jpg', 'lossy'],
@@ -310,7 +371,9 @@ test('C2 content/theme invalidation, unsupported preview and size cap preserve e
     await expect(page.getByTestId('compression-result')).toHaveCount(0);
     await page.evaluate(() => { window.__c2.createBitmap = globalThis.createImageBitmap; globalThis.createImageBitmap = () => Promise.reject(new Error('unsupported')); });
     await page.getByTestId('export-preview').click();
-    await expect(page.getByRole('alert')).toContainText('此浏览器无法显示');
+    // The injected global decoder failure can also affect autosave; scope this
+    // assertion to the preview error, not unrelated workspace notifications.
+    await expect(page.locator('.shoteasy-export-drawer').getByRole('alert')).toContainText('此浏览器无法显示');
     await expect(page.getByTestId('export-download')).toBeEnabled();
     await page.evaluate(() => { globalThis.createImageBitmap = window.__c2.createBitmap; window.__shoteasyStores.option.setFrameSize(2048, 2048); });
     await expect(page.getByTestId('export-preview')).toBeDisabled();

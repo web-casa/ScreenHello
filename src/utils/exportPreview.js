@@ -1,5 +1,24 @@
 import { exportError, waitWithSignal } from './exportAsync';
 
+// Self-generated 2x1 red/transparent-blue sample, scalar @jsquash/avif 2.1.1:
+// defaultOptions + quality/qualityAlpha=60, speed=8, subsample=3. No user image,
+// network request or production WASM decoder is needed for this capability probe.
+const AVIF_PREVIEW_SAMPLE = 'AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUEAAAGNbWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAsaWxvYwAAAABEAAACAAEAAAABAAAB0gAAADEAAgAAAAEAAAG1AAAAHQAAAEJpaW5mAAAAAAACAAAAGmluZmUCAAAAAAEAAGF2MDFDb2xvcgAAAAAaaW5mZQIAAAAAAgAAYXYwMUFscGhhAAAAABppcmVmAAAAAAAAAA5hdXhsAAIAAQABAAAAw2lwcnAAAACdaXBjbwAAABRpc3BlAAAAAAAAAAIAAAABAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgSAAAAAAABNjb2xybmNseAACAAIABoAAAAAOcGl4aQAAAAABCAAAAAxhdjFDgQAcAAAAADhhdXhDAAAAAHVybjptcGVnOm1wZWdCOmNpY3A6c3lzdGVtczphdXhpbGlhcnk6YWxwaGEAAAAAHmlwbWEAAAAAAAAAAgABBAECgwQAAgQBBYYHAAAAVm1kYXQSAAoEGAAmFTITFkAYYUAKh7ET1AXj/FGAwgrDnhIACgc4ACYQICBpMiQWQAYYYYQAQcG9p8xt2t3O0+tQB36WbMhfA0MePkqko34TtbA=';
+
+export async function canPreviewAvif({ signal, timeoutMs = 3_000, ...adapters } = {}) {
+    if (signal?.aborted) throw exportError('export-cancelled');
+    const blob = new Blob([Uint8Array.from(atob(AVIF_PREVIEW_SAMPLE), character => character.charCodeAt(0))], { type: 'image/avif' });
+    try {
+        const lease = await loadExportPreview(blob, { ...adapters, width: 2, height: 1, signal, timeoutMs });
+        lease.release();
+        if (signal?.aborted) throw exportError('export-cancelled');
+        return true;
+    } catch (error) {
+        if (signal?.aborted || error.code === 'export-cancelled') throw error;
+        return false; // Failed/slow local display is not an encoding failure.
+    }
+}
+
 // One decoded side at a time. Bitmaps have explicit graphics ownership; the
 // HTMLImage fallback owns only display URLs, never download URLs.
 export async function loadExportPreview(blob, { width, height, signal, timeoutMs = 10_000,

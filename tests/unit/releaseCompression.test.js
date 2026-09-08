@@ -7,6 +7,7 @@ import { defaultOptions } from '@jsquash/avif/meta.js';
 
 const fixture = () => ({
     scope: COMPRESSION_SCOPE, status: 'passed',
+    avifPreviewCapability: { state: 'supported', noticeVisible: false, previewEnabled: true, directDownloadEnabled: true },
     registration: { registeredAt: '2026-09-09T00:00:00Z', cases: compressionCases(), attemptsPerCase: 1, memoryMeasurement: false,
         fixtureSha256: { small: 'a'.repeat(64), pc: 'b'.repeat(64) } },
     results: compressionCases().map(specification => {
@@ -53,6 +54,9 @@ describe('bounded browser compression evidence', () => {
     });
     it.each([
         ['missing case', e => e.results.pop()],
+        ['missing AVIF capability', e => { delete e.avifPreviewCapability; }],
+        ['download blocked by preview', e => { e.avifPreviewCapability.directDownloadEnabled = false; }],
+        ['preview blocked without explanation', e => { e.avifPreviewCapability.previewEnabled = false; }],
         ['duplicate case', e => { e.results[1] = e.results[0]; }],
         ['edited registration', e => e.registration.cases.pop()],
         ['missing fixture identity', e => { delete e.registration.fixtureSha256.pc; }],

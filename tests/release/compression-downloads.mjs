@@ -49,6 +49,19 @@ export async function checkCompressionDownloads({ driver, editorWindow, selectFo
                 quality: quality ? Number(quality) : null, paletteColors: palette ? Number(palette.slice(8)) : null } : null;
         });
         assert.ok(dimensions, 'visible output dimensions missing');
+        if (specification.id === 'small-avif-lossy') {
+            await driver.wait(async () => driver.executeScript(() => {
+                const notice = document.querySelector('[data-testid="avif-preview-support"]');
+                return !notice || !notice.textContent.includes('正在检查');
+            }), 10_000, 'AVIF preview capability did not settle');
+            evidence.avifPreviewCapability = await driver.executeScript(() => {
+                const notice = document.querySelector('[data-testid="avif-preview-support"]');
+                return { state: notice ? 'unavailable' : 'supported', noticeVisible: !!notice && notice.getBoundingClientRect().height > 0,
+                    previewEnabled: !document.querySelector('[data-testid="export-preview"]').disabled,
+                    directDownloadEnabled: !document.querySelector('[data-testid="export-download"]').disabled };
+            });
+            await checkpoint();
+        }
         const pixels = dimensions.width * dimensions.height;
         assert.ok(pixels > 0 && pixels <= (specification.fixture === 'pc' ? 4_194_304 : 1_048_576), 'fixture exceeded registered scope');
         if (specification.fixture === 'pc') assert.ok(pixels > 1_048_576, 'PC fixture unexpectedly small');

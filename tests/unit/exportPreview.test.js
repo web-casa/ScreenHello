@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadExportPreview, validateExportPreview, formatExportBytes } from '../../src/utils/exportPreview.js';
+import { loadExportPreview, validateExportPreview, formatExportBytes, canPreviewAvif } from '../../src/utils/exportPreview.js';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const blob = new Blob(['fixture'], { type: 'image/png' });
@@ -11,6 +11,45 @@ function harness(decode = async () => {}) {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('C2 bounded preview decode and display ownership', () => {
+    it('probes only the built-in tiny AVIF and releases its bitmap and surface', async () => {
+        const bitmap = { width: 2, height: 1, close: vi.fn() };
+        const canvas = { width: 0, height: 0, getContext: () => ({ drawImage: vi.fn() }), remove: vi.fn() };
+        const createBitmap = vi.fn(async blob => {
+            expect(blob.type).toBe('image/avif'); expect(blob.size).toBeLessThan(1024);
+            expect(Buffer.from(await blob.arrayBuffer()).subarray(4, 12).toString()).toBe('ftypavif');
+            return bitmap;
+        });
+        expect(await canPreviewAvif({ createBitmap, createCanvas: () => canvas })).toBe(true);
+        expect(bitmap.close).toHaveBeenCalledTimes(1);
+        expect(canvas.width).toBe(0); expect(canvas.height).toBe(0);
+        expect(canvas.remove).toHaveBeenCalledTimes(1);
+    });
+    it('reports unavailable on native AVIF rejection without throwing an export failure', async () => {
+        expect(await canPreviewAvif({ createBitmap: async () => { throw new Error('unsupported'); } })).toBe(false);
+    });
+    it('probes the HTMLImage path when bitmap decoding is absent and revokes its URL', async () => {
+        const h = harness(); h.image.naturalWidth = 2; h.image.naturalHeight = 1;
+        expect(await canPreviewAvif(h.options)).toBe(true);
+        expect(h.urls.revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:owned');
+    });
+    it.each(['timeout', 'cancel'])('bounds the probe and closes a late bitmap after %s', async reason => {
+        vi.useFakeTimers();
+        const pending = deferred(); const controller = new AbortController();
+        const bitmap = { width: 2, height: 1, close: vi.fn() };
+        const job = canPreviewAvif({ createBitmap: () => pending.promise, signal: controller.signal });
+        const assertion = reason === 'cancel' ? expect(job).rejects.toHaveProperty('code', 'export-cancelled') : expect(job).resolves.toBe(false);
+        if (reason === 'cancel') controller.abort();
+        else await vi.advanceTimersByTimeAsync(3000);
+        await assertion;
+        pending.resolve(bitmap); await Promise.resolve();
+        expect(bitmap.close).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it('never decodes an already cancelled probe', async () => {
+        const controller = new AbortController(); controller.abort(); const createBitmap = vi.fn();
+        await expect(canPreviewAvif({ signal: controller.signal, createBitmap })).rejects.toHaveProperty('code', 'export-cancelled');
+        expect(createBitmap).not.toHaveBeenCalled();
+    });
     it('holds a decoded lease until released, with idempotent URL cleanup', async () => {
         const h = harness();
         const lease = await loadExportPreview(blob, h.options);

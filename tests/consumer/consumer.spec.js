@@ -173,6 +173,9 @@ test('packaged production PNG workers honor compression settings loaded through 
     await first.getByRole('menuitem', { name: '文件', exact: true }).click();
     await page.getByRole('menuitem', { name: /^保存项目/ }).click();
     const entries = unzipSync(await readDownload(await save));
+    // A browser download event can precede completion of the workspace save.
+    // Do not feed the hidden input while replacement commands are still busy.
+    await expect(first.getByRole('button', { name: '导出图片', exact: true })).toBeEnabled();
     for (const settings of [
         { format: 'png', ratio: 1, compression: 'lossless' },
         { format: 'png', ratio: 1, compression: 'lossy', paletteColors: 64 },
@@ -184,8 +187,8 @@ test('packaged production PNG workers honor compression settings loaded through 
         await first.getByTestId('project-file-input').setInputFiles({
             name: 'C1.screenhello', mimeType: 'application/vnd.screenhello.project+zip', buffer: Buffer.from(zipSync(entries)),
         });
-        await expect(page.getByText('项目已打开', { exact: true })).toBeVisible();
         await expect(first.getByRole('button', { name: new RegExp(`项目：C1-${settings.compression}`) })).toBeVisible();
+        await expect(first.getByRole('button', { name: '导出图片', exact: true })).toBeEnabled();
         const download = page.waitForEvent('download');
         await first.getByRole('menuitem', { name: '文件', exact: true }).click();
         await page.getByRole('menuitem', { name: /使用当前设置快速导出/ }).click();

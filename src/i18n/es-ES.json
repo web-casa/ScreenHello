@@ -1,4 +1,6 @@
 {
+  "正在检查 AVIF 预览能力；你仍可直接下载。": "Comprobando la vista previa de AVIF; puedes descargar directamente.",
+  "当前浏览器无法预览 AVIF，但仍可直接下载 AVIF 文件。需要预览时，请选择 PNG、JPG 或 WebP。": "La vista previa de AVIF no está disponible en este navegador. Puedes descargar archivos AVIF. Para ver una vista previa, elige PNG, JPG o WebP.",
   "网页版 AVIF 压缩暂时最多支持约 105 万像素。请主动选择 PNG、JPG 或 WebP；不会自动缩小图片或更换格式。": "La compresión AVIF en el sitio web admite actualmente hasta unos 1,05 millones de píxeles. Elige PNG, JPG o WebP; las imágenes no se reducen ni se convierten a otro formato automáticamente.",
   "晨雾山脉": "Montañas brumosas",
   "静谧海岸": "Costa tranquila",

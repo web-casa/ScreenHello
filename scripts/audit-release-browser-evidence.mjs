@@ -31,6 +31,9 @@ for (const target of matrix.targets) {
     if (process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true' || evidence.compressionDownloads) {
         try {
             validateCompressionEvidence(evidence.compressionDownloads);
+            if (evidence.compressionDownloads.avifPreviewCapability.state !== (target.id === 'edge-111' ? 'unavailable' : 'supported')) {
+                throw new Error('unexpected AVIF preview capability for this target');
+            }
             if (target.id !== 'edge-111' && evidence.compressionDownloads.results.some(result => result.decodeError)) {
                 throw new Error('unexpected native decoder failure');
             }

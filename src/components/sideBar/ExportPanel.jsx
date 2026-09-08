@@ -9,6 +9,7 @@ import { LOSSY_QUALITY_PRESETS, MAX_PREVIEW_PIXELS, PNG_PALETTE_COLORS, exportSe
 import { exportFailureMessage } from '@stores/commandService';
 import useExportPreview from '@hooks/useExportPreview';
 import ExportPreviewResult from './ExportPreviewResult';
+import { canPreviewAvif } from '@utils/exportPreview';
 
 const formatOptions = EXPORT_FORMATS.map((value) => ({ value, label: value.toUpperCase() }));
 const ratioOptions = EXPORT_RATIOS.map((value) => ({ value, label: `${value}x` }));
@@ -25,6 +26,8 @@ export default observer(function ExportPanel() {
     const preview = useExportPreview(stores);
     const qualityId = useId();
     const downloadLimitId = useId();
+    const previewSupportId = useId();
+    const [avifPreviewState, setAvifPreviewState] = useState('checking');
     const returnFocusRef = useRef(null);
     const focusFrame = useRef(null);
     const busy = submitting || stores.exportService.isBusy;
@@ -104,6 +107,19 @@ export default observer(function ExportPanel() {
     const outputWidth = Math.ceil(width * draft.ratio);
     const outputHeight = Math.ceil(height * draft.ratio);
     const previewTooLarge = outputWidth * outputHeight > MAX_PREVIEW_PIXELS || Math.max(outputWidth, outputHeight) > 8192;
+    const probeAvif = open && draft.format === 'avif' && !previewTooLarge;
+    useEffect(() => {
+        setAvifPreviewState('checking');
+        if (!probeAvif) return;
+        const controller = new AbortController();
+        void canPreviewAvif({ signal: controller.signal }).then(supported => {
+            if (!controller.signal.aborted) setAvifPreviewState(supported ? 'supported' : 'unavailable');
+        }).catch(() => {
+            if (!controller.signal.aborted) setAvifPreviewState('unavailable');
+        });
+        return () => controller.abort();
+    }, [probeAvif]);
+    const previewCapabilityBlocked = draft.format === 'avif' && avifPreviewState !== 'supported';
     const mode = draft.compression || 'standard';
     const compressedPixelLimit = stores.exportService.compressedPixelLimit(draft.format);
     const webAvifLimit = draft.format === 'avif' && compressedPixelLimit === MAX_PREVIEW_PIXELS;
@@ -217,9 +233,16 @@ export default observer(function ExportPanel() {
                 </section>
                 <section className="shoteasy-preview-control" aria-label={t('压缩预览')}>
                     <div className="shoteasy-export-panel__heading"><strong>{t('压缩预览')}</strong><span>{t('可选；调整参数后不会自动重新生成。')}</span></div>
-                    <Button block disabled={busy || previewTooLarge} loading={preview.state === 'preparing'} onClick={() => { void preview.generate(draft); }} data-testid="export-preview">
+                    <Button block disabled={busy || previewTooLarge || previewCapabilityBlocked} loading={preview.state === 'preparing'}
+                        aria-describedby={probeAvif && previewCapabilityBlocked ? previewSupportId : undefined}
+                        onClick={() => { if (!previewCapabilityBlocked) void preview.generate(draft); }} data-testid="export-preview">
                         {preview.state === 'idle' ? t('生成预览') : t('重新生成预览')}
                     </Button>
+                    {probeAvif && previewCapabilityBlocked ? <p id={previewSupportId} className="shoteasy-export-warning" role="status" data-testid="avif-preview-support">
+                        {avifPreviewState === 'checking'
+                            ? t('正在检查 AVIF 预览能力；你仍可直接下载。')
+                            : t('当前浏览器无法预览 AVIF，但仍可直接下载 AVIF 文件。需要预览时，请选择 PNG、JPG 或 WebP。')}
+                    </p> : null}
                     {previewTooLarge ? <p className="shoteasy-export-warning" role="status">{t('完整预览最多支持约 105 万像素。预览不可用时，仍可在下载尺寸限制内直接导出。')}</p> : null}
                     {preview.state === 'stale' ? <p className="shoteasy-export-warning" role="status">{t('预览已失效。请重新生成，或按当前设置直接导出。')}</p> : null}
                     {preview.error ? <p className="shoteasy-export-warning" role="alert">{exportFailureMessage(preview.error, t('预览'), draft.format, t)}</p> : null}

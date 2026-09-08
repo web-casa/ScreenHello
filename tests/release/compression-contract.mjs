@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-export const COMPRESSION_SCOPE = 'foreground-compression-download/v1';
+export const COMPRESSION_SCOPE = 'foreground-compression-download/v2';
 export const compressionCases = () => [
     { id: 'small-avif-lossy', fixture: 'small', format: 'avif', compression: 'lossy', ratio: 1 },
     { id: 'small-png-2x', fixture: 'small', format: 'png', compression: 'lossless', ratio: 2 },
@@ -51,6 +51,9 @@ export function validateCompressionEvidence(evidence) {
     assert.ok(Number.isFinite(Date.parse(evidence.registration?.registeredAt)));
     for (const fixture of ['small', 'pc']) assert.match(evidence.registration?.fixtureSha256?.[fixture] || '', /^[a-f0-9]{64}$/);
     assert.equal(evidence.status, 'passed');
+    const unavailable = evidence.avifPreviewCapability?.state === 'unavailable';
+    assert.deepEqual(evidence.avifPreviewCapability, { state: unavailable ? 'unavailable' : 'supported',
+        noticeVisible: unavailable, previewEnabled: !unavailable, directDownloadEnabled: true }, 'AVIF preview/download capability separation');
     assert.equal(evidence.results?.length, compressionCases().length);
     compressionCases().forEach((specification, index) => validateCompressionResult(evidence.results[index], specification));
     assert.deepEqual(evidence.largeAvifRejection, { lossyDisabled: true, standardEnabled: true, previewDisabled: true, noDownload: true });
