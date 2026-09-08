@@ -228,6 +228,8 @@ const checkMobileWeb = async () => {
             '.shoteasy-mobile-menu-trigger',
             '.shoteasy-project-status',
             '[aria-label="导出图片"]',
+            '.shoteasy-theme-trigger',
+            '.shoteasy-language-trigger',
             '.shoteasy-mobile-annotation-trigger',
             '.shoteasy-mobile-zoom-trigger',
         ];
@@ -284,7 +286,7 @@ const checkMobileWeb = async () => {
     }, requestedWindow);
     assert.equal(shell.allTargetsVisible, true, `${target.id}: a mobile primary action was not visible`);
     assert.equal(shell.desktopMenuHidden, true, `${target.id}: desktop menu remained visible on mobile`);
-    assert.equal(shell.topbarButtonCount, 3, `${target.id}: mobile topbar must expose exactly three buttons`);
+    assert.equal(shell.topbarButtonCount, 5, `${target.id}: mobile topbar must expose menu, project, export, theme and language buttons`);
     assert.ok(shell.minimumTargetSize >= 44, `${target.id}: mobile target was smaller than 44px`);
     assert.equal(shell.noHorizontalOverflow, true,
         `${target.id}: mobile shell overflowed horizontally: ${JSON.stringify(shell.horizontalMetrics)}`);
@@ -381,6 +383,7 @@ const checkMobileWeb = async () => {
     return {
         viewport: shell.viewport,
         topbarActions: ['menu', 'project-status', 'export'],
+        appearanceActions: ['theme', 'language'],
         menuSections: ['file', 'edit', 'view', 'help'],
         annotationSheet: true,
         zoomMenu: true,
