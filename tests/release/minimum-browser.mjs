@@ -10,6 +10,7 @@ import { readMobileAnnotation } from './mobileAnnotation.mjs';
 import { activateEditorWindow } from './foreground.mjs';
 import { firefoxDownloadOptions } from './firefoxDownloadOptions.mjs';
 import { checkCompressionDownloads } from './compression-downloads.mjs';
+import { decodeAvifFile } from './avif-file-decoder.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -107,6 +108,22 @@ const waitForEnabled = async (selector) => {
     await driver.wait(until.elementIsVisible(element), 20_000);
     await driver.wait(until.elementIsEnabled(element), 20_000);
     return element;
+};
+
+const completeDownloadDecode = async record => {
+    const encoded = record.nativeAvifBytes;
+    delete record.nativeAvifBytes;
+    await driver.executeScript(id => {
+        const item = window.__screenhelloReleaseDownloads.find(value => value.blobId === id);
+        if (item) delete item.nativeAvifBytes;
+    }, record.blobId);
+    if (record.decodeError && record.type === 'image/avif' && target.id === 'edge-111' && encoded) {
+        // Edge 111 predates native AVIF support (Edge 121). Preserve that fact;
+        // validate the exported FILE with pinned dav1d/WASM, not a browser flag.
+        record.decoded = await decodeAvifFile(encoded);
+        assert.ok(record.decoded.width * record.decoded.height <= 1_048_576);
+    }
+    return record;
 };
 
 const clickMenuItem = async (menuLabel, itemLabel) => {
@@ -586,7 +603,17 @@ try {
                             context.drawImage(bitmap, 0, 0);
                             result.decoded = { width: bitmap.width, height: bitmap.height,
                                 corner: [...context.getImageData(0, 0, 1, 1).data] };
-                        } catch (error) { result.decodeError = String(error?.message || error); }
+                        } catch (error) {
+                            result.decodeError = String(error?.message || error);
+                            if (blob.type === 'image/avif' && blob.size <= 131_072) {
+                                const bytes = new Uint8Array(await blob.arrayBuffer());
+                                const chunks = [];
+                                for (let offset = 0; offset < bytes.length; offset += 8192) {
+                                    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));
+                                }
+                                result.nativeAvifBytes = btoa(chunks.join(''));
+                            }
+                        }
                         finally { bitmap?.close(); canvas.width = canvas.height = 0; }
                     }
                     window.__screenhelloReleaseDownloads.push(result);
@@ -640,6 +667,7 @@ try {
             return downloads.length > previousCount;
         }, 120_000, `${target.id}: ${format} export did not complete`);
         const record = downloads.at(-1);
+        if (compressionChecks) await completeDownloadDecode(record);
         assert.equal(record.type, format === 'jpg' ? 'image/jpeg' : `image/${format}`);
         assert.ok(record.size > 0, `${target.id}: empty ${format} export`);
         assert.equal(validSignature(format, record.hex), true, `${target.id}: invalid ${format} signature`);
@@ -649,7 +677,7 @@ try {
             `${format} export drawer was not unmounted after closing`);
     }
 
-    if (compressionChecks) await checkCompressionDownloads({ driver, editorWindow, selectFormat, waitForEnabled,
+    if (compressionChecks) await checkCompressionDownloads({ driver, editorWindow, selectFormat, waitForEnabled, completeDownloadDecode,
         clickMenuItem, waitForRemovedSelector, report, checkpoint: writeReport });
     await activateEditorWindow(driver, editorWindow);
     const mobileWeb = await checkMobileWeb();
@@ -690,7 +718,9 @@ try {
                 rootHtml: document.querySelector('#root')?.innerHTML?.slice(0, 2_000) || '',
                 title: document.title,
                 exportTrace: window.__screenhelloReleaseTrace || [],
-                completedDownloads: window.__screenhelloReleaseDownloads || [],
+                completedDownloads: (window.__screenhelloReleaseDownloads || []).map(record => {
+                    const safe = { ...record }; delete safe.nativeAvifBytes; return safe;
+                }),
                 visibility: document.visibilityState,
                 focused: document.hasFocus(),
                 codecResources: performance.getEntriesByType('resource')

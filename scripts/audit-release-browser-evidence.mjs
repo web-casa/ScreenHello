@@ -29,7 +29,12 @@ for (const target of matrix.targets) {
 
     const targetFailures = [];
     if (process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true' || evidence.compressionDownloads) {
-        try { validateCompressionEvidence(evidence.compressionDownloads); }
+        try {
+            validateCompressionEvidence(evidence.compressionDownloads);
+            if (target.id !== 'edge-111' && evidence.compressionDownloads.results.some(result => result.decodeError)) {
+                throw new Error('unexpected native decoder failure');
+            }
+        }
         catch (error) { targetFailures.push(`compression evidence invalid: ${error.message}`); }
     }
     if (evidence.schemaVersion !== 2) targetFailures.push('unsupported schemaVersion');

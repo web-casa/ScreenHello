@@ -7,7 +7,7 @@ import { compressionCases, COMPRESSION_SCOPE, validateCompressionEvidence, valid
 import { createPngFixture } from '../fixtures/createPngFixture.js';
 
 export async function checkCompressionDownloads({ driver, editorWindow, selectFormat, waitForEnabled,
-    clickMenuItem, waitForRemovedSelector, report, checkpoint }) {
+    clickMenuItem, waitForRemovedSelector, report, checkpoint, completeDownloadDecode }) {
     const evidence = report.compressionDownloads = {
         scope: COMPRESSION_SCOPE, status: 'running',
         registration: { registeredAt: new Date().toISOString(), cases: compressionCases(), attemptsPerCase: 1, memoryMeasurement: false,
@@ -75,6 +75,7 @@ export async function checkCompressionDownloads({ driver, editorWindow, selectFo
             record = await driver.executeScript(count => window.__screenhelloReleaseDownloads[count] || null, previousCount);
             return !!record;
         }, 120_000, `${specification.id}: download did not complete`);
+        record = await completeDownloadDecode(record);
         await waitForRemovedSelector('.shoteasy-export-drawer', `${specification.id}: drawer did not close`);
         assert.equal(await driver.executeScript(() => window.__screenhelloReleaseDownloads.length), previousCount + 1, 'unexpected extra download');
         const editorSurvived = await driver.executeScript(() => !!document.querySelector('.shoteasy-editor-canvas') && typeof window.__shoteasyStores === 'undefined');

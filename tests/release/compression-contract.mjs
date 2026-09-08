@@ -22,6 +22,11 @@ export function validateCompressionResult(result, specification) {
     if (specification.fixture === 'pc') assert.ok(pixels > 1_048_576, 'PC fixture must exercise the restored budget');
     assert.equal(decoded?.width, width, 'decoded width');
     assert.equal(decoded?.height, height, 'decoded height');
+    if (result.decodeError) assert.equal(decoded?.decoder, 'jsquash-avif-2.1.1-node-wasm');
+    if (decoded?.decoder === 'jsquash-avif-2.1.1-node-wasm') {
+        assert.equal(specification.format, 'avif');
+        assert.ok(result.decodeError, 'native decoder limitation must remain visible');
+    }
     assert.equal(type, `image/${specification.format === 'jpg' ? 'jpeg' : specification.format}`);
     assert.ok(Number.isFinite(size) && size > 0);
     const signature = { png: '89504e470d0a1a0a', jpg: 'ffd8ff', webp: '52494646', avif: '6674797061766966' };

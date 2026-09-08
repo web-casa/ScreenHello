@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compressionCases, COMPRESSION_SCOPE, validateCompressionEvidence } from '../release/compression-contract.mjs';
+import { decodeAvifFile } from '../release/avif-file-decoder.mjs';
+import { readFileSync } from 'node:fs';
+import createEncoder from '@jsquash/avif/codec/enc/avif_enc.js';
+import { defaultOptions } from '@jsquash/avif/meta.js';
 
 const fixture = () => ({
     scope: COMPRESSION_SCOPE, status: 'passed',
@@ -19,6 +23,30 @@ const fixture = () => ({
 });
 
 describe('bounded browser compression evidence', () => {
+    it('validates AVIF bytes using the pinned independent decoder in a disposable Node worker', async () => {
+        const codec = await createEncoder({ noInitialRun: true,
+            wasmBinary: readFileSync(new URL(import.meta.resolve('@jsquash/avif/codec/enc/avif_enc.wasm'))) });
+        const encoded = codec.encode(new Uint8Array([255, 0, 0, 255, 0, 0, 255, 0]), 2, 1,
+            { ...defaultOptions, quality: 60, qualityAlpha: 60, speed: 8, subsample: 3 });
+        const decoded = await decodeAvifFile(Buffer.from(encoded).toString('base64'));
+        expect(decoded).toMatchObject({ width: 2, height: 1, decoder: 'jsquash-avif-2.1.1-node-wasm' });
+        expect(decoded.corner[3]).toBe(255);
+    });
+    it('rejects corrupt AVIF rather than accepting its MIME label', async () => {
+        await expect(decodeAvifFile(Buffer.from('invalid image').toString('base64'))).rejects.toThrow();
+    });
+    it('rejects unbounded decoder inputs before spawning a worker', () => {
+        expect(() => decodeAvifFile('')).toThrow('avif-fixture-file-size-invalid');
+        expect(() => decodeAvifFile(Buffer.alloc(131_073).toString('base64'))).toThrow('avif-fixture-file-size-invalid');
+    });
+    it('keeps native AVIF failure explicit when the file is independently valid', () => {
+        const evidence = fixture();
+        evidence.results[0].decodeError = 'native decoder unavailable';
+        evidence.results[0].decoded.decoder = 'jsquash-avif-2.1.1-node-wasm';
+        expect(() => validateCompressionEvidence(evidence)).not.toThrow();
+        delete evidence.results[0].decodeError;
+        expect(() => validateCompressionEvidence(evidence)).toThrow();
+    });
     it('accepts the eight exact cases and an explicit large-AVIF rejection', () => {
         expect(() => validateCompressionEvidence(fixture())).not.toThrow();
         expect(compressionCases()).toHaveLength(8);
