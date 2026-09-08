@@ -8,6 +8,7 @@ import { createSessionWithRetry } from '../../scripts/webdriver-session-retry.mj
 import { createPngFixture } from '../fixtures/createPngFixture.js';
 import { readMobileAnnotation } from './mobileAnnotation.mjs';
 import { activateEditorWindow } from './foreground.mjs';
+import { firefoxDownloadOptions } from './firefoxDownloadOptions.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -419,6 +420,7 @@ try {
         );
         if (remoteUrl || localDriverUrl) builder = builder.usingServer(remoteUrl || localDriverUrl);
         if (target.browser === 'safari') builder = builder.setSafariOptions(new SafariOptions().enableLogging());
+        if (target.browser === 'firefox') builder = builder.setFirefoxOptions(firefoxDownloadOptions());
         for (const [key, value] of Object.entries(providerCapabilities)) builder.setCapability(key, value);
         return builder.build();
     };
@@ -461,6 +463,9 @@ try {
         platformName: String(capabilities.get('platformName') || ''),
     };
     report.observed = observed;
+    if (target.browser === 'firefox') {
+        report.downloadProfile = 'temporary-save-to-disk-no-auto-panel-or-file-preview';
+    }
     assert.equal(
         target.acceptedBrowserNames.map((name) => name.toLowerCase()).includes(observed.browserName.toLowerCase()),
         true,

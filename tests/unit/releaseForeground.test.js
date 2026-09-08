@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { activateEditorWindow } from '../release/foreground.mjs';
+import { firefoxDownloadOptions } from '../release/firefoxDownloadOptions.mjs';
 
 function harness(states) {
     const activate = vi.fn().mockResolvedValue(undefined);
@@ -17,6 +18,19 @@ function harness(states) {
 }
 
 describe('foreground browser release precondition', () => {
+    it('isolates download preferences without disabling codecs, throttling or security', () => {
+        const first = firefoxDownloadOptions();
+        const second = firefoxDownloadOptions();
+        expect(first).not.toBe(second);
+        expect(first.get('moz:firefoxOptions').prefs).toEqual({
+            'remote.active-protocols': 1, // Selenium's own default.
+            'browser.download.alwaysOpenPanel': false,
+            'browser.download.panel.shown': true,
+            'browser.download.viewableInternally.enabledTypes': '',
+            'browser.download.useDownloadDir': true,
+            'browser.helperApps.neverAsk.saveToDisk': 'image/png,image/jpeg,image/webp,image/avif',
+        });
+    });
     it('reactivates the original editor and waits for visible AND focused', async () => {
         const { driver, activate } = harness([
             { visibility: 'hidden', focused: false },
