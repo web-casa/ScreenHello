@@ -511,6 +511,28 @@ try {
     await driver.executeScript(() => {
         window.__screenhelloReleaseErrors = [];
         window.__screenhelloReleaseDownloads = [];
+        // Test-only, bounded metadata: never retain image pixels or worker messages.
+        const trace = window.__screenhelloReleaseTrace = [];
+        const record = (event, detail = {}) => {
+            if (trace.length >= 80) return;
+            trace.push({ event, ...detail, ms: Math.round(performance.now()),
+                visibility: document.visibilityState, focused: document.hasFocus() });
+        };
+        window.__screenhelloReleaseMark = record;
+        const abort = AbortController.prototype.abort;
+        AbortController.prototype.abort = function releaseAbort(reason) {
+            if (typeof reason?.code === 'string' && /^(export|avif|compression)-/.test(reason.code)) {
+                record('abort', { code: reason.code });
+            }
+            return abort.call(this, reason);
+        };
+        window.Worker = new Proxy(window.Worker, {
+            construct(Target, args) {
+                record('worker-created', { name: String(args[1]?.name || '') });
+                return Reflect.construct(Target, args);
+            },
+        });
+        addEventListener('visibilitychange', () => record('visibilitychange'));
         const blobs = new Map();
         const createObjectURL = URL.createObjectURL.bind(URL);
         const revokeObjectURL = URL.revokeObjectURL.bind(URL);
@@ -562,6 +584,7 @@ try {
     const downloads = [];
     for (const format of ['png', 'jpg', 'webp', 'avif']) {
         await selectFormat(format);
+        await driver.executeScript((value) => window.__screenhelloReleaseMark('export-click', { format: value }), format);
         const previousCount = downloads.length;
         await (await waitForEnabled('[data-testid="export-download"]')).click();
         await driver.wait(async () => {
@@ -616,6 +639,13 @@ try {
                 readyState: document.readyState,
                 rootHtml: document.querySelector('#root')?.innerHTML?.slice(0, 2_000) || '',
                 title: document.title,
+                exportTrace: window.__screenhelloReleaseTrace || [],
+                completedDownloads: window.__screenhelloReleaseDownloads || [],
+                visibility: document.visibilityState,
+                focused: document.hasFocus(),
+                codecResources: performance.getEntriesByType('resource')
+                    .filter(({ name }) => /avif|wasm|Encoder/.test(name))
+                    .map(({ name, duration }) => ({ path: new URL(name).pathname, duration })),
             }));
         } catch (diagnosticError) {
             report.diagnosticError = redact(describeError(diagnosticError));

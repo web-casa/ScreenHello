@@ -2,6 +2,11 @@ name: Web Release Browser Matrix
 
 on:
   workflow_dispatch:
+    inputs:
+      firefox_only:
+        description: 'Run only the Firefox 128 diagnostic (not a full release matrix)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,13 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: chrome-111
-            image: selenium/standalone-chrome:111.0@sha256:38bb75fb9c8ad82e1eee6f299b612a09d9c874ecde1d776beddc2eb0bdcb0bea
-          - target: edge-111
-            image: selenium/standalone-edge:111.0@sha256:0648185233f0adbe286a39ede22befdedc2f9be66db81916d328821b825a855f
-          - target: firefox-128
-            image: selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef
+        include: ${{ fromJSON(inputs.firefox_only && '[{"target":"firefox-128","image":"selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef"}]' || '[{"target":"chrome-111","image":"selenium/standalone-chrome:111.0@sha256:38bb75fb9c8ad82e1eee6f299b612a09d9c874ecde1d776beddc2eb0bdcb0bea"},{"target":"edge-111","image":"selenium/standalone-edge:111.0@sha256:0648185233f0adbe286a39ede22befdedc2f9be66db81916d328821b825a855f"},{"target":"firefox-128","image":"selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef"}]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -97,6 +96,7 @@ jobs:
           retention-days: 30
 
   safari-macos-14:
+    if: ${{ !inputs.firefox_only }}
     name: safari-macos-14
     runs-on: macos-14
     timeout-minutes: 40
