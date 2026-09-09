@@ -87,6 +87,11 @@ describe('browser release evidence audit', () => {
             evidence.compressionDownloads = { status: 'passed' };
         }, audit)).rejects.toMatchObject({ code: 1 });
     });
+    it('does not accept a claimed batch pass without its cases and original ZIPs', async () => {
+        await expect(withEvidence(evidence => {
+            evidence.batchRecovery = { status: 'passed' };
+        }, audit)).rejects.toMatchObject({ code: 1 });
+    });
 
     it.each([
         ['an oversized viewport', (evidence) => { evidence.checks.mobileWeb.viewport.width = 641; }],

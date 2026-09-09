@@ -28,7 +28,7 @@ describe('foreground browser release precondition', () => {
             'browser.download.panel.shown': true,
             'browser.download.viewableInternally.enabledTypes': '',
             'browser.download.useDownloadDir': true,
-            'browser.helperApps.neverAsk.saveToDisk': 'image/png,image/jpeg,image/webp,image/avif',
+            'browser.helperApps.neverAsk.saveToDisk': 'image/png,image/jpeg,image/webp,image/avif,application/zip',
         });
     });
     it('reactivates the original editor and waits for visible AND focused', async () => {

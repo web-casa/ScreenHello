@@ -10,5 +10,5 @@ export function firefoxDownloadOptions() {
         .setPreference('browser.download.panel.shown', true)
         .setPreference('browser.download.viewableInternally.enabledTypes', '')
         .setPreference('browser.download.useDownloadDir', true)
-        .setPreference('browser.helperApps.neverAsk.saveToDisk', 'image/png,image/jpeg,image/webp,image/avif');
+        .setPreference('browser.helperApps.neverAsk.saveToDisk', 'image/png,image/jpeg,image/webp,image/avif,application/zip');
 }

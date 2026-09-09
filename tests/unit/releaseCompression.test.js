@@ -95,6 +95,43 @@ describe('real Worker cancellation evidence', () => {
         const unchanged = new window.Worker('other.js', { name: 'other' });
         expect(unchanged.postMessage).toBe(post);
     });
+    it('marks only the configured batch cancel button and assigns distinct Worker identities', () => {
+        let click;
+        vi.stubGlobal('document', { addEventListener: (_type, handler) => { click = handler; } });
+        class NativeWorker {
+            postMessage() {}
+            terminate() {}
+            addEventListener() {}
+        }
+        vi.stubGlobal('window', { Worker: NativeWorker });
+        installCancelObserver({ cancelSelector: '.batch button', cancelText: '取消全部' });
+        const create = () => new window.Worker('avif.js', { name: 'screenhello-avif-encoder' });
+        const first = create(); first.postMessage({ id: 1, width: 73, height: 55 });
+        const emit = textContent => click({ target: { closest: selector => { expect(selector).toBe('.batch button'); return { textContent }; } } });
+        emit('取消当前');
+        expect(window.__screenhelloCancelObserver.jobs[0].cancelRequestedAt).toBeNull();
+        emit('取消全部'); first.terminate();
+        const second = create(); second.postMessage({ id: 1, width: 73, height: 55 });
+        const [a, b] = window.__screenhelloCancelObserver.jobs;
+        expect(a.workerId).not.toBe(b.workerId);
+        expect(a.cancelRequestedAt).toBeTypeOf('number');
+        expect(b.cancelRequestedAt).toBeNull();
+    });
+    it('optionally recognizes both batch cancel buttons without treating start or close as cancellation', () => {
+        let click;
+        vi.stubGlobal('document', { addEventListener: (_type, handler) => { click = handler; } });
+        class NativeWorker { postMessage() {} terminate() {} addEventListener() {} }
+        vi.stubGlobal('window', { Worker: NativeWorker });
+        installCancelObserver({ batch: true });
+        const worker = new window.Worker('avif.js', { name: 'screenhello-avif-encoder' });
+        const emit = text => click({ target: { closest: selector => selector === '.shoteasy-batch-drawer button' ? { textContent: text } : null } });
+        for (const text of ['取消全部', '取消当前']) {
+            worker.postMessage({ id: window.__screenhelloCancelObserver.jobs.length + 1, width: 73, height: 55 });
+            const job = window.__screenhelloCancelObserver.jobs.at(-1);
+            emit('开始批量处理'); emit('关闭'); expect(job.cancelRequestedAt).toBeNull();
+            emit(text); expect(job.cancelRequestedAt).toBeTypeOf('number');
+        }
+    });
 });
 
 describe('bounded browser compression evidence', () => {

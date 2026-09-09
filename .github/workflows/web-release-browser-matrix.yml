@@ -15,10 +15,15 @@ on:
         description: 'Add one real AVIF cancellation and PNG recovery (requires compression_checks)'
         type: boolean
         default: false
+      batch_checks:
+        description: 'Add two bounded batch cancellation/recovery checks (not memory acceptance)'
+        type: boolean
+        default: false
 
 env:
   SCREENHELLO_COMPRESSION_CHECKS: ${{ inputs.compression_checks && 'true' || 'false' }}
   SCREENHELLO_RECOVERY_CHECKS: ${{ inputs.recovery_checks && 'true' || 'false' }}
+  SCREENHELLO_BATCH_CHECKS: ${{ inputs.batch_checks && 'true' || 'false' }}
 
 permissions:
   contents: read
@@ -101,6 +106,7 @@ jobs:
           name: web-release-${{ matrix.target }}-${{ github.sha }}
           path: |
             artifacts/release/browser-matrix/${{ matrix.target }}.json
+            artifacts/release/browser-matrix/${{ matrix.target }}-batch-*.zip
             artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/selenium.log
@@ -178,6 +184,7 @@ jobs:
           name: web-release-safari-macos-14-${{ github.sha }}
           path: |
             artifacts/release/browser-matrix/safari-macos-14.json
+            artifacts/release/browser-matrix/safari-macos-14-batch-*.zip
             artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/safari-webdriver-logs
