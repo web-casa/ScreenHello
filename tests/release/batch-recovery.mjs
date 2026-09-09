@@ -20,8 +20,10 @@ export async function setBatchFiles(driver, files) {
         const input = document.querySelector('[data-testid="batch-file-input"]');
         if (!input) return 0;
         input.files = transfer.files;
+        // Safari shares a live FileList: the app clears input.value in onChange.
+        const accepted = input.files.length;
         input.dispatchEvent(new Event('change', { bubbles: true }));
-        return transfer.files.length;
+        return accepted;
     }, files);
     assert.equal(count, 2);
 }

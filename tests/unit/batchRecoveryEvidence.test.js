@@ -134,9 +134,13 @@ describe('target batch identity and registration', () => {
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 describe('lazy batch input readiness', () => {
-    it('waits for the lazy input and dispatches only one change event', async () => {
+    it('waits for the lazy input and snapshots a live Safari FileList before the change handler clears it', async () => {
         let mounted = false;
-        const input = { files: null, dispatchEvent: vi.fn() };
+        const received = [];
+        const input = { files: null, dispatchEvent: vi.fn(() => {
+            received.push(input.files.map(file => file.name));
+            input.files.length = 0; // Safari clears the associated DataTransfer list too.
+        }) };
         vi.stubGlobal('document', { querySelector: selector => {
             expect(selector).toBe('[data-testid="batch-file-input"]');
             return mounted ? input : null;
@@ -154,7 +158,7 @@ describe('lazy batch input readiness', () => {
                 expect(await predicate()).toBe(true);
             }) };
         await setBatchFiles(driver, ['a.png', 'b.png'].map(name => ({ name, type: 'image/png', base64: btoa('fixture') })));
-        expect(input.files.map(file => file.name)).toEqual(['a.png', 'b.png']);
+        expect(received).toEqual([['a.png', 'b.png']]);
         expect(input.dispatchEvent).toHaveBeenCalledOnce();
         expect(input.dispatchEvent.mock.calls[0][0].type).toBe('change');
         expect(input.dispatchEvent.mock.calls[0][0].bubbles).toBe(true);
