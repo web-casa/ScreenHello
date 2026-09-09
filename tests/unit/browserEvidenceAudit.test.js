@@ -71,6 +71,11 @@ const audit = (evidenceDirectory) => execFileAsync(process.execPath, [auditScrip
 });
 
 describe('browser release evidence audit', () => {
+    it('does not accept a claimed continuous pass without six original AVIFs', async () => {
+        await expect(withEvidence(evidence => {
+            evidence.continuousAvif = { status: 'passed' };
+        }, audit)).rejects.toMatchObject({ code: 1 });
+    });
     it('accepts one candidate with complete desktop, export, privacy, and mobile Web evidence', async () => {
         const { stdout } = await withEvidence(undefined, audit);
         expect(JSON.parse(stdout)).toMatchObject({ failures: [] });

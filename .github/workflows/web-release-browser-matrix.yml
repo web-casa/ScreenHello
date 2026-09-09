@@ -19,11 +19,16 @@ on:
         description: 'Add two bounded batch cancellation/recovery checks (not memory acceptance)'
         type: boolean
         default: false
+      continuous_checks:
+        description: 'Add six consecutive PC standard AVIF exports (requires compression_checks; not memory acceptance)'
+        type: boolean
+        default: false
 
 env:
   SCREENHELLO_COMPRESSION_CHECKS: ${{ inputs.compression_checks && 'true' || 'false' }}
   SCREENHELLO_RECOVERY_CHECKS: ${{ inputs.recovery_checks && 'true' || 'false' }}
   SCREENHELLO_BATCH_CHECKS: ${{ inputs.batch_checks && 'true' || 'false' }}
+  SCREENHELLO_CONTINUOUS_CHECKS: ${{ inputs.continuous_checks && 'true' || 'false' }}
 
 permissions:
   contents: read
@@ -107,6 +112,7 @@ jobs:
           path: |
             artifacts/release/browser-matrix/${{ matrix.target }}.json
             artifacts/release/browser-matrix/${{ matrix.target }}-batch-*.zip
+            artifacts/release/browser-matrix/${{ matrix.target }}-continuous-*.avif
             artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/selenium.log
@@ -185,6 +191,7 @@ jobs:
           path: |
             artifacts/release/browser-matrix/safari-macos-14.json
             artifacts/release/browser-matrix/safari-macos-14-batch-*.zip
+            artifacts/release/browser-matrix/safari-macos-14-continuous-*.avif
             artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/safari-webdriver-logs

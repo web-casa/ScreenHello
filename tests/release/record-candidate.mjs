@@ -22,4 +22,5 @@ await writeImmutableJson('artifacts/release/browser-matrix/candidate.json', {
         ? 'standard-and-compression-download-smoke' : 'standard-format-minimum-browser-smoke', optionalDevicePackIncluded: false,
     deploymentAuthorized: false,
     batchChecks: process.env.SCREENHELLO_BATCH_CHECKS === 'true',
+    continuousChecks: process.env.SCREENHELLO_CONTINUOUS_CHECKS === 'true',
 });

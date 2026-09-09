@@ -15,6 +15,8 @@ import { installCancelObserver } from './cancel-observer.mjs';
 import { checkCancelRecovery } from './cancel-recovery.mjs';
 import { checkTargetBatchRecovery } from './batch-recovery.mjs';
 import { installBatchZipObserver } from './batch-zip-observer.mjs';
+import { installContinuousDownloadObserver } from './continuous-download-observer.mjs';
+import { checkTargetContinuousAvif } from './continuous-avif.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -26,6 +28,8 @@ const target = matrix.targets.find(({ id }) => id === targetId);
 const compressionChecks = process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true';
 const recoveryChecks = process.env.SCREENHELLO_RECOVERY_CHECKS === 'true';
 const batchChecks = process.env.SCREENHELLO_BATCH_CHECKS === 'true';
+const continuousChecks = process.env.SCREENHELLO_CONTINUOUS_CHECKS === 'true';
+assert.ok(!continuousChecks || compressionChecks, 'continuous checks require compression checks and the registered PC fixture');
 assert.ok(!recoveryChecks || compressionChecks, 'recovery checks require compression checks and the registered PC fixture');
 
 assert.ok(target, `SCREENHELLO_BROWSER_TARGET must be one of: ${matrix.targets.map(({ id }) => id).join(', ')}`);
@@ -597,10 +601,11 @@ try {
             const blob = blobs.get(this.href);
             if (this.download && blob) {
                 const name = this.download;
+                const continuous = window.__screenhelloContinuousDownloads?.active === true;
                 void blob.slice(0, 16).arrayBuffer().then(async (buffer) => {
                     const hex = [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
                     const result = { name, type: blob.type, size: blob.size, hex, blobId: blobId(blob) };
-                    if (decodeDownloads && blob.type !== 'application/zip') {
+                    if (decodeDownloads && !continuous && blob.type !== 'application/zip') {
                         let bitmap;
                         const canvas = document.createElement('canvas');
                         canvas.width = canvas.height = 1;
@@ -631,8 +636,9 @@ try {
         addEventListener('error', (event) => window.__screenhelloReleaseErrors.push(String(event.error?.message || event.message)));
         addEventListener('unhandledrejection', (event) => window.__screenhelloReleaseErrors.push(String(event.reason?.message || event.reason)));
     }, compressionChecks);
-    if (recoveryChecks || batchChecks) await driver.executeScript(installCancelObserver, { batch: batchChecks });
+    if (recoveryChecks || batchChecks || continuousChecks) await driver.executeScript(installCancelObserver, { batch: batchChecks });
     if (batchChecks) await driver.executeScript(installBatchZipObserver);
+    if (continuousChecks) await driver.executeScript(installContinuousDownloadObserver);
 
     const pngBase64 = createPngFixture(64, 48).toString('base64');
     const injected = await driver.executeScript((base64) => {
@@ -692,6 +698,8 @@ try {
         clickMenuItem, waitForRemovedSelector, report, checkpoint: writeReport });
     if (recoveryChecks) await checkCancelRecovery({ driver, editorWindow, selectFormat, waitForEnabled, completeDownloadDecode,
         waitForRemovedSelector, report, checkpoint: writeReport });
+    if (continuousChecks) await checkTargetContinuousAvif({ driver, editorWindow, selectFormat, waitForEnabled, waitForRemovedSelector,
+        report, target, checkpoint: writeReport, evidenceDirectory: dirname(outputPath) });
     await activateEditorWindow(driver, editorWindow);
     const mobileWeb = await checkMobileWeb();
 

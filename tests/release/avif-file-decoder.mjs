@@ -5,8 +5,22 @@ export function decodeAvifFile(base64) {
     const bytes = Buffer.from(base64, 'base64');
     // Only the registered tiny synthetic AVIF, not arbitrary file decoding.
     if (!bytes.length || bytes.length > 131_072) throw new Error('avif-fixture-file-size-invalid');
+    return decodeBytes(bytes);
+}
+
+// Separate test-only entry for the registered PC export. Tiny-file callers retain
+// their original limits; neither API is part of the production bundle.
+export function decodePcAvifFile(bytes) {
+    if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 8_388_608) throw new Error('avif-pc-file-size-invalid');
+    if (Buffer.from(bytes.subarray(4, 12)).toString('ascii') !== 'ftypavif') throw new Error('avif-pc-file-signature-invalid');
+    return decodeBytes(bytes, true);
+}
+
+function decodeBytes(bytes, inspectPc = false) {
     return new Promise((resolve, reject) => {
-        const worker = new Worker(new URL('./avif-file-decoder.worker.mjs', import.meta.url), { workerData: bytes, execArgv: [] });
+        const worker = new Worker(new URL('./avif-file-decoder.worker.mjs', import.meta.url), {
+            workerData: inspectPc ? { bytes, inspectPc: true } : bytes, execArgv: [],
+        });
         let settled = false;
         const finish = (error, result) => {
             if (settled) return;
