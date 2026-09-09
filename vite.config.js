@@ -9,6 +9,7 @@ import { createPwaOptions, normalizeWebBase } from './config/pwaConfig.js';
 import { upngCjsPlugin } from './config/upngCodecPlugin.mjs';
 import { devFaviconPlugin, readWebIconVersions, webFaviconPlugin } from './config/devFaviconPlugin.mjs';
 import { publicSitePlugin } from './config/seoPlugin.mjs';
+import { resolveCodecPreloads, codecPreloadHashPlugin } from './config/codecPreload.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const libraryPeers = Object.keys(pkg.peerDependencies || {});
@@ -26,6 +27,7 @@ const buildConf = {
     base: type === 'lib' || desktopMode ? './' : webBase,
     build: {
         target: browserTargets,
+        ...(type === 'lib' || desktopMode ? {} : { modulePreload: { resolveDependencies: resolveCodecPreloads } }),
         rolldownOptions: {
             output: {
                 // Keep all translations available offline without pushing the entry
@@ -166,6 +168,7 @@ export default defineConfig({
         } : {}),
     },
     plugins: [
+        ...(type === 'lib' || desktopMode ? [] : [codecPreloadHashPlugin()]),
         devFaviconPlugin(resolve('./src/assets/favicon.png')),
         ...(type === 'lib' || desktopMode ? [] : [webFaviconPlugin(resolve('./public'), webIconVersions)]),
         ...(type === 'lib' || desktopMode ? [] : [publicSitePlugin({

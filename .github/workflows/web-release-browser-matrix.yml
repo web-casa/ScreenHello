@@ -3,6 +3,10 @@ name: Web Release Browser Matrix
 on:
   workflow_dispatch:
     inputs:
+      expected_web_sha256:
+        description: 'Optional exact Web build SHA256; reject different bytes before browser execution'
+        type: string
+        default: ''
       memory_firefox_probe:
         description: 'Only the native x64 Firefox 1MP noise memory supplement (six exports; not a release gate)'
         type: boolean
@@ -29,6 +33,7 @@ on:
         default: false
 
 env:
+  SCREENHELLO_EXPECTED_WEB_SHA256: ${{ inputs.expected_web_sha256 }}
   SCREENHELLO_COMPRESSION_CHECKS: ${{ inputs.compression_checks && 'true' || 'false' }}
   SCREENHELLO_RECOVERY_CHECKS: ${{ inputs.recovery_checks && 'true' || 'false' }}
   SCREENHELLO_BATCH_CHECKS: ${{ inputs.batch_checks && 'true' || 'false' }}
