@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CANCEL_SCOPE, cancellationCases, recoverySpecification, validateCancelEvidence } from '../release/cancel-contract.mjs';
+import { installCancelObserver } from '../release/cancel-observer.mjs';
 import { compressionCases, COMPRESSION_SCOPE, validateCompressionEvidence } from '../release/compression-contract.mjs';
 import { decodeAvifFile } from '../release/avif-file-decoder.mjs';
 import { readFileSync } from 'node:fs';
@@ -21,6 +23,78 @@ const fixture = () => ({
         };
     }),
     largeAvifRejection: { lossyDisabled: true, standardEnabled: true, previewDisabled: true, noDownload: true },
+});
+
+const cancelFixture = () => ({
+    scope: CANCEL_SCOPE, status: 'passed', registration: { registeredAt: '2026-09-09T00:00:00Z',
+        cases: cancellationCases(), attemptsPerCase: 1, memoryMeasurement: false, fixtureSha256: 'c'.repeat(64) },
+    job: { id: 1, width: 1200, height: 1000, compression: 'standard', startedAt: 1, cancelRequestedAt: 2,
+        terminatedAt: 3, completedAt: null, failed: false },
+    cancelledDownloads: 0, cancellationMs: 25, recoveredSamePage: true, overflow: false, jobsAdded: 1, recoveryDownloads: 1,
+    layersBefore: ['PC example 1200 × 1000'], layersAfter: ['PC example 1200 × 1000'],
+    recovery: { ...fixture().results[3], ...recoverySpecification },
+});
+
+afterEach(() => vi.unstubAllGlobals());
+describe('real Worker cancellation evidence', () => {
+    it('accepts a submitted then cancelled job and same-page PNG recovery', () => {
+        expect(() => validateCancelEvidence(cancelFixture())).not.toThrow();
+    });
+    it.each([
+        ['missing registration', e => { delete e.registration; }],
+        ['extra attempt', e => { e.registration.attemptsPerCase = 2; }],
+        ['already completed', e => { e.job.completedAt = 1.5; }],
+        ['missing termination', e => { e.job.terminatedAt = null; }],
+        ['no cancel click', e => { e.job.cancelRequestedAt = null; }],
+        ['termination before click', e => { e.job.terminatedAt = 1.5; }],
+        ['cancel before submit', e => { e.job.cancelRequestedAt = 0; }],
+        ['failed Worker', e => { e.job.failed = true; }],
+        ['extra submitted job', e => { e.jobsAdded = 2; }],
+        ['wrong mode', e => { e.job.compression = 'lossy'; }],
+        ['unexpected download', e => { e.cancelledDownloads = 1; }],
+        ['late download', e => { e.recoveryDownloads = 2; }],
+        ['page reload', e => { e.recoveredSamePage = false; }],
+        ['lost project layers', e => { e.layersAfter = []; }],
+        ['missing dimensions', e => { e.job.width = 0; }],
+        ['changed project dimensions', e => { e.job.width = 1400; }],
+        ['trace overflow', e => { e.overflow = true; }],
+        ['slow cancellation', e => { e.cancellationMs = 10_001; }],
+        ['wrong recovery MIME', e => { e.recovery.type = 'image/avif'; }],
+    ])('rejects %s', (_name, mutate) => {
+        const evidence = cancelFixture(); mutate(evidence);
+        expect(() => validateCancelEvidence(evidence)).toThrow();
+    });
+    it('transparently observes AVIF Worker calls, preserving transfers, this and newTarget', () => {
+        let click;
+        vi.stubGlobal('document', { addEventListener: (type, listener, capture) => { expect(type).toBe('click'); expect(capture).toBe(true); click = listener; } });
+        const post = vi.fn(function () { expect(this).toBeInstanceOf(NativeWorker); return 'posted'; });
+        const stop = vi.fn();
+        class NativeWorker {
+            constructor(...args) { this.args = args; this.listeners = {}; }
+            postMessage = post;
+            terminate = stop;
+            addEventListener(type, listener) { this.listeners[type] = listener; }
+        }
+        vi.stubGlobal('window', { Worker: NativeWorker });
+        installCancelObserver();
+        class Child extends window.Worker {}
+        const worker = new Child('codec.js', { type: 'module', name: 'screenhello-avif-encoder' });
+        expect(worker).toBeInstanceOf(Child);
+        const pixels = new ArrayBuffer(4); const message = { id: 7, width: 2, height: 1, pixels }; const transfers = [pixels];
+        expect(worker.postMessage(message, transfers)).toBe('posted');
+        expect(post).toHaveBeenCalledExactlyOnceWith(message, transfers);
+        const job = window.__screenhelloCancelObserver.jobs[0];
+        expect(job).not.toHaveProperty('pixels');
+        click({ target: { closest: () => ({}) } });
+        worker.terminate();
+        expect(stop).toHaveBeenCalledOnce();
+        expect(job.cancelRequestedAt).toBeTypeOf('number');
+        expect(job.terminatedAt).toBeGreaterThanOrEqual(job.cancelRequestedAt);
+        worker.listeners.message({ data: { id: 7, ok: true } });
+        expect(job.completedAt).toBeTypeOf('number');
+        const unchanged = new window.Worker('other.js', { name: 'other' });
+        expect(unchanged.postMessage).toBe(post);
+    });
 });
 
 describe('bounded browser compression evidence', () => {

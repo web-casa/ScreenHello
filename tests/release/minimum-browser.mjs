@@ -11,6 +11,8 @@ import { activateEditorWindow } from './foreground.mjs';
 import { firefoxDownloadOptions } from './firefoxDownloadOptions.mjs';
 import { checkCompressionDownloads } from './compression-downloads.mjs';
 import { decodeAvifFile } from './avif-file-decoder.mjs';
+import { installCancelObserver } from './cancel-observer.mjs';
+import { checkCancelRecovery } from './cancel-recovery.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -20,6 +22,8 @@ const outputPath = resolve(process.env.SCREENHELLO_BROWSER_EVIDENCE
     || `artifacts/release/browser-matrix/${targetId || 'unknown'}.json`);
 const target = matrix.targets.find(({ id }) => id === targetId);
 const compressionChecks = process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true';
+const recoveryChecks = process.env.SCREENHELLO_RECOVERY_CHECKS === 'true';
+assert.ok(!recoveryChecks || compressionChecks, 'recovery checks require compression checks and the registered PC fixture');
 
 assert.ok(target, `SCREENHELLO_BROWSER_TARGET must be one of: ${matrix.targets.map(({ id }) => id).join(', ')}`);
 assert.ok(remoteUrl || target.localDriver, 'SELENIUM_REMOTE_URL is required unless the target uses a local driver');
@@ -624,6 +628,7 @@ try {
         addEventListener('error', (event) => window.__screenhelloReleaseErrors.push(String(event.error?.message || event.message)));
         addEventListener('unhandledrejection', (event) => window.__screenhelloReleaseErrors.push(String(event.reason?.message || event.reason)));
     }, compressionChecks);
+    if (recoveryChecks) await driver.executeScript(installCancelObserver);
 
     const pngBase64 = createPngFixture(64, 48).toString('base64');
     const injected = await driver.executeScript((base64) => {
@@ -679,6 +684,8 @@ try {
 
     if (compressionChecks) await checkCompressionDownloads({ driver, editorWindow, selectFormat, waitForEnabled, completeDownloadDecode,
         clickMenuItem, waitForRemovedSelector, report, checkpoint: writeReport });
+    if (recoveryChecks) await checkCancelRecovery({ driver, editorWindow, selectFormat, waitForEnabled, completeDownloadDecode,
+        waitForRemovedSelector, report, checkpoint: writeReport });
     await activateEditorWindow(driver, editorWindow);
     const mobileWeb = await checkMobileWeb();
 
@@ -718,6 +725,7 @@ try {
                 rootHtml: document.querySelector('#root')?.innerHTML?.slice(0, 2_000) || '',
                 title: document.title,
                 exportTrace: window.__screenhelloReleaseTrace || [],
+                cancellation: window.__screenhelloCancelObserver || null,
                 completedDownloads: (window.__screenhelloReleaseDownloads || []).map(record => {
                     const safe = { ...record }; delete safe.nativeAvifBytes; return safe;
                 }),

@@ -11,9 +11,14 @@ on:
         description: 'Add bounded compression download checks (not memory or full MG3 acceptance)'
         type: boolean
         default: false
+      recovery_checks:
+        description: 'Add one real AVIF cancellation and PNG recovery (requires compression_checks)'
+        type: boolean
+        default: false
 
 env:
   SCREENHELLO_COMPRESSION_CHECKS: ${{ inputs.compression_checks && 'true' || 'false' }}
+  SCREENHELLO_RECOVERY_CHECKS: ${{ inputs.recovery_checks && 'true' || 'false' }}
 
 permissions:
   contents: read

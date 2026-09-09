@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { browserVersionIsAccepted } from './browser-version-policy.mjs';
 import { validateCompressionEvidence } from '../tests/release/compression-contract.mjs';
+import { validateCancelEvidence } from '../tests/release/cancel-contract.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const evidenceDirectory = resolve(process.env.SCREENHELLO_BROWSER_EVIDENCE_DIR || 'artifacts/release/browser-matrix');
@@ -28,7 +29,12 @@ for (const target of matrix.targets) {
     }
 
     const targetFailures = [];
-    if (process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true' || evidence.compressionDownloads) {
+    if (process.env.SCREENHELLO_RECOVERY_CHECKS === 'true' || evidence.cancelRecovery) {
+        try { validateCancelEvidence(evidence.cancelRecovery); }
+        catch (error) { targetFailures.push(`cancel/recovery evidence invalid: ${error.message}`); }
+    }
+    if (process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true' || evidence.compressionDownloads
+        || process.env.SCREENHELLO_RECOVERY_CHECKS === 'true' || evidence.cancelRecovery) {
         try {
             validateCompressionEvidence(evidence.compressionDownloads);
             if (evidence.compressionDownloads.avifPreviewCapability.state !== (target.id === 'edge-111' ? 'unavailable' : 'supported')) {
