@@ -6,6 +6,26 @@ import { sha256 } from '../compression-product/memory-evidence.mjs';
 import { activateEditorWindow } from './foreground.mjs';
 import { BATCH_TARGET_SCOPE, inspectBatchRecoveryZip, validateTargetBatchEvidence } from './batch-recovery-contract.mjs';
 
+export async function setBatchFiles(driver, files) {
+    // The menu command returns before React's lazy batch module mounts. Wait for
+    // the hidden input, then dispatch exactly one change; never retry injection.
+    await driver.wait(async () => driver.executeScript(() => !!document.querySelector('[data-testid="batch-file-input"]')),
+        20_000, 'batch file input did not mount');
+    const count = await driver.executeScript(records => {
+        const transfer = new DataTransfer();
+        for (const record of records) {
+            const bytes = Uint8Array.from(atob(record.base64), char => char.charCodeAt(0));
+            transfer.items.add(new File([bytes], record.name, { type: record.type }));
+        }
+        const input = document.querySelector('[data-testid="batch-file-input"]');
+        if (!input) return 0;
+        input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return transfer.files.length;
+    }, files);
+    assert.equal(count, 2);
+}
+
 export async function checkTargetBatchRecovery({ driver, editorWindow, clickMenuItem, waitForEnabled,
     waitForRemovedSelector, report, checkpoint, target, evidenceDirectory }) {
     const candidate = JSON.parse(await readFile(join(evidenceDirectory, 'candidate.json'), 'utf8'));
@@ -39,21 +59,7 @@ export async function checkTargetBatchRecovery({ driver, editorWindow, clickMenu
     }));
     const file = (name, type, bytes) => ({ name, type, base64: bytes.toString('base64') });
     const smallFile = name => file(name, 'image/png', small);
-    const setFiles = async files => {
-        const count = await driver.executeScript(records => {
-            const transfer = new DataTransfer();
-            for (const record of records) {
-                const bytes = Uint8Array.from(atob(record.base64), char => char.charCodeAt(0));
-                transfer.items.add(new File([bytes], record.name, { type: record.type }));
-            }
-            const input = document.querySelector('[data-testid="batch-file-input"]');
-            if (!input) return 0;
-            input.files = transfer.files;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            return transfer.files.length;
-        }, files);
-        assert.equal(count, 2);
-    };
+    const setFiles = files => setBatchFiles(driver, files);
     // The existing four-format smoke ends with one successful small AVIF export.
     const setup = await driver.executeScript(() => window.__screenhelloReleaseDownloads.map(({ type }) => type));
     assert.deepEqual(setup, ['image/png', 'image/jpeg', 'image/webp', 'image/avif']);

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { zipSync } from 'fflate';
 import { BATCH_RECOVERY_SCOPE, BATCH_TARGET_SCOPE, batchRecoveryNames, inspectBatchRecoveryZip, validateBatchRecoveryEvidence, validateTargetBatchEvidence } from '../release/batch-recovery-contract.mjs';
 import { installBatchZipObserver } from '../release/batch-zip-observer.mjs';
+import { setBatchFiles } from '../release/batch-recovery.mjs';
 
 const checksum = 'a'.repeat(64);
 const fixture = (mode = 'all') => {
@@ -132,6 +133,38 @@ describe('target batch identity and registration', () => {
 });
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+describe('lazy batch input readiness', () => {
+    it('waits for the lazy input and dispatches only one change event', async () => {
+        let mounted = false;
+        const input = { files: null, dispatchEvent: vi.fn() };
+        vi.stubGlobal('document', { querySelector: selector => {
+            expect(selector).toBe('[data-testid="batch-file-input"]');
+            return mounted ? input : null;
+        } });
+        vi.stubGlobal('DataTransfer', class {
+            files = [];
+            items = { add: file => this.files.push(file) };
+        });
+        const driver = { executeScript: vi.fn(async (fn, ...args) => fn(...args)),
+            wait: vi.fn(async (predicate, timeout) => {
+                expect(timeout).toBe(20_000);
+                expect(await predicate()).toBe(false);
+                expect(input.dispatchEvent).not.toHaveBeenCalled();
+                mounted = true;
+                expect(await predicate()).toBe(true);
+            }) };
+        await setBatchFiles(driver, ['a.png', 'b.png'].map(name => ({ name, type: 'image/png', base64: btoa('fixture') })));
+        expect(input.files.map(file => file.name)).toEqual(['a.png', 'b.png']);
+        expect(input.dispatchEvent).toHaveBeenCalledOnce();
+        expect(input.dispatchEvent.mock.calls[0][0].type).toBe('change');
+        expect(input.dispatchEvent.mock.calls[0][0].bubbles).toBe(true);
+    });
+    it('does not inject files after a readiness timeout', async () => {
+        const driver = { wait: vi.fn().mockRejectedValue(new Error('input did not mount')), executeScript: vi.fn() };
+        await expect(setBatchFiles(driver, [])).rejects.toThrow('input did not mount');
+        expect(driver.executeScript).not.toHaveBeenCalled();
+    });
+});
 describe('ZIP handoff observer', () => {
     function setup() {
         vi.stubGlobal('window', {});
