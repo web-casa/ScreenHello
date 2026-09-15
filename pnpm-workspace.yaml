@@ -1,6 +1,9 @@
 packages:
   - .
-  - docs
+  # 公开导出同时包含文档站 `docs/` 和工程文档 `DOCS/`。在大小写不敏感的文件系统上
+  # （macOS、Windows checkout）两者会合并成一个目录，落盘名称不固定；用字符类让
+  # workspace 在两种大小写下都能识别文档站，否则它的依赖不会被安装。
+  - '[dD][oO][cC][sS]'
 
 overrides:
   mage-icons-react>react: 19.2.8
