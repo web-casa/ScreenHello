@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -55,7 +55,9 @@ const writeChecksums = async (candidateDirectory, relativePaths) => {
 };
 
 const createFixture = async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'screenhello-artifact-provenance-verification-'));
+    // 生产代码用 realpath 规范化候选目录；macOS 的 /var 是指向 /private/var 的符号链接，
+    // 因此 fixture 也必须先取真实路径，否则期望值与实际 cwd、错误码都不一致。
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'screenhello-artifact-provenance-verification-')));
     const workspace = path.join(root, 'workspace');
     const runnerTemp = path.join(root, 'runner-temp');
     const candidateDirectory = path.join(workspace, 'artifacts', 'macos-signed-candidate');
@@ -106,7 +108,7 @@ const createFixture = async () => {
 };
 
 const createLinuxFixture = async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'screenhello-artifact-provenance-verification-linux-'));
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'screenhello-artifact-provenance-verification-linux-')));
     const workspace = path.join(root, 'workspace');
     const runnerTemp = path.join(root, 'runner-temp');
     const candidateDirectory = path.join(workspace, 'artifacts', 'linux-deb-repository-signed-candidate');

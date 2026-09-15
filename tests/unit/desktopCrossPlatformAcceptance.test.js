@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -294,7 +294,9 @@ const createBundle = async ({
     withCandidateSource = false,
     candidateSourceVersion,
 } = {}) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'screenhello-cross-platform-acceptance-'));
+    // 见 desktopArtifactProvenanceVerification.test.js：macOS 的 /var 是符号链接，
+    // 生产代码对目录做 realpath，fixture 必须使用同一规范化路径才能断言错误码。
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'screenhello-cross-platform-acceptance-')));
     const bundle = path.join(root, 'bundle');
     const candidateSource = withCandidateSource
         ? await createCandidateSource(root, { version: candidateSourceVersion })
