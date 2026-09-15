@@ -1,0 +1,34 @@
+---
+title: "浏览器外框与可选设备 Mockup"
+seoTitle: "截图浏览器外框与设备 Mockup 指南"
+description: "用 ScreenHello 为截图添加浏览器外框，调整地址栏和顶部尺寸。了解可选设备素材、配色、适配方式以及公开版本的素材许可边界。"
+reviewed: "2026-09-13"
+---
+import BeforeAfter from '../../../src/components/BeforeAfter.astro';
+
+## 展示浏览器，不会访问展示的地址
+
+从左侧选择浏览器外框，可填写标题栏展示的 URL，并调整顶部工具栏大小。这个地址只是画面装饰，不会打开网站，也不会根据输入地址自动抓取网页截图。
+
+
+## 设备型号取决于已安装素材
+
+外框选择器只展示当前构建实际可用的素材。一些本地安装可包含 MacBook Air M2、iMac 24 英寸、Surface Pro、Surface Studio 或 Pixel 9 Pro；公开分发不保证包含这些素材，可选颜色也取决于安装的素材包。
+
+
+## 保留比例，也尊重素材边界
+
+包含模式保留整张截图，覆盖模式填满屏幕并可能裁切，拉伸模式可能改变比例。可选设备素材有独立许可，不能用程序的开源许可代替。项目只保存设备标识，不打包可选机身素材；缺少素材时需安装对应素材或更换外框，才能完整导出。
+
+
+<BeforeAfter
+  before="/site/before.svg"
+  after="/site/after.svg"
+  beforeAlt="原始图片"
+  afterAlt="添加浏览器外框"
+  caption="效果示意：同一张本地图片，添加背景、留白和浏览器外框。"
+/>
+
+## 继续了解
+
+[截图美化教程：背景、圆角、阴影与留白](../beautify/) · [ScreenHello 使用教程：导入、美化与导出](../guide/)

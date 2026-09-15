@@ -11,22 +11,19 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 10.12.1
-          run_install: false
-
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .node-version
-          cache: pnpm
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --strict-peer-dependencies
@@ -40,6 +37,9 @@ jobs:
       - name: Audit third-party notices
         run: pnpm audit:licenses
 
+      - name: Audit GitHub Actions supply chain
+        run: pnpm audit:github-actions
+
       - name: Typecheck public boundaries
         run: pnpm typecheck
 
@@ -49,8 +49,16 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check documentation types and generated content
+        run: |
+          pnpm --dir docs check
+          pnpm check:docs-content
+
       - name: Unit tests
         run: pnpm test:unit
+
+      - name: Audit translations
+        run: pnpm audit:i18n
 
       - name: Current browser smoke and E2E
         run: pnpm test:e2e
@@ -58,8 +66,16 @@ jobs:
       - name: Web build
         run: pnpm build
 
+      - name: Compression evidence tool contracts (no memory stress)
+        run: |
+          pnpm test:compression:build
+          node --test tests/compression-product/benchmark-contract.test.mjs tests/compression-product/memory-policy.test.mjs
+
       - name: Audit PWA build
         run: pnpm audit:pwa
+
+      - name: Audit static SEO and GEO pages
+        run: pnpm audit:seo
 
       - name: Production PWA tests
         run: pnpm test:pwa
@@ -72,6 +88,9 @@ jobs:
 
       - name: Audit library PWA boundary
         run: pnpm audit:pwa:library
+
+      - name: Audit compression assets and pinned codec source
+        run: pnpm audit:compression
 
       - name: Packaged library consumer
         run: pnpm test:consumer

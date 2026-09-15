@@ -1,6 +1,8 @@
 import createAvifEncoderModule from '@jsquash/avif/codec/enc/avif_enc.js';
 import { defaultOptions } from '@jsquash/avif/meta.js';
 import { initEmscriptenModule } from '@jsquash/avif/utils.js';
+import { MAX_COMPRESSED_PIXELS, validateExportSettings } from '../utils/exportSettings';
+import { trustedCodecResourceUrl } from '../utils/trustedCodecResourceUrl';
 
 const SCREENSHOT_OPTIONS = Object.freeze({
     ...defaultOptions,
@@ -14,13 +16,7 @@ const SCREENSHOT_OPTIONS = Object.freeze({
 
 let encoderModule = null;
 
-const trustedWasmUrl = (value) => {
-    const url = new URL(value, self.location.href);
-    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== self.location.origin) {
-        throw new Error('untrusted AVIF WASM URL');
-    }
-    return url.href;
-};
+const trustedWasmUrl = (value) => trustedCodecResourceUrl(value, self.location.href);
 
 const getEncoderModule = (wasmUrl) => {
     if (!encoderModule) {
@@ -36,12 +32,23 @@ const getEncoderModule = (wasmUrl) => {
 self.onmessage = async ({ data }) => {
     const { id, pixels, width, height, wasmUrl } = data || {};
     try {
+        const settings = validateExportSettings({ ...data, format: 'avif' });
+        if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1
+            || width > 8192 || height > 8192 || width * height > (settings.compression ? MAX_COMPRESSED_PIXELS : 4_194_304)
+            || !(pixels instanceof ArrayBuffer) || pixels.byteLength !== width * height * 4) throw new Error('avif-input-invalid');
         const module = await getEncoderModule(wasmUrl);
-        const output = module.encode(new Uint8Array(pixels), width, height, SCREENSHOT_OPTIONS);
+        const output = module.encode(new Uint8Array(pixels), width, height,
+            { ...SCREENSHOT_OPTIONS, ...(settings.quality === undefined ? {} : { quality: settings.quality }) });
         if (!(output instanceof Uint8Array) || output.byteLength === 0) {
             throw new Error('empty AVIF output');
         }
-        const buffer = output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength);
+        // The pinned scalar codec returns an independent Uint8Array (its public
+        // wrapper returns output.buffer too). Transfer that owned output once;
+        // never detach the input, a Wasm heap, or unrelated bytes in a subview.
+        const ownedOutput = module.HEAPU8 instanceof Uint8Array && output.buffer instanceof ArrayBuffer
+            && output.byteOffset === 0 && output.byteLength === output.buffer.byteLength
+            && output.buffer !== pixels && output.buffer !== module.HEAPU8.buffer;
+        const buffer = ownedOutput ? output.buffer : output.slice().buffer;
         self.postMessage({ id, ok: true, buffer }, [buffer]);
     } catch (error) {
         self.postMessage({
@@ -49,5 +56,12 @@ self.onmessage = async ({ data }) => {
             ok: false,
             message: error instanceof Error ? error.message : 'AVIF encoding failed',
         });
+    } finally {
+        // The caller transferred ownership of these pixels to this Worker.
+        // Encoding is synchronous once the module is ready; no codec view needs
+        // the input now. Detach the consumed buffer without making another copy.
+        if (pixels instanceof ArrayBuffer && pixels.byteLength && typeof structuredClone === 'function') {
+            structuredClone(null, { transfer: [pixels] });
+        }
     }
 };

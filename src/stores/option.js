@@ -1,5 +1,9 @@
 import { makeAutoObservable, toJS, runInAction } from 'mobx';
 import { getBackgroundDefinition, normalizeBackgroundKey } from '@utils/backgroundConfig';
+import { prepareWorkspaceImage } from '@utils/imageValidation';
+import { waitWithSignal } from '@utils/exportAsync';
+import { showUndoToast } from '@utils/undoToast';
+import { isDeviceFrameId } from '@utils/rasterDeviceConfig';
 import {
     DEFAULT_PADDING_BACKGROUND,
     normalizeInnerBorder,
@@ -9,20 +13,9 @@ import {
     shadowFromIntensity,
 } from '@utils/projectDocument';
 
-const DEVICE_FRAMES = [
-    'genericLaptop',
-    'genericDesktop',
-    'genericTablet',
-    'genericPhone',
-    'macbookpro16',
-    'macbookair',
-    'imacpro',
-    'ipadpro',
-    'iphonepro',
-];
 const BACKGROUND_MODES = ['cover', 'fit', 'stretch'];
 const BACKGROUND_ALIGNS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
-const isImageBackground = (definition) => definition?.type === 'upload-image';
+const isImageBackground = (definition) => ['upload-image', 'preset-image'].includes(definition?.type);
 const DEFAULT_GRADIENT_ANGLE = 90;
 
 const clampGradientAngle = (value, fallback = DEFAULT_GRADIENT_ANGLE) => {
@@ -90,6 +83,11 @@ export class Option {
     browserHeaderSize = 100;
     background = 'gh_img_50';
     backgroundAssetId = null;
+    backgroundLoadingKey = null;
+    backgroundError = false;
+    _backgroundController = null;
+    _backgroundAssets = new Set();
+    _backgroundDisposed = false;
     backgroundMode = 'cover';
     backgroundAlign = 'center';
     // 旧预设 default_* 为从左到右，90° 可保持旧草稿的视觉方向。
@@ -122,7 +120,7 @@ export class Option {
         // 默认背景与初始页一致（gh_img_50 兼容 token）：填充始终从代码渐变定义派生。
         this.frameConf.background = this.getBackgroundFill(getBackgroundDefinition(this.background))
             ?? this.frameConf.background;
-        makeAutoObservable(this, { root: false });
+        makeAutoObservable(this, { root: false, _backgroundController: false, _backgroundAssets: false, _backgroundDisposed: false });
     }
 
     get waterSvg() {
@@ -130,7 +128,7 @@ export class Option {
     }
 
     get mode() {
-        return DEVICE_FRAMES.includes(this.frame) ? this.frameMode : 'cover';
+        return isDeviceFrameId(this.frame) ? this.frameMode : 'cover';
     }
 
     setScale(value, { commit = true } = {}) {
@@ -258,7 +256,10 @@ export class Option {
     setBackground(value) {
         const key = normalizeBackgroundKey(value);
         const definition = getBackgroundDefinition(key);
-        if (!definition) return false;
+        if (!definition || isImageBackground(definition) || this._backgroundDisposed) return false;
+        // 「无背景」是破坏性选择：只有确实移除了原背景（预设或上传图）才提示撤销
+        const removesBackground = key === 'none' && (this.background !== key || Boolean(this.backgroundAssetId));
+        this.cancelBackgroundSelection();
         this.releaseBackgroundAsset();
         this.background = key;
         this.backgroundAssetId = null;
@@ -267,14 +268,67 @@ export class Option {
         }
         this.frameConf.background = this.getBackgroundFill(definition);
         this.root.history.commit();
+        if (removesBackground) this._announceUndo(this.root.i18n.t('背景已移除'), 'undo:background-remove');
         return true;
     }
     /**
      * 统一背景选择入口。保留 Promise 返回形态，避免破坏已有 UI/宿主调用；
-     * 内置预设均为代码渐变，不读取网络或打包图片。
+     * 图片预设先下载并解码为实例拥有的 Blob，成功后一次性提交。
      */
     async applyBackground(value) {
-        return this.setBackground(value);
+        const key = normalizeBackgroundKey(value);
+        const definition = getBackgroundDefinition(key);
+        if (definition.type !== 'preset-image') return this.setBackground(value);
+        if (this._backgroundDisposed) return false;
+        this.cancelBackgroundSelection();
+        if (this.background === key && this.root.assetStore.get(this.backgroundAssetId)) return true;
+        const controller = new AbortController();
+        this._backgroundController = controller;
+        this.backgroundLoadingKey = key;
+        // Invalidate prepared output immediately; waiting exports also wait for this task.
+        this.root.renderTaskTracker?.changedPaint();
+        const task = this._loadPresetBackground(definition, controller);
+        // A rejected candidate leaves a valid old background; it is not a failed canvas effect.
+        this.root.renderTaskTracker?.track(task.catch(() => false));
+        return task;
+    }
+    async _loadPresetBackground(definition, controller) {
+        const { signal } = controller;
+        const timer = setTimeout(() => controller.abort(Object.assign(new Error('background-load-timeout'), { code: 'background-load-timeout' })), 15_000);
+        try {
+            const response = await waitWithSignal(fetch(definition.assetUrl, { signal }), signal);
+            if (!response.ok) throw new Error(`background-http-${response.status}`);
+            const blob = await waitWithSignal(response.blob(), signal);
+            await waitWithSignal(prepareWorkspaceImage(blob, { platform: this.root.platform, role: 'background' }), signal);
+            if (signal.aborted || this._backgroundDisposed || this._backgroundController !== controller) return false;
+            return runInAction(() => {
+                const asset = this.root.assetStore.add(blob);
+                if (!asset) throw new Error('background-object-url-unavailable');
+                this._backgroundAssets.add(asset.id);
+                this.background = definition.key;
+                this.backgroundAssetId = asset.id;
+                this.frameConf.background = { type: 'image', url: asset.url, mode: this.backgroundMode, align: this.backgroundAlign };
+                this.root.history.commit();
+                return true;
+            });
+        } catch (error) {
+            if (this._backgroundController !== controller || this._backgroundDisposed) return false;
+            runInAction(() => { this.backgroundError = true; });
+            throw error;
+        } finally {
+            clearTimeout(timer);
+            if (this._backgroundController === controller) runInAction(() => {
+                this._backgroundController = null;
+                this.backgroundLoadingKey = null;
+            });
+        }
+    }
+    cancelBackgroundSelection() {
+        const controller = this._backgroundController;
+        this._backgroundController = null;
+        this.backgroundLoadingKey = null;
+        this.backgroundError = false;
+        controller?.abort();
     }
     setBackgroundMode(value) {
         if (!BACKGROUND_MODES.includes(value)) return false;
@@ -338,7 +392,9 @@ export class Option {
         return true;
     }
     setUploadedBackground(asset) {
-        if (!asset?.id || !asset.url) return false;
+        if (!asset?.id || !asset.url || this._backgroundDisposed) return false;
+        this.cancelBackgroundSelection();
+        this._backgroundAssets.add(asset.id);
         this.releaseBackgroundAsset();
         this.background = 'upload_image';
         this.backgroundAssetId = asset.id;
@@ -353,6 +409,7 @@ export class Option {
     }
     setCustomSolidBackground(color) {
         if (typeof color !== 'string' || !color) return false;
+        this.cancelBackgroundSelection();
         this.releaseBackgroundAsset();
         this.background = 'custom_solid';
         this.backgroundAssetId = null;
@@ -420,8 +477,22 @@ export class Option {
         this.round = 10;
         this.shadow = shadowFromIntensity(3);
         this.root.history.commit('image:style-reset');
+        // 一键重置属于「高频、易恢复」：不弹确认框，直接执行后用 toast 给一次撤销机会
+        this._announceUndo(this.root.i18n.t('图片样式已重置'), 'undo:image-style');
         return true;
     }
+
+    /** 破坏性操作后的统一 toast 撤销入口：只撤销这一步，之后的编辑会让凭据失效。 */
+    _announceUndo(label, key) {
+        const token = this.root.history.captureUndoToken();
+        showUndoToast(this.root, {
+            label,
+            key,
+            onUndo: () => this.root.history.undoTo(token),
+            onUnavailable: () => this.root.editor.message?.info?.(this.root.i18n.t('没有可撤销的操作')),
+        });
+    }
+
     toggleFlip(type) {
         if (type === 'x') {
             this.scaleX = !this.scaleX;
@@ -451,7 +522,7 @@ export class Option {
     toDocument() {
         const frameConf = toJS(this.frameConf);
         if (frameConf.background) {
-            if (this.background === 'upload_image') {
+            if (isImageBackground(getBackgroundDefinition(this.background))) {
                 frameConf.background = { ...frameConf.background, url: null };
             }
         }
@@ -496,9 +567,7 @@ export class Option {
      */
     restoreFromDocument(doc) {
         const next = normalizeOption(doc?.option ?? doc);
-        if (this.backgroundAssetId && this.backgroundAssetId !== next.backgroundAssetId) {
-            this.root.assetStore.release(this.backgroundAssetId);
-        }
+        this.cancelBackgroundSelection();
         runInAction(() => {
             this.scale = next.scale;
             this.scaleX = next.scaleX;
@@ -533,18 +602,30 @@ export class Option {
             this._syncGradientBackgroundFill();
             const asset = this.root.assetStore.get(this.backgroundAssetId);
             if (asset && isImageBackground(getBackgroundDefinition(this.background)) && this.frameConf.background?.type === 'image') {
+                this._backgroundAssets.add(asset.id);
                 this.frameConf.background = { ...this.frameConf.background, url: asset.url };
             }
         });
     }
 
     releaseBackgroundAsset() {
-        if (!this.backgroundAssetId) return;
-        this.root.assetStore.release(this.backgroundAssetId);
+        this.cancelBackgroundSelection();
+        // History owns committed background lifetimes, just as it owns image layers.
         this.backgroundAssetId = null;
     }
 
+    pruneBackgroundAssets(retained) {
+        for (const id of this._backgroundAssets) {
+            if (retained.has(id)) continue;
+            this.root.assetStore.release(id);
+            this._backgroundAssets.delete(id);
+        }
+    }
+
     destroy() {
+        this._backgroundDisposed = true;
+        this.cancelBackgroundSelection();
+        this.pruneBackgroundAssets(new Set());
         this.releaseBackgroundAsset();
     }
 }

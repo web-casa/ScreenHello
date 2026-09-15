@@ -1,14 +1,28 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat, lstat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { browserVersionIsAccepted } from './browser-version-policy.mjs';
+import { validateCompressionEvidence } from '../tests/release/compression-contract.mjs';
+import { validateCancelEvidence } from '../tests/release/cancel-contract.mjs';
+import assert from 'node:assert/strict';
+import { inspectBatchRecoveryZip, validateTargetBatchEvidence } from '../tests/release/batch-recovery-contract.mjs';
+import { inspectContinuousAvif, validateTargetContinuousEvidence, CONTINUOUS_AVIF_MAX_BYTES } from '../tests/release/continuous-avif-contract.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const evidenceDirectory = resolve(process.env.SCREENHELLO_BROWSER_EVIDENCE_DIR || 'artifacts/release/browser-matrix');
 const failures = [];
 const results = [];
 const releaseCandidates = new Set();
+const batchBuilds = new Set();
+const batchRunners = new Set();
+const continuousCandidates = new Set();
 
 const normalize = (value) => String(value || '').toLowerCase();
+const hasExactValues = (actual, expected) => (
+    Array.isArray(actual)
+    && actual.length === expected.length
+    && new Set(actual).size === expected.length
+    && expected.every((value) => actual.includes(value))
+);
 
 for (const target of matrix.targets) {
     const path = resolve(evidenceDirectory, `${target.id}.json`);
@@ -21,7 +35,52 @@ for (const target of matrix.targets) {
     }
 
     const targetFailures = [];
-    if (evidence.schemaVersion !== 1) targetFailures.push('unsupported schemaVersion');
+    if (process.env.SCREENHELLO_CONTINUOUS_CHECKS === 'true' || evidence.continuousAvif) {
+        try {
+            validateTargetContinuousEvidence(evidence.continuousAvif, { target, observed: evidence.observed, releaseCandidate: evidence.releaseCandidate });
+            continuousCandidates.add(JSON.stringify(evidence.continuousAvif.finalFingerprints));
+            for (const item of evidence.continuousAvif.results) {
+                const file = resolve(evidenceDirectory, item.evidenceFile);
+                const metadata = await lstat(file);
+                assert.ok(metadata.isFile() && metadata.size > 0 && metadata.size <= CONTINUOUS_AVIF_MAX_BYTES);
+                const inspected = await inspectContinuousAvif(await readFile(file));
+                assert.deepEqual(inspected, { size: item.size, sha256: item.sha256, decoded: item.decoded });
+            }
+        } catch (error) { targetFailures.push(`continuous evidence invalid: ${error.message}`); }
+    }
+    if (process.env.SCREENHELLO_BATCH_CHECKS === 'true' || evidence.batchRecovery) {
+        try {
+            validateTargetBatchEvidence(evidence.batchRecovery, { target, observed: evidence.observed, releaseCandidate: evidence.releaseCandidate });
+            batchBuilds.add(evidence.batchRecovery.candidate.webBuildSha256);
+            batchRunners.add(evidence.batchRecovery.candidate.runnerSha256);
+            for (const item of evidence.batchRecovery.cases) {
+                const zipPath = resolve(evidenceDirectory, `${target.id}-batch-${item.mode}.zip`);
+                const metadata = await stat(zipPath);
+                assert.ok(metadata.isFile() && metadata.size > 0 && metadata.size <= 262_144);
+                const bytes = await readFile(zipPath);
+                const inspected = await inspectBatchRecoveryZip(bytes, item.mode);
+                assert.deepEqual(inspected, { size: item.archive.size, sha256: item.archive.sha256, entries: item.archive.entries });
+            }
+        } catch (error) { targetFailures.push(`batch evidence invalid: ${error.message}`); }
+    }
+    if (process.env.SCREENHELLO_RECOVERY_CHECKS === 'true' || evidence.cancelRecovery) {
+        try { validateCancelEvidence(evidence.cancelRecovery); }
+        catch (error) { targetFailures.push(`cancel/recovery evidence invalid: ${error.message}`); }
+    }
+    if (process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true' || evidence.compressionDownloads
+        || process.env.SCREENHELLO_RECOVERY_CHECKS === 'true' || evidence.cancelRecovery) {
+        try {
+            validateCompressionEvidence(evidence.compressionDownloads);
+            if (evidence.compressionDownloads.avifPreviewCapability.state !== 'standard-only') {
+                throw new Error('unexpected AVIF preview capability for this target');
+            }
+            if (target.id !== 'edge-111' && evidence.compressionDownloads.results.some(result => result.decodeError)) {
+                throw new Error('unexpected native decoder failure');
+            }
+        }
+        catch (error) { targetFailures.push(`compression evidence invalid: ${error.message}`); }
+    }
+    if (evidence.schemaVersion !== 2) targetFailures.push('unsupported schemaVersion');
     if (evidence.target !== target.id) targetFailures.push('target mismatch');
     if (evidence.status !== 'passed') targetFailures.push(`status is ${evidence.status || 'missing'}`);
     if (!target.acceptedBrowserNames.map(normalize).includes(normalize(evidence.observed?.browserName))) {
@@ -47,6 +106,24 @@ for (const target of matrix.targets) {
     }
     if (!evidence.checks?.coreEditUndoRedo) targetFailures.push('core edit check missing');
     if (!evidence.checks?.localResourceRequests) targetFailures.push('local request check missing');
+    const mobileWeb = evidence.checks?.mobileWeb;
+    if (
+        !mobileWeb
+        || !Number.isFinite(mobileWeb.viewport?.width)
+        || mobileWeb.viewport.width <= 0
+        || mobileWeb.viewport.width > 640
+        || !Number.isFinite(mobileWeb.viewport?.height)
+        || mobileWeb.viewport.height <= 0
+        || !hasExactValues(mobileWeb.topbarActions, ['menu', 'project-status', 'export'])
+        || !hasExactValues(mobileWeb.menuSections, ['file', 'edit', 'view', 'help'])
+        || mobileWeb.annotationSheet !== true
+        || mobileWeb.zoomMenu !== true
+        || !Number.isFinite(mobileWeb.minimumTargetSize)
+        || mobileWeb.minimumTargetSize < 44
+        || mobileWeb.noHorizontalOverflow !== true
+    ) {
+        targetFailures.push('Phase 8.5 mobile Web evidence missing or invalid');
+    }
     const exports = evidence.checks?.imageExports;
     const expectedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/avif']);
     if (!Array.isArray(exports) || exports.length !== 4) {
@@ -84,6 +161,8 @@ for (const target of matrix.targets) {
 }
 
 if (releaseCandidates.size > 1) failures.push('evidence does not reference one release-candidate commit');
+if (batchBuilds.size > 1 || batchRunners.size > 1) failures.push('batch evidence does not reference one Web build and runner');
+if (continuousCandidates.size > 1) failures.push('continuous evidence does not reference one candidate');
 const expectedCandidate = process.env.SCREENHELLO_RELEASE_CANDIDATE;
 if (expectedCandidate && (releaseCandidates.size !== 1 || !releaseCandidates.has(expectedCandidate))) {
     failures.push('evidence does not match SCREENHELLO_RELEASE_CANDIDATE');

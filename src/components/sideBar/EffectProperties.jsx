@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { observer } from 'mobx-react-lite';
 import { Slider } from 'antd';
 import ColorPicker from '@components/ColorPicker';
@@ -12,6 +13,7 @@ import useStores from '@stores/useStores';
  * 连续交互（slider 拖动）不立即入历史，在 onChangeComplete 时统一 commit。
  */
 const EffectProperties = observer(() => {
+    const t = useI18n();
     const stores = useStores();
     const shape = stores.editor.selectedEffectShape;
     if (!shape) return null;
@@ -22,45 +24,45 @@ const EffectProperties = observer(() => {
         <>
             {shape.type === 'blur' && (
                 <div className="pb-3">
-                    <label>模糊强度</label>
+                    <label>{t("模糊强度")}</label>
                     <Slider
                         min={1}
                         max={40}
                         value={eff.strength ?? 8}
                         onChange={(v) => stores.editor.setEffectStyle({ strength: v })}
                         onChangeComplete={commit}
-                        ariaLabelForHandle="模糊强度"
+                        ariaLabelForHandle={t("模糊强度")}
                     />
                 </div>
             )}
             {shape.type === 'mosaic' && (
                 <div className="pb-3">
-                    <label>马赛克块大小</label>
+                    <label>{t("马赛克块大小")}</label>
                     <Slider
                         min={4}
                         max={48}
                         value={eff.blockSize ?? 12}
                         onChange={(v) => stores.editor.setEffectStyle({ blockSize: v })}
                         onChangeComplete={commit}
-                        ariaLabelForHandle="马赛克块大小"
+                        ariaLabelForHandle={t("马赛克块大小")}
                     />
                 </div>
             )}
             {shape.type === 'spotlight' && (
                 <>
                     <div className="pb-3">
-                        <label>遮罩颜色</label>
+                        <label>{t("遮罩颜色")}</label>
                         <div className="py-1">
                             <ColorPicker
                                 value={eff.overlayColor ?? '#000000'}
                                 onChange={(e) => stores.editor.setEffectStyle({ overlayColor: e.toHexString() })}
                                 size="small"
-                                aria-label="聚光遮罩颜色"
+                                aria-label={t("聚光遮罩颜色")}
                             />
                         </div>
                     </div>
                     <div className="pb-3">
-                        <label>不透明度</label>
+                        <label>{t("不透明度")}</label>
                         <Slider
                             min={0}
                             max={1}
@@ -68,20 +70,20 @@ const EffectProperties = observer(() => {
                             value={eff.opacity ?? 0.5}
                             onChange={(v) => stores.editor.setEffectStyle({ opacity: v })}
                             onChangeComplete={commit}
-                            ariaLabelForHandle="聚光不透明度"
+                            ariaLabelForHandle={t("聚光不透明度")}
                         />
                     </div>
                 </>
             )}
             <div className="pb-3">
-                <label>圆角</label>
+                <label>{t("圆角")}</label>
                 <Slider
                     min={0}
                     max={60}
                     value={eff.cornerRadius ?? 0}
                     onChange={(v) => stores.editor.setEffectStyle({ cornerRadius: v })}
                     onChangeComplete={commit}
-                    ariaLabelForHandle="区域效果圆角"
+                    ariaLabelForHandle={t("区域效果圆角")}
                 />
             </div>
         </>

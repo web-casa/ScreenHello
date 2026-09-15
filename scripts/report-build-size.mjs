@@ -2,6 +2,7 @@ import { gzipSync } from 'node:zlib';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { validateCodecBudgets } from '../config/codecBudgets.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const imageExtensions = new Set(['.avif', '.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp']);
@@ -100,27 +101,8 @@ async function main() {
     if (report.library.largestDataImageUrlBytes > 100_000) {
         violations.push('Library contains a data image URL larger than the Phase 3 100,000-byte ceiling.');
     }
-    const expectedWasm = [
-        { name: 'AVIF', pattern: /\/avif_enc-[^/]+\.wasm$/, bytes: 3_600_000, gzipBytes: 1_200_000 },
-        { name: 'WebP', pattern: /\/webp_enc-[^/]+\.wasm$/, bytes: 300_000, gzipBytes: 130_000 },
-    ];
     for (const [target, wasm] of [['Web', report.web.wasm], ['Library', report.library.wasm]]) {
-        if (wasm.files !== expectedWasm.length) {
-            violations.push(`${target} must emit exactly one standalone AVIF WASM asset and one WebP WASM asset.`);
-        }
-        for (const expected of expectedWasm) {
-            const matches = wasm.assets.filter(({ file }) => expected.pattern.test(file));
-            if (matches.length !== 1) {
-                violations.push(`${target} must emit exactly one standalone ${expected.name} WASM asset.`);
-                continue;
-            }
-            const [asset] = matches;
-            if (asset.bytes > expected.bytes || asset.gzipBytes > expected.gzipBytes) {
-                violations.push(
-                    `${target} ${expected.name} WASM exceeds its budget (${expected.bytes} raw / ${expected.gzipBytes} gzip bytes).`
-                );
-            }
-        }
+        violations.push(...validateCodecBudgets(target, wasm.assets));
     }
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     if (violations.length) throw new Error(violations.join('\n'));

@@ -1,0 +1,723 @@
+name: Linux DEB Repository Signed Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Select the signing operation for this immutable main-branch candidate.
+        required: true
+        type: choice
+        default: do-not-sign
+        options:
+          - do-not-sign
+          - sign-linux-deb-repository-candidate
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-deb-repository-signed-candidate-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  RUST_TOOLCHAIN: 1.96.0
+  SCREENHELLO_RELEASE_CANDIDATE: ${{ github.sha }}
+  SCREENHELLO_DESKTOP_GATE_SCOPE: full
+  SCREENHELLO_DESKTOP_PACKAGE_CHANNEL: github-actions-linux-deb-repository-signed-candidate
+  SCREENHELLO_LINUX_DEB_REPOSITORY_SIGNED_CANDIDATE_DIR: artifacts/linux-deb-repository-signed-candidate
+
+jobs:
+  preflight:
+    if: >-
+      github.repository_id == '1353846102' &&
+      github.event.repository.private &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirm == 'sign-linux-deb-repository-candidate'
+    name: Linux DEB repository preflight
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    outputs:
+      package-matrix: ${{ steps.package-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the immutable main candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Select the declared native DEB package matrix
+        id: package-matrix
+        run: |
+          set -euo pipefail
+          matrix="$(node scripts/linux-deb-repository-matrix.mjs)"
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Rust 1.96
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$RUST_TOOLCHAIN"
+          rustc -vV
+          cargo -vV
+
+      - name: Install Linux desktop prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            dbus-x11 \
+            fonts-noto-cjk \
+            libayatana-appindicator3-dev \
+            libclang-dev \
+            libgbm-dev \
+            libpipewire-0.3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            xvfb
+
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Verify source and repository-signing contracts without credentials
+        run: |
+          pnpm ignored-builds
+          pnpm audit --audit-level=low
+          pnpm audit:licenses
+          pnpm typecheck
+          pnpm lint
+          pnpm test:unit
+          pnpm audit:desktop:contract
+          pnpm audit:desktop:trust
+          pnpm audit:desktop:artifact-provenance
+          pnpm audit:desktop:linux-deb-repository-signed-candidate
+          pnpm audit:desktop:linux-deb-key-lifecycle
+          pnpm audit:github-actions
+
+      - name: Verify the native production boundary without a bundle
+        run: |
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+          cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+          pnpm desktop:build
+
+  package:
+    needs: preflight
+    if: >-
+      github.repository_id == '1353846102' &&
+      github.event.repository.private &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirm == 'sign-linux-deb-repository-candidate'
+    name: Package ${{ matrix.target }} DEB repository input
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.package-matrix) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      SCREENHELLO_DESKTOP_TARGET: ${{ matrix.target }}
+      SCREENHELLO_EXPECTED_DESKTOP_PLATFORM: linux
+      SCREENHELLO_RUNNER_LABEL: ${{ matrix.runner }}
+      SCREENHELLO_DESKTOP_ARTIFACT_INSPECTION: artifacts/linux-deb-repository-input/${{ matrix.package-architecture }}/artifact-inspection.json
+      SCREENHELLO_DESKTOP_SBOM_DIR: artifacts/linux-deb-repository-input/${{ matrix.package-architecture }}
+    steps:
+      - name: Check out the immutable main candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Set up the declared native Rust target
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+          rustup target add "${{ matrix.rust-target }}"
+          rustc -vV
+          cargo -vV
+
+      - name: Install Linux desktop prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            dbus-x11 \
+            fonts-noto-cjk \
+            libayatana-appindicator3-dev \
+            libclang-dev \
+            libgbm-dev \
+            libpipewire-0.3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            xvfb
+
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Recheck the repository-signing contract before native packaging
+        run: |
+          pnpm audit:desktop:contract
+          pnpm audit:desktop:trust
+          pnpm audit:desktop:artifact-provenance
+          pnpm audit:desktop:linux-deb-repository-signed-candidate
+          pnpm audit:desktop:linux-deb-key-lifecycle
+          pnpm audit:github-actions
+
+      - name: Build the unsigned native DEB input
+        run: |
+          set -euo pipefail
+          started_at="$(node -e 'process.stdout.write(String(Date.now()))')"
+          pnpm exec tauri build --ci --bundles deb --no-sign --config src-tauri/tauri.phase9.conf.json
+          finished_at="$(node -e 'process.stdout.write(String(Date.now()))')"
+          echo "SCREENHELLO_DESKTOP_BUILD_DURATION_MS=$((finished_at - started_at))" >> "$GITHUB_ENV"
+
+      - name: Locate the native DEB input
+        run: |
+          set -euo pipefail
+          binary='src-tauri/target/release/screenhello-desktop'
+          bundle="$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print)"
+          test -f "$binary"
+          bundle_count="$(printf '%s\n' "$bundle" | awk 'NF { count += 1 } END { print count + 0 }')"
+          test "$bundle_count" -eq 1
+          test -f "$bundle"
+          echo "SCREENHELLO_DESKTOP_BINARY=$binary" >> "$GITHUB_ENV"
+          echo "SCREENHELLO_DESKTOP_BUNDLE=$bundle" >> "$GITHUB_ENV"
+
+      - name: Inspect native DEB identity, architecture, and payload
+        run: pnpm desktop:inspect
+
+      - name: Generate native DEB input SBOMs
+        run: pnpm desktop:sbom
+
+      - name: Write verified DEB repository input checksums
+        run: |
+          set -euo pipefail
+          input_dir="artifacts/linux-deb-repository-input/${{ matrix.package-architecture }}"
+          mkdir -p "$input_dir"
+          cp "$SCREENHELLO_DESKTOP_BUNDLE" "$input_dir/"
+          (
+            cd "$input_dir"
+            sha256sum \
+              "$(basename "$SCREENHELLO_DESKTOP_BUNDLE")" \
+              artifact-inspection.json \
+              cargo.cdx.json \
+              npm.cdx.json
+          ) > "$input_dir/SHA256SUMS.txt"
+
+      - name: Upload verified DEB repository input
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-deb-repository-input-${{ matrix.package-architecture }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: artifacts/linux-deb-repository-input/${{ matrix.package-architecture }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+  sign:
+    needs: [preflight, package]
+    if: >-
+      github.repository_id == '1353846102' &&
+      github.event.repository.private &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirm == 'sign-linux-deb-repository-candidate'
+    name: Build and sign Linux DEB repository candidate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    environment: linux-repository-signing
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the immutable main candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Install signed repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y apt-utils gnupg
+          apt-ftparchive --version
+          gpg --version
+          gpgv --version
+
+      - name: Install locked JavaScript dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Recheck the signed repository contract before importing credentials
+        run: |
+          pnpm audit:desktop:contract
+          pnpm audit:desktop:trust
+          pnpm audit:desktop:artifact-provenance
+          pnpm audit:desktop:linux-deb-repository-signed-candidate
+          pnpm audit:desktop:linux-deb-key-lifecycle
+          pnpm audit:github-actions
+
+      - name: Download verified AMD64 DEB repository input
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v7
+        with:
+          name: linux-deb-repository-input-amd64-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/screenhello-linux-deb-input/amd64
+
+      - name: Download verified ARM64 DEB repository input
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v7
+        with:
+          name: linux-deb-repository-input-arm64-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/screenhello-linux-deb-input/arm64
+
+      - name: Revalidate downloaded native DEB repository inputs
+        run: |
+          set -euo pipefail
+          expected_version="$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("package.json", "utf8")).version)')"
+          for package_architecture in amd64 arm64; do
+            input_dir="$RUNNER_TEMP/screenhello-linux-deb-input/$package_architecture"
+            test -d "$input_dir"
+            test -f "$input_dir/SHA256SUMS.txt"
+            test -f "$input_dir/artifact-inspection.json"
+            test -f "$input_dir/cargo.cdx.json"
+            test -f "$input_dir/npm.cdx.json"
+            (
+              cd "$input_dir"
+              sha256sum --strict --check SHA256SUMS.txt
+            )
+            mapfile -t packages < <(find "$input_dir" -maxdepth 1 -type f -name '*.deb' -print | LC_ALL=C sort)
+            test "${#packages[@]}" -eq 1
+            package="${packages[0]}"
+            test "$(dpkg-deb --field "$package" Package)" = 'screen-hello'
+            test "$(dpkg-deb --field "$package" Version)" = "$expected_version"
+            test "$(dpkg-deb --field "$package" Architecture)" = "$package_architecture"
+            case "$package_architecture" in
+              amd64)
+                expected_target='linux-x64'
+                expected_binary_architecture='x86_64'
+                echo "SCREENHELLO_LINUX_DEB_INPUT_AMD64=$package" >> "$GITHUB_ENV"
+                ;;
+              arm64)
+                expected_target='linux-arm64'
+                expected_binary_architecture='arm64'
+                echo "SCREENHELLO_LINUX_DEB_INPUT_ARM64=$package" >> "$GITHUB_ENV"
+                ;;
+            esac
+            node -e '
+              const fs = require("node:fs");
+              const [inputDirectory, candidateSha, target, packageArchitecture, binaryArchitecture, channel] = process.argv.slice(1);
+              const inspection = JSON.parse(fs.readFileSync(inputDirectory + "/artifact-inspection.json", "utf8"));
+              if (inspection.candidateSha !== candidateSha
+                || inspection.target !== target
+                || inspection.binary?.architecture !== binaryArchitecture
+                || inspection.package?.kind !== "deb"
+                || inspection.package?.architecture !== packageArchitecture
+                || inspection.package?.channel !== channel
+                || inspection.package?.payloadVerified !== true) {
+                throw new Error("linux-deb-repository-input-inspection-invalid:" + packageArchitecture);
+              }
+            ' "$input_dir" "$SCREENHELLO_RELEASE_CANDIDATE" "$expected_target" "$package_architecture" "$expected_binary_architecture" "$SCREENHELLO_DESKTOP_PACKAGE_CHANNEL"
+          done
+
+      - name: Build, sign, and verify APT repository metadata
+        env:
+          LINUX_REPOSITORY_SIGNING_PRIVATE_KEY: ${{ secrets.LINUX_REPOSITORY_SIGNING_PRIVATE_KEY }}
+          LINUX_REPOSITORY_SIGNING_PASSPHRASE: ${{ secrets.LINUX_REPOSITORY_SIGNING_PASSPHRASE }}
+          LINUX_REPOSITORY_SIGNING_FINGERPRINT: ${{ vars.LINUX_REPOSITORY_SIGNING_FINGERPRINT }}
+          LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY: ${{ vars.LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY }}
+          LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT: ${{ vars.LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          if [ -z "$LINUX_REPOSITORY_SIGNING_PRIVATE_KEY" ]; then
+            echo 'LINUX_REPOSITORY_SIGNING_PRIVATE_KEY is required.' >&2
+            exit 1
+          fi
+          if [ -z "$LINUX_REPOSITORY_SIGNING_PASSPHRASE" ]; then
+            echo 'LINUX_REPOSITORY_SIGNING_PASSPHRASE must be non-empty.' >&2
+            exit 1
+          fi
+          expected_fingerprint="$(printf '%s' "$LINUX_REPOSITORY_SIGNING_FINGERPRINT" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          if ! [[ "$expected_fingerprint" =~ ^[0-9A-F]{40}([0-9A-F]{24})?$ ]]; then
+            echo 'LINUX_REPOSITORY_SIGNING_FINGERPRINT must be a 40- or 64-hex primary key fingerprint.' >&2
+            exit 1
+          fi
+          expected_next_fingerprint="$(printf '%s' "$LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          has_next_public_key=false
+          rotation_state='single-key-candidate'
+          if [ -n "$LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY" ] || [ -n "$expected_next_fingerprint" ]; then
+            if [ -z "$LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY" ] || [ -z "$expected_next_fingerprint" ]; then
+              echo 'LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY and LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT must be set together.' >&2
+              exit 1
+            fi
+            if ! [[ "$expected_next_fingerprint" =~ ^[0-9A-F]{40}([0-9A-F]{24})?$ ]]; then
+              echo 'LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT must be a 40- or 64-hex primary key fingerprint.' >&2
+              exit 1
+            fi
+            if [ "$expected_next_fingerprint" = "$expected_fingerprint" ]; then
+              echo 'LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT must differ from LINUX_REPOSITORY_SIGNING_FINGERPRINT.' >&2
+              exit 1
+            fi
+            has_next_public_key=true
+            rotation_state='overlap-candidate'
+          fi
+
+          signing_home="$(mktemp -d "$RUNNER_TEMP/screenhello-linux-repository-signing.XXXXXX")"
+          trust_home="$(mktemp -d "$RUNNER_TEMP/screenhello-linux-repository-trust.XXXXXX")"
+          armor_validation_home="$(mktemp -d "$RUNNER_TEMP/screenhello-linux-repository-armor-validation.XXXXXX")"
+          verification_home="$(mktemp -d "$RUNNER_TEMP/screenhello-linux-repository-verification.XXXXXX")"
+          apt_root="$(mktemp -d "$RUNNER_TEMP/screenhello-linux-repository-apt.XXXXXX")"
+          repository_root="$(mktemp -d "$RUNNER_TEMP/screenhello-linux-repository.XXXXXX")"
+          cleanup() {
+            cleanup_failed=false
+            gpgconf --homedir "$signing_home" --kill all >/dev/null 2>&1 || true
+            gpgconf --homedir "$trust_home" --kill all >/dev/null 2>&1 || true
+            gpgconf --homedir "$armor_validation_home" --kill all >/dev/null 2>&1 || true
+            gpgconf --homedir "$verification_home" --kill all >/dev/null 2>&1 || true
+            if ! rm -rf "$signing_home" "$trust_home" "$armor_validation_home" "$verification_home" "$apt_root" "$repository_root"; then
+              echo 'Failed to remove temporary Linux repository signing material.' >&2
+              cleanup_failed=true
+            fi
+            for temporary_directory in "$signing_home" "$trust_home" "$armor_validation_home" "$verification_home" "$apt_root" "$repository_root"; do
+              if [ -e "$temporary_directory" ]; then
+                echo 'Temporary Linux repository signing material remains after cleanup.' >&2
+                cleanup_failed=true
+              fi
+            done
+            if [ "$cleanup_failed" = true ]; then
+              return 1
+            fi
+          }
+          trap cleanup EXIT
+          chmod 700 "$signing_home" "$trust_home" "$armor_validation_home" "$verification_home"
+
+          if ! printf '%s' "$LINUX_REPOSITORY_SIGNING_PRIVATE_KEY" | base64 --decode | gpg --batch --yes --no-tty --homedir "$signing_home" --import; then
+            echo 'LINUX_REPOSITORY_SIGNING_PRIVATE_KEY is not valid base64 OpenPGP private-key data.' >&2
+            exit 1
+          fi
+          mapfile -t primary_fingerprints < <(
+            gpg --batch --no-tty --homedir "$signing_home" --with-colons --list-secret-keys \
+              | awk -F: '$1 == "sec" { primary = 1; next } primary && $1 == "fpr" { print toupper($10); primary = 0 }'
+          )
+          if [ "${#primary_fingerprints[@]}" -ne 1 ] || [ "${primary_fingerprints[0]}" != "$expected_fingerprint" ]; then
+            echo 'The signing key export must contain exactly one primary secret key matching LINUX_REPOSITORY_SIGNING_FINGERPRINT.' >&2
+            exit 1
+          fi
+
+          if ! gpg --batch --yes --no-tty --homedir "$signing_home" --export-options export-minimal --export "$expected_fingerprint" | gpg --batch --yes --no-tty --homedir "$trust_home" --import; then
+            echo 'The signing public key could not be imported into the isolated client trust home.' >&2
+            exit 1
+          fi
+          if [ "$has_next_public_key" = true ]; then
+            if ! printf '%s' "$LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY" | base64 --decode | gpg --batch --yes --no-tty --homedir "$trust_home" --import; then
+              echo 'LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY is not valid base64 OpenPGP public-key data.' >&2
+              exit 1
+            fi
+          fi
+          if gpg --batch --no-tty --homedir "$trust_home" --with-colons --list-secret-keys | grep -q '^sec:'; then
+            echo 'The client trust home must not contain any secret key material.' >&2
+            exit 1
+          fi
+          primary_fingerprints_for_home() {
+            gpg --batch --no-tty --homedir "$1" --with-colons --list-keys \
+              | awk -F: '$1 == "pub" { primary = 1; next } primary && $1 == "fpr" { print toupper($10); primary = 0 }'
+          }
+          mapfile -t trust_primary_fingerprints < <(primary_fingerprints_for_home "$trust_home" | LC_ALL=C sort)
+          trust_expected_fingerprints=("$expected_fingerprint")
+          if [ "$has_next_public_key" = true ]; then
+            trust_expected_fingerprints+=("$expected_next_fingerprint")
+          fi
+          mapfile -t trust_expected_fingerprints < <(printf '%s\n' "${trust_expected_fingerprints[@]}" | LC_ALL=C sort)
+          if [ "${#trust_primary_fingerprints[@]}" -ne "${#trust_expected_fingerprints[@]}" ]; then
+            echo 'The client trust home must contain exactly the active and optional next primary public keys.' >&2
+            exit 1
+          fi
+          for index in "${!trust_expected_fingerprints[@]}"; do
+            if [ "${trust_primary_fingerprints[$index]}" != "${trust_expected_fingerprints[$index]}" ]; then
+              echo 'The client trust home primary fingerprints do not match the declared active and optional next keys.' >&2
+              exit 1
+            fi
+          done
+          key_expiration_for_fingerprint() {
+            gpg --batch --no-tty --homedir "$trust_home" --with-colons --list-keys "$1" \
+              | awk -F: '$1 == "pub" { print $7; exit }'
+          }
+          key_validity_for_fingerprint() {
+            gpg --batch --no-tty --homedir "$trust_home" --with-colons --list-keys "$1" \
+              | awk -F: '$1 == "pub" { print $2; exit }'
+          }
+          minimum_remaining_seconds="$((30 * 24 * 60 * 60))"
+          minimum_expiration="$(( $(date +%s) + minimum_remaining_seconds ))"
+          active_expiration="$(key_expiration_for_fingerprint "$expected_fingerprint")"
+          next_expiration=''
+          for fingerprint in "${trust_expected_fingerprints[@]}"; do
+            validity="$(key_validity_for_fingerprint "$fingerprint")"
+            case "$validity" in
+              r|e|d|i)
+                echo 'Client trust keys must not be revoked, expired, disabled, or invalid.' >&2
+                exit 1
+                ;;
+            esac
+            expiration="$(key_expiration_for_fingerprint "$fingerprint")"
+            if [ "$fingerprint" = "$expected_next_fingerprint" ]; then
+              next_expiration="$expiration"
+            fi
+            if [ -z "$expiration" ] || [ "$expiration" = '0' ]; then
+              continue
+            fi
+            if ! [[ "$expiration" =~ ^[0-9]+$ ]] || [ "$expiration" -lt "$minimum_expiration" ]; then
+              echo 'Every expiring client trust key must have at least 30 days remaining.' >&2
+              exit 1
+            fi
+          done
+
+          pool_directory="$repository_root/pool/main/s/screen-hello"
+          release_directory="$repository_root/dists/screenhello-beta"
+          keyring="$repository_root/keyrings/screenhello-archive-keyring.gpg"
+          armored_keyring="$repository_root/keyrings/screenhello-archive-keyring.asc"
+          mkdir -p \
+            "$pool_directory" \
+            "$release_directory/main/binary-amd64" \
+            "$release_directory/main/binary-arm64" \
+            "$(dirname "$keyring")"
+          cp "$SCREENHELLO_LINUX_DEB_INPUT_AMD64" "$pool_directory/"
+          cp "$SCREENHELLO_LINUX_DEB_INPUT_ARM64" "$pool_directory/"
+          (
+            cd "$repository_root"
+            sha256sum \
+              "pool/main/s/screen-hello/$(basename "$SCREENHELLO_LINUX_DEB_INPUT_AMD64")" \
+              "pool/main/s/screen-hello/$(basename "$SCREENHELLO_LINUX_DEB_INPUT_ARM64")"
+          ) > "$repository_root/repository-input-SHA256SUMS.txt"
+
+          (
+            cd "$repository_root"
+            apt-ftparchive --arch amd64 packages pool/main > dists/screenhello-beta/main/binary-amd64/Packages
+            apt-ftparchive --arch arm64 packages pool/main > dists/screenhello-beta/main/binary-arm64/Packages
+            gzip -9n -c dists/screenhello-beta/main/binary-amd64/Packages > dists/screenhello-beta/main/binary-amd64/Packages.gz
+            gzip -9n -c dists/screenhello-beta/main/binary-arm64/Packages > dists/screenhello-beta/main/binary-arm64/Packages.gz
+          )
+          for package_architecture in amd64 arm64; do
+            packages="$release_directory/main/binary-$package_architecture/Packages"
+            grep -qx 'Package: screen-hello' "$packages"
+            grep -qx "Architecture: $package_architecture" "$packages"
+          done
+
+          valid_until="$(date --utc --date='+14 days' --rfc-email)"
+          (
+            cd "$repository_root"
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin=ScreenHello \
+              -o APT::FTPArchive::Release::Label=ScreenHello \
+              -o APT::FTPArchive::Release::Suite=screenhello-beta \
+              -o APT::FTPArchive::Release::Codename=screenhello-beta \
+              -o APT::FTPArchive::Release::Architectures='amd64 arm64' \
+              -o APT::FTPArchive::Release::Components=main \
+              -o APT::FTPArchive::Release::Description='ScreenHello beta repository candidate' \
+              -o "APT::FTPArchive::Release::Valid-Until=$valid_until" \
+              release dists/screenhello-beta > "$release_directory/Release"
+          )
+
+          gpg --batch --yes --no-tty --homedir "$signing_home" --pinentry-mode loopback --passphrase-fd 3 --local-user "$expected_fingerprint" --output "$release_directory/InRelease" --clearsign "$release_directory/Release" 3<<<"$LINUX_REPOSITORY_SIGNING_PASSPHRASE"
+          gpg --batch --yes --no-tty --homedir "$signing_home" --pinentry-mode loopback --passphrase-fd 3 --local-user "$expected_fingerprint" --armor --output "$release_directory/Release.gpg" --detach-sign "$release_directory/Release" 3<<<"$LINUX_REPOSITORY_SIGNING_PASSPHRASE"
+          gpg --batch --yes --no-tty --homedir "$trust_home" --export-options export-minimal --output "$keyring" --export "${trust_primary_fingerprints[@]}"
+          gpg --batch --yes --no-tty --homedir "$trust_home" --armor --export-options export-minimal --output "$armored_keyring" --export "${trust_primary_fingerprints[@]}"
+          test -s "$keyring"
+          test -s "$armored_keyring"
+          decoded_keyring="$armor_validation_home/screenhello-archive-keyring.gpg"
+          gpg --batch --yes --no-tty --homedir "$armor_validation_home" --dearmor --output "$decoded_keyring" "$armored_keyring"
+          cmp "$keyring" "$decoded_keyring"
+
+          verification_log="$RUNNER_TEMP/screenhello-linux-repository-gpgv-validation.txt"
+          gpgv --homedir "$verification_home" --keyring "$keyring" "$release_directory/InRelease" > "$verification_log" 2>&1
+          gpgv --homedir "$verification_home" --keyring "$keyring" "$release_directory/Release.gpg" "$release_directory/Release" >> "$verification_log" 2>&1
+
+          find "$repository_root" -type d -exec chmod 755 {} +
+          find "$repository_root" -type f -exec chmod 644 {} +
+          mkdir -p \
+            "$apt_root/etc/apt" \
+            "$apt_root/etc/apt/empty-sourceparts" \
+            "$apt_root/var/lib/dpkg" \
+            "$apt_root/var/lib/apt/lists/partial" \
+            "$apt_root/var/cache/apt/archives/partial"
+          : > "$apt_root/var/lib/dpkg/status"
+          printf 'deb [signed-by=%s] file:%s screenhello-beta main\n' "$keyring" "$repository_root" > "$apt_root/etc/apt/sources.list"
+          apt-get \
+            -o "Dir::Etc=$apt_root/etc/apt" \
+            -o Dir::Etc::sourcelist='sources.list' \
+            -o Dir::Etc::sourceparts='empty-sourceparts' \
+            -o "Dir::State=$apt_root/var/lib/apt" \
+            -o "Dir::State::status=$apt_root/var/lib/dpkg/status" \
+            -o "Dir::State::lists=$apt_root/var/lib/apt/lists" \
+            -o "Dir::Cache=$apt_root/var/cache/apt" \
+            -o "Dir::Cache::archives=$apt_root/var/cache/apt/archives" \
+            -o Acquire::Languages=none \
+            -o APT::Get::List-Cleanup=0 \
+            update
+          grep -R -qx 'Codename: screenhello-beta' "$apt_root/var/lib/apt/lists"
+
+          candidate_dir="$SCREENHELLO_LINUX_DEB_REPOSITORY_SIGNED_CANDIDATE_DIR"
+          rm -rf "$candidate_dir"
+          mkdir -p "$candidate_dir"
+          cp -a "$repository_root" "$candidate_dir/repository"
+          mkdir -p "$candidate_dir/client-trust"
+          cp "$keyring" "$armored_keyring" "$candidate_dir/client-trust/"
+          manifest_arguments=(
+            node scripts/linux-deb-key-lifecycle.mjs
+            --candidate-sha "$SCREENHELLO_RELEASE_CANDIDATE"
+            --active-fingerprint "$expected_fingerprint"
+            --output "$candidate_dir/client-trust/client-trust-manifest.json"
+          )
+          if [ -n "$active_expiration" ] && [ "$active_expiration" != '0' ]; then
+            manifest_arguments+=(--active-expires-at-unix "$active_expiration")
+          fi
+          if [ "$has_next_public_key" = true ]; then
+            manifest_arguments+=(--next-fingerprint "$expected_next_fingerprint")
+            if [ -n "$next_expiration" ] && [ "$next_expiration" != '0' ]; then
+              manifest_arguments+=(--next-expires-at-unix "$next_expiration")
+            fi
+          fi
+          "${manifest_arguments[@]}"
+          cat > "$candidate_dir/client-trust/ROTATION.md" <<'ROTATION'
+          # Candidate key rotation procedure
+
+          This internal artifact contains either the active public key alone or an active-and-next overlap. Distribute a verified current trust bundle to supported clients before changing the protected signing key. Keep the overlap for at least 30 days after the supported-client rollout, then retire the old key manually only after the rollout evidence is reviewed. This candidate has no public repository endpoint or user installation instructions.
+          ROTATION
+          cat > "$candidate_dir/client-trust/REVOCATION_RESPONSE.md" <<'REVOCATION'
+          # Candidate revocation response
+
+          If a signing key is suspected compromised, disable repository publication and any endpoint before recovery. Do not rely on a replacement bundle signed by the compromised key to establish trust. Use an independently verified out-of-band bootstrap path, retain the offline revocation certificate outside this artifact, and record a new candidate run before resuming publication. This candidate does not include a revocation certificate.
+          REVOCATION
+          mkdir -p "$candidate_dir/input-evidence/amd64" "$candidate_dir/input-evidence/arm64"
+          for package_architecture in amd64 arm64; do
+            cp \
+              "$RUNNER_TEMP/screenhello-linux-deb-input/$package_architecture/artifact-inspection.json" \
+              "$RUNNER_TEMP/screenhello-linux-deb-input/$package_architecture/cargo.cdx.json" \
+              "$RUNNER_TEMP/screenhello-linux-deb-input/$package_architecture/npm.cdx.json" \
+              "$RUNNER_TEMP/screenhello-linux-deb-input/$package_architecture/SHA256SUMS.txt" \
+              "$candidate_dir/input-evidence/$package_architecture/"
+          done
+          cp "$verification_log" "$candidate_dir/gpgv-validation.txt"
+          printf '%s\n' "$expected_fingerprint" > "$candidate_dir/KEY_FINGERPRINT.txt"
+          {
+            printf 'apt-ftparchive: '; apt-ftparchive --version | head -n 1
+            printf 'gpg: '; gpg --version | head -n 1
+            printf 'gpgv: '; gpgv --version | head -n 1
+            printf 'apt: '; apt-get --version | head -n 1
+          } > "$candidate_dir/toolchain.txt"
+          cat > "$candidate_dir/signing-validation.json" <<JSON
+          {
+            "schemaVersion": 1,
+            "repositorySigning": "openpgp-release-and-inrelease",
+            "suite": "screenhello-beta",
+            "component": "main",
+            "architectures": ["amd64", "arm64"],
+            "keyFingerprint": "$expected_fingerprint",
+            "gpgv": "passed",
+            "aptUpdate": "signed-by-keyring-passed",
+            "clientTrustBundle": "binary-and-armored-keyring-validated",
+            "clientTrustKeyState": "non-revoked-not-expired-not-disabled-not-invalid",
+            "keyRotation": "$rotation_state",
+            "revocation": "offline-certificate-and-out-of-band-bootstrap",
+            "publicRelease": false
+          }
+          JSON
+
+      - name: Generate signed candidate provenance attestation
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/linux-deb-repository-signed-candidate/repository/pool/main/s/screen-hello/*.deb
+            artifacts/linux-deb-repository-signed-candidate/repository/dists/screenhello-beta/Release
+            artifacts/linux-deb-repository-signed-candidate/repository/dists/screenhello-beta/InRelease
+            artifacts/linux-deb-repository-signed-candidate/repository/dists/screenhello-beta/Release.gpg
+            artifacts/linux-deb-repository-signed-candidate/client-trust/screenhello-archive-keyring.gpg
+            artifacts/linux-deb-repository-signed-candidate/client-trust/screenhello-archive-keyring.asc
+          show-summary: false
+
+      - name: Record signed candidate provenance attestation
+        env:
+          SCREENHELLO_PROVENANCE_ATTESTATION_ID: ${{ steps.provenance.outputs.attestation-id }}
+          SCREENHELLO_PROVENANCE_ATTESTATION_URL: ${{ steps.provenance.outputs.attestation-url }}
+          SCREENHELLO_PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          candidate_dir="$SCREENHELLO_LINUX_DEB_REPOSITORY_SIGNED_CANDIDATE_DIR"
+          node scripts/desktop-artifact-provenance.mjs \
+            --candidate-sha "$SCREENHELLO_RELEASE_CANDIDATE" \
+            --target linux-deb-repository \
+            --candidate-dir "$SCREENHELLO_LINUX_DEB_REPOSITORY_SIGNED_CANDIDATE_DIR" \
+            --subject "$candidate_dir/repository/pool/main/s/screen-hello/$(basename "$SCREENHELLO_LINUX_DEB_INPUT_AMD64")" \
+            --subject "$candidate_dir/repository/pool/main/s/screen-hello/$(basename "$SCREENHELLO_LINUX_DEB_INPUT_ARM64")" \
+            --subject "$candidate_dir/repository/dists/screenhello-beta/Release" \
+            --subject "$candidate_dir/repository/dists/screenhello-beta/InRelease" \
+            --subject "$candidate_dir/repository/dists/screenhello-beta/Release.gpg" \
+            --subject "$candidate_dir/client-trust/screenhello-archive-keyring.gpg" \
+            --subject "$candidate_dir/client-trust/screenhello-archive-keyring.asc" \
+            --attestation-id "$SCREENHELLO_PROVENANCE_ATTESTATION_ID" \
+            --attestation-url "$SCREENHELLO_PROVENANCE_ATTESTATION_URL" \
+            --bundle "$SCREENHELLO_PROVENANCE_BUNDLE" \
+            --runner-temp "$RUNNER_TEMP"
+
+      - name: Write signed candidate provenance verification plan
+        run: |
+          set -euo pipefail
+          node scripts/desktop-artifact-provenance-verification.mjs \
+            --write-plan \
+            --candidate-dir "$SCREENHELLO_LINUX_DEB_REPOSITORY_SIGNED_CANDIDATE_DIR"
+
+      - name: Write signed Linux DEB repository candidate checksums
+        run: |
+          set -euo pipefail
+          candidate_dir="$SCREENHELLO_LINUX_DEB_REPOSITORY_SIGNED_CANDIDATE_DIR"
+          (
+            cd "$candidate_dir"
+            find repository input-evidence client-trust -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum
+            sha256sum \
+              KEY_FINGERPRINT.txt \
+              gpgv-validation.txt \
+              provenance-attestation.bundle.json \
+              provenance-attestation.json \
+              provenance-verification-plan.json \
+              signing-validation.json \
+              toolchain.txt
+          ) > SHA256SUMS.txt
+
+      - name: Upload signed Linux DEB repository candidate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-deb-repository-signed-candidate-${{ github.sha }}-${{ github.run_attempt }}
+          path: artifacts/linux-deb-repository-signed-candidate/
+          if-no-files-found: warn
+          retention-days: 14
