@@ -284,6 +284,11 @@ jobs:
           bundle_count="$(printf '%s\n' "$bundle" | awk 'NF { count += 1 } END { print count + 0 }')"
           test "$bundle_count" -eq 1
           test -f "$bundle"
+          # Test-only extraction aid: keep the built package next to the evidence so
+          # the upload step still ships it when the fail-closed evidence step rejects
+          # this run. Has no effect on any audit result.
+          mkdir -p "artifacts/release/desktop-matrix/${{ matrix.target }}"
+          cp "$binary" "$bundle" "artifacts/release/desktop-matrix/${{ matrix.target }}/"
           echo "SCREENHELLO_DESKTOP_BINARY=$binary" >> "$GITHUB_ENV"
           echo "SCREENHELLO_DESKTOP_BUNDLE=$bundle" >> "$GITHUB_ENV"
 
@@ -348,3 +353,5 @@ jobs:
           path: artifacts/release/desktop-matrix/automatic-gate.json
           if-no-files-found: warn
           retention-days: 14
+
+# desktop gate trigger: macos-arm64 DMG smoke build (candidate 5d3d4f17c5798e2f847edc0b4679b314fd4b8277)
