@@ -51,7 +51,7 @@ jobs:
 
       - name: Check documentation types and generated content
         run: |
-          pnpm --dir docs check
+          pnpm --dir docs-site check
           pnpm check:docs-content
 
       - name: Unit tests

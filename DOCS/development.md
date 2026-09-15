@@ -20,8 +20,8 @@ pnpm dev
 | --- | --- | --- |
 | `pnpm dev` | 启动 Vite 开发服务器 | 无提交产物 |
 | `pnpm build` | Vite Web 构建自动重建 Fumadocs 文档站并合并 | `dist/`（含 `dist/docs/`） |
-| `pnpm build:docs` | 生成 MDX 后构建公开文档站（内容生成 + `astro build` + 后处理） | `docs/dist/` |
-| `pnpm --dir docs check` | 检查文档站 TypeScript/React 类型（不检查 Astro 模板） | 无 |
+| `pnpm build:docs` | 生成 MDX 后构建公开文档站（内容生成 + `astro build` + 后处理） | `docs-site/dist/` |
+| `pnpm --dir docs-site check` | 检查文档站 TypeScript/React 类型（不检查 Astro 模板） | 无 |
 | `pnpm check:docs-content` | 校验生成的 MDX 与 `site/content/*.json` 一致 | 无 |
 | `pnpm build:lib` | 构建 npm ES 模块 | `lib/` |
 | `pnpm typecheck` | 检查公共 JSDoc/TypeScript 边界 | 无 |
@@ -150,11 +150,11 @@ Tauri 输出的 ICNS 条目顺序不固定。生成后使用 `scripts/canonicali
 
 ### 公开文档站（Fumadocs）
 
-根 `pnpm dev` 会在启动时构建并提供文档快照，编辑器帮助链接可以直接使用。修改文档后可重启根开发服务，或使用 `pnpm --dir docs dev` 启动独立 Astro 开发服务；独立服务中修改 JSON 后执行 `pnpm --dir docs build:content` 更新 MDX。
+根 `pnpm dev` 会在启动时构建并提供文档快照，编辑器帮助链接可以直接使用。修改文档后可重启根开发服务，或使用 `pnpm --dir docs-site dev` 启动独立 Astro 开发服务；独立服务中修改 JSON 后执行 `pnpm --dir docs-site build:content` 更新 MDX。
 
-公开站位于 `docs/`（独立 Astro 应用），URL 为 `/docs/{locale}/{topic}/`。内容单一事实源仍是 `site/content/*.json`：`scripts/build-docs-content.mjs` 生成 `docs/content/docs/{locale}/{topic}.mdx` 与 `meta.json`；改动 JSON 后运行 `pnpm build:docs`，该命令先重新生成 MDX 再构建；`pnpm --dir docs build:content` 可单独生成内容。`pnpm check:docs-content` 只检查一致性，不写入文件；CI 在构建前执行该检查。不要手改生成的 MDX。
+公开站位于 `docs-site/`（独立 Astro 应用），URL 为 `/docs/{locale}/{topic}/`。内容单一事实源仍是 `site/content/*.json`：`scripts/build-docs-content.mjs` 生成 `docs-site/content/docs/{locale}/{topic}.mdx` 与 `meta.json`；改动 JSON 后运行 `pnpm build:docs`，该命令先重新生成 MDX 再构建；`pnpm --dir docs-site build:content` 可单独生成内容。`pnpm check:docs-content` 只检查一致性，不写入文件；CI 在构建前执行该检查。不要手改生成的 MDX。
 
-文档界面翻译来自各语言 JSON 的 `docsUi`。搜索索引从当前语言的生成正文构建并随页面传入 React island，查询完全在浏览器中执行，不依赖 `/api/search` 或外部服务。本页目录使用 Astro `render(entry)` 返回的 headings。入门截图放在 `docs/public/guide/`，使用当前应用的内置示例实拍；中文页面使用中文截图，其他语言使用英文截图并在图注说明。新增截图应核对实际控件与导出流程。
+文档界面翻译来自各语言 JSON 的 `docsUi`。搜索索引从当前语言的生成正文构建并随页面传入 React island，查询完全在浏览器中执行，不依赖 `/api/search` 或外部服务。本页目录使用 Astro `render(entry)` 返回的 headings。入门截图放在 `docs-site/public/guide/`，使用当前应用的内置示例实拍；中文页面使用中文截图，其他语言使用英文截图并在图注说明。新增截图应核对实际控件与导出流程。
 
 **内容结构：section 的可选第三元素。**`site/content/*.json` 仍是唯一事实源，每个 section 固定为 `[标题, 正文]`，可**追加**第三元素（子块数组），转换器据此生成 H3、GFM 表格与引用块：
 
@@ -168,13 +168,13 @@ sections[i][2] = [
 
 旧生成器只解构前两个元素，因此不加第三元素的数据照常工作。新增子块时注意：**技术事实（快捷键、像素上限、格式、倍率）在所有语种必须一致**，只翻译标签与措辞；`tests/unit/docsSite.test.js` 会比对 7 语种上限表的数字序列，防止某个语言写出不同的数值。本次扩充依据均为代码内既有事实（`src/hooks/useKeyboardShortcuts.js`、`src/stores/commandService.js`、`src/utils/exportSettings.js`、`src/utils/projectDocument.js`），不虚构产品能力。
 
-**信息架构与 URL 顺序解耦。** `DOCS_READING_ORDER`（`docs/src/lib/content.mjs`）定义侧栏主题顺序：指南 → 美化 → 外框 → 压缩 → 隐私；首页是落地页。侧栏显示主题名称，不带操作步骤编号；页尾只保留 Fumadocs 上一篇／下一篇。URL 顺序 `DOCS_TOPICS` 保持稳定，调整主题顺序不影响 slug 或 301。
+**信息架构与 URL 顺序解耦。** `DOCS_READING_ORDER`（`docs-site/src/lib/content.mjs`）定义侧栏主题顺序：指南 → 美化 → 外框 → 压缩 → 隐私；首页是落地页。侧栏显示主题名称，不带操作步骤编号；页尾只保留 Fumadocs 上一篇／下一篇。URL 顺序 `DOCS_TOPICS` 保持稳定，调整主题顺序不影响 slug 或 301。
 
-**不要启用 fumadocs 的 i18n。** 它的内容存储以 `{locale}.{slug}` 为键，`parser:'dir'` 无法从 `{locale}/{topic}.mdx` 目录布局剥离 locale；实测会得到 `/en/docs/en` 这类 URL、把所有页面判成 `en`，且在提供自定义 `url` 时仍忽略显式 `slugs`。因此 `docs/src/lib/source.ts` 显式接管路由（`url: slugs => /docs/...`）并按整段匹配 locale 生成侧边栏树；`DocsShell.tsx` 显式处理语言切换并保留当前主题。改路由时同时复核这两处。
+**不要启用 fumadocs 的 i18n。** 它的内容存储以 `{locale}.{slug}` 为键，`parser:'dir'` 无法从 `{locale}/{topic}.mdx` 目录布局剥离 locale；实测会得到 `/en/docs/en` 这类 URL、把所有页面判成 `en`，且在提供自定义 `url` 时仍忽略显式 `slugs`。因此 `docs-site/src/lib/source.ts` 显式接管路由（`url: slugs => /docs/...`）并按整段匹配 locale 生成侧边栏树；`DocsShell.tsx` 显式处理语言切换并保留当前主题。改路由时同时复核这两处。
 
-**CSP 不能退回 `unsafe-inline`。** Fumadocs 每页输出 3 个内联 `<script>`、2 个内联 `<style>` 与若干 `style="…"`。`docs/src/lib/csp.mjs` 为每个内联块算 SHA-256 并写进 `_headers`，`assertCovered()` 会在出现未覆盖内联块时让构建失败。升级 `fumadocs-core`/`fumadocs-ui`/`astro` 后必须重跑 `pnpm build:docs` 并确认 `unsafe-inline` 未出现。
+**CSP 不能退回 `unsafe-inline`。** Fumadocs 每页输出 3 个内联 `<script>`、2 个内联 `<style>` 与若干 `style="…"`。`docs-site/src/lib/csp.mjs` 为每个内联块算 SHA-256 并写进 `_headers`，`assertCovered()` 会在出现未覆盖内联块时让构建失败。升级 `fumadocs-core`/`fumadocs-ui`/`astro` 后必须重跑 `pnpm build:docs` 并确认 `unsafe-inline` 未出现。
 
-`docs/scripts/post-process.mjs` 是 `_headers`、`_redirects`、`sitemap.xml`、`robots.txt`、`llms.txt`、`404.html` 的唯一写出方（应用壳规则来自 `docs/src/lib/headers.mjs`）；`site/site.mjs` 只保留根级 sitemap/robots。旧 URL → 新 URL 的 301 由 `legacyRedirects()` 生成，新增主题时必须同步 `DOCS_TOPICS`，否则会留下死链。
+`docs-site/scripts/post-process.mjs` 是 `_headers`、`_redirects`、`sitemap.xml`、`robots.txt`、`llms.txt`、`404.html` 的唯一写出方（应用壳规则来自 `docs-site/src/lib/headers.mjs`）；`site/site.mjs` 只保留根级 sitemap/robots。旧 URL → 新 URL 的 301 由 `legacyRedirects()` 生成，新增主题时必须同步 `DOCS_TOPICS`，否则会留下死链。
 
 ### 导出压缩
 

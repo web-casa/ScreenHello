@@ -2,7 +2,7 @@
 
 ## 当前实现与地址
 
-2026-09-13 迁移更新：公开内容站由手写生成器改为 **Fumadocs 静态站**（`docs/`，Astro + Fumadocs），地址整体移到 `/docs/{locale}/{topic}/`；旧的 `/{locale}/{topic}/` 全部 301 到新地址（`_redirects` 共 126 条，覆盖无尾斜杠、目录形式与 `index.html` 形式）。发布后应核验这些旧地址的重定向；Sitemap 仍为 43 个地址（根 + 42 页）。
+2026-09-13 迁移更新：公开内容站由手写生成器改为 **Fumadocs 静态站**（`docs-site/`，Astro + Fumadocs），地址整体移到 `/docs/{locale}/{topic}/`；旧的 `/{locale}/{topic}/` 全部 301 到新地址（`_redirects` 共 126 条，覆盖无尾斜杠、目录形式与 `index.html` 形式）。发布后应核验这些旧地址的重定向；Sitemap 仍为 43 个地址（根 + 42 页）。
 
 根 `/` 保留原编辑器、安装入口和本地数据；没有迁移 IndexedDB、草稿或项目格式。欢迎页的“帮助”在新标签打开对应语言指南（`/docs/{locale}/guide/`），不丢弃当前编辑器。文档站只在 Web 构建启用，不进入 React library 或桌面产物。
 
@@ -12,7 +12,7 @@
 
 每页输出 Open Graph 与 Twitter 大图元数据，分享图使用同一份 1200×630 本地资源。七语内容源维护独立 `reviewed` 日期，页面正文显示该日期，WebPage JSON-LD 写入相同的 `dateModified`，sitemap 的 `lastmod` 也取自同一来源。日期只在正文、事实或链接发生有意义的复核后更新。每页正文末尾提供两个语境明确的相关主题链接，URL 使用相对路径，兼容根路径和子路径部署。
 
-内容仍以 [七语源目录](../site/content/) 的 JSON 为唯一事实源（每个 section 为 `[标题, 正文]`，并可追加 H3／表格／引用子块）：[转换器](../scripts/build-docs-content.mjs) 在构建期生成 MDX（`--check` 可检测漂移），[Fumadocs 应用](../docs/astro.config.mjs) 渲染静态页面，[构建后处理](../docs/scripts/post-process.mjs) 再注入 hreflang、JSON-LD 与 sitemap/robots/llms.txt/404/`_headers`/`_redirects`。没有远程字体、分析脚本或自动语言跳转。进入编辑器的显式 `?lang=` 参数只接受七种受支持语言；无参数或无效值保持既有本机偏好。URL 参数不携带文件名、原图或项目内容。
+内容仍以 [七语源目录](../site/content/) 的 JSON 为唯一事实源（每个 section 为 `[标题, 正文]`，并可追加 H3／表格／引用子块）：[转换器](../scripts/build-docs-content.mjs) 在构建期生成 MDX（`--check` 可检测漂移），[Fumadocs 应用](../docs-site/astro.config.mjs) 渲染静态页面，[构建后处理](../docs-site/scripts/post-process.mjs) 再注入 hreflang、JSON-LD 与 sitemap/robots/llms.txt/404/`_headers`/`_redirects`。没有远程字体、分析脚本或自动语言跳转。进入编辑器的显式 `?lang=` 参数只接受七种受支持语言；无参数或无效值保持既有本机偏好。URL 参数不携带文件名、原图或项目内容。
 
 **CSP**：Fumadocs 是客户端 React 应用，每页会输出 3 个内联 `<script>`（island loader、hydration runtime、主题初始化）、2 个内联 `<style>` 与若干 `style="…"` 属性。因此 `/docs/*` 不再沿用旧站的 `default-src 'none'; style-src 'self'`，改为**逐块 SHA-256 hash**（当前 3 + 2 + 10 个唯一 hash），**不使用 `unsafe-inline`**。后处理会校验每个页面的内联块都被 hash 覆盖，未覆盖即构建失败，避免依赖升级引入新内联内容后被浏览器静默拒绝。
 

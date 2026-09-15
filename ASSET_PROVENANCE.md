@@ -192,4 +192,4 @@ page is not a redistribution license.
 
 ## 文档操作截图（2026-09-13）
 
-`docs/public/guide/{zh-CN,en-US}-{editor,export}.png` 是本仓库当前 Web 编辑器的真实浏览器截图（1440×960），展示内置示例和标准 PNG 导出面板。图片中可见的内置示例及可选设备缩略图沿用其原有来源和许可，不因此获得新的素材授权。文档图注说明非中文页面使用英文界面截图；截图由 `GuideImage.astro` 本地加载，不请求第三方图片服务。
+`docs-site/public/guide/{zh-CN,en-US}-{editor,export}.png` 是本仓库当前 Web 编辑器的真实浏览器截图（1440×960），展示内置示例和标准 PNG 导出面板。图片中可见的内置示例及可选设备缩略图沿用其原有来源和许可，不因此获得新的素材授权。文档图注说明非中文页面使用英文界面截图；截图由 `GuideImage.astro` 本地加载，不请求第三方图片服务。

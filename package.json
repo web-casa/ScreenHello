@@ -93,7 +93,7 @@
     "preview": "vite preview",
     "prepublishOnly": "node scripts/release-not-configured.mjs",
     "release": "node scripts/release-not-configured.mjs",
-    "build:docs": "pnpm --dir docs build",
+    "build:docs": "pnpm --dir docs-site build",
     "check:docs-content": "node scripts/build-docs-content.mjs --check"
   },
   "files": [

@@ -230,7 +230,7 @@
     ],
     "directories": [
       "desktop",
-      "docs",
+      "docs-site",
       "patches",
       "public",
       "site",
@@ -252,10 +252,10 @@
     "PUBLIC_REPOSITORY.json"
   ],
   "allowedVisualAssets": [
-    "docs/public/guide/en-US-editor.png",
-    "docs/public/guide/en-US-export.png",
-    "docs/public/guide/zh-CN-editor.png",
-    "docs/public/guide/zh-CN-export.png",
+    "docs-site/public/guide/en-US-editor.png",
+    "docs-site/public/guide/en-US-export.png",
+    "docs-site/public/guide/zh-CN-editor.png",
+    "docs-site/public/guide/zh-CN-export.png",
     "public/apple-touch-icon.png",
     "public/favicon-96x96.png",
     "public/favicon.ico",

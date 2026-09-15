@@ -132,15 +132,15 @@ if (type === 'lib') {
     }
 }
 
-// 公开文档站由独立的 Astro + Fumadocs 应用生成（docs/），根应用只负责把它的
-// 产物并入同一个部署目录。docs/ 的构建后处理会写出含 hash CSP 的 _headers、
+// 公开文档站由独立的 Astro + Fumadocs 应用生成（docs-site/），根应用只负责把它的
+// 产物并入同一个部署目录。docs-site/ 的构建后处理会写出含 hash CSP 的 _headers、
 // _redirects、sitemap 等；这些文件只由那一侧产出，根应用不再重复生成。
 const docsSitePlugin = () => {
-    const docsDist = resolve('./docs/dist');
+    const docsDist = resolve('./docs-site/dist');
     let outDir;
     let isBuild = false;
     const buildDocs = () => {
-        execFileSync('pnpm', ['--dir', resolve('./docs'), 'build'], {
+        execFileSync('pnpm', ['--dir', resolve('./docs-site'), 'build'], {
             stdio: 'inherit',
             shell: process.platform === 'win32',
             env: { ...process.env, SCREENHELLO_BASE_PATH: webBase },
@@ -205,7 +205,7 @@ export default defineConfig({
             // Test reports, screenshots and build output are written while the
             // E2E dev server is alive. They are not source modules; watching
             // them can send an HMR reload into a page that is still booting.
-            ignored: ['**/src-tauri/**', '**/artifacts/**', '**/test-results/**', '**/docs/dist/**', '**/dist/**', '**/lib/**'],
+            ignored: ['**/src-tauri/**', '**/artifacts/**', '**/test-results/**', '**/docs-site/dist/**', '**/dist/**', '**/lib/**'],
         },
         ...(desktopMode ? {
             port: 1420,

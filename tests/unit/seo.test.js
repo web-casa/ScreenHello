@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { createSiteArtifacts, escapeHtml, jsonLd, loadSiteContent, pagePath, renderRootSeo, renderSitePage, SITE_LANGUAGES, SITE_TOPICS, siteOptions } from '../../site/site.mjs';
 import { createPwaOptions, isCorePrecacheEntry } from '../../config/pwaConfig.js';
 import { entryLocale, publicGuidePath } from '../../src/utils/publicSite.js';
-import { appShellHeaders, renderHeaders } from '../../docs/src/lib/headers.mjs';
-import { DOCS_BASE_PATH, docsPagePath, legacyRedirects } from '../../docs/src/lib/content.mjs';
+import { appShellHeaders, renderHeaders } from '../../docs-site/src/lib/headers.mjs';
+import { DOCS_BASE_PATH, docsPagePath, legacyRedirects } from '../../docs-site/src/lib/content.mjs';
 
 describe('SEO content contract', () => {
     const catalog = loadSiteContent();
@@ -70,7 +70,7 @@ describe('SEO content contract', () => {
         expect(html.match(/<h1>/g)).toHaveLength(1);
     });
     it.each(['/', '/tools/screenhello/'])('revalidates PWA entrypoints and keeps Pages aliases nonindexable under %s', base => {
-        // _headers 由 docs 站后处理统一写出（docs/src/lib/headers.mjs），
+        // _headers 由 docs-site 站后处理统一写出（docs-site/src/lib/headers.mjs），
         // 这里校验同一份规则源，避免两处各写一份而互相覆盖。
         for (const indexable of [true, false]) {
             const headers = renderHeaders(appShellHeaders({ base, indexable }));

@@ -135,9 +135,9 @@ export function renderRootSeo(html, options, catalog) {
         .replace('<!-- SCREENHELLO_SEO_FALLBACK -->', fallback);
 }
 
-/* 页面本身由 docs/（Fumadocs + Astro）生成，因此这里只负责与页面渲染无关的
+/* 页面本身由 docs-site/（Fumadocs + Astro）生成，因此这里只负责与页面渲染无关的
    根级产物；/docs/* 的 _headers、_redirects、sitemap、robots、llms.txt、404
-   统一由 docs/scripts/post-process.mjs 写入，避免两处各自覆盖同一文件。
+   统一由 docs-site/scripts/post-process.mjs 写入，避免两处各自覆盖同一文件。
    sitemap 仍覆盖全部 43 个公开 URL（根 + 42 个主题页）。 */
 export function createSiteArtifacts(input = {}) {
     const options = siteOptions(input);

@@ -1,13 +1,13 @@
 /* 把 site/content/{locale}.json 的 7 语种 × 6 主题转换为 Fumadocs 的 MDX 内容。
-   JSON 仍是唯一事实源：docs/ 应用只消费生成结果，不反向修改。
+   JSON 仍是唯一事实源：docs-site/ 应用只消费生成结果，不反向修改。
    `--check` 只校验产物是否与 JSON 一致，不写文件。 */
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DOCS_READING_ORDER } from '../docs/src/lib/content.mjs';
+import { DOCS_READING_ORDER } from '../docs-site/src/lib/content.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-export const contentDirectory = path.join(root, 'docs', 'content', 'docs');
+export const contentDirectory = path.join(root, 'docs-site', 'content', 'docs');
 
 // 与 site.mjs 的 SITE_TOPICS 对齐：'' 是首页，其余按 labels 顺序。
 const TOPICS = ['', 'beautify', 'frames', 'compression', 'guide', 'privacy'];
@@ -120,7 +120,7 @@ export async function buildDocsContent() {
         }
         for (const [index, topic] of TOPICS.entries()) {
             // 目录布局 {locale}/{topic}.mdx：与 site/content/*.json 结构直接对应，
-            // docs/src/lib/source.ts 依此显式构建路由与侧边栏树。
+            // docs-site/src/lib/source.ts 依此显式构建路由与侧边栏树。
             files.set(path.posix.join(locale, `${topic || 'index'}.mdx`), renderPage(catalog, index));
         }
         files.set(path.posix.join(locale, 'meta.json'), renderMeta(catalog));

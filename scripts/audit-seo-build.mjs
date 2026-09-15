@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { createSiteArtifacts, SITE_LANGUAGES, SITE_TOPICS } from '../site/site.mjs';
-import { docsPagePath, legacyRedirects } from '../docs/src/lib/content.mjs';
+import { docsPagePath, legacyRedirects } from '../docs-site/src/lib/content.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const output = path.resolve(root, process.env.SCREENHELLO_SEO_OUT_DIR || 'dist');
@@ -16,7 +16,7 @@ const check = (condition, code) => { if (!condition) failures.push(code); };
 const read = filename => readFile(path.join(output, filename), 'utf8');
 const attributes = (html, name) => [...html.matchAll(new RegExp(`\\b${name}="([^"]*)"`, 'g'))].map(match => match[1].replaceAll('&amp;', '&'));
 let pageBytes = 0;
-// 页面由 docs/（Fumadocs + Astro）生成：docs/{locale}/{topic}/index.html。
+// 页面由 docs-site/（Fumadocs + Astro）生成：/docs/{locale}/{topic}/index.html。
 // site.artifacts 只含根级文件（sitemap/robots），因此这里直接扫描 dist/docs。
 const headers = await read('_headers');
 const docsRule = headers.split('\n\n').find(block => block.startsWith(`${site.options.base}docs/*`)) ?? '';

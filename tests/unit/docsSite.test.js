@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
     assertCovered, buildDocsCsp, cspHash, extractInlineBlocks,
-} from '../../docs/src/lib/csp.mjs';
-import { appShellHeaders, renderHeaders, renderRedirects } from '../../docs/src/lib/headers.mjs';
+} from '../../docs-site/src/lib/csp.mjs';
+import { appShellHeaders, renderHeaders, renderRedirects } from '../../docs-site/src/lib/headers.mjs';
 import {
     DOCS_BASE_PATH, DOCS_LOCALES, DOCS_READING_ORDER, DOCS_TOPICS,
     docsPagePath, docsUrls, legacyRedirects,
-} from '../../docs/src/lib/content.mjs';
+} from '../../docs-site/src/lib/content.mjs';
 
 const distHeaders = new URL('../../dist/_headers', import.meta.url);
 const docsDist = new URL('../../dist/docs/', import.meta.url);
@@ -90,7 +90,7 @@ describe('docs CSP hash contract', () => {
     });
 
     it('ships a self-hosted-only visual system', () => {
-        const css = readFileSync(new URL('../../docs/src/styles/global.css', import.meta.url), 'utf8');
+        const css = readFileSync(new URL('../../docs-site/src/styles/global.css', import.meta.url), 'utf8');
         // 产品主张"本地优先、不上传"：站点不得请求字体 CDN。
         expect(css).not.toMatch(/fonts\.googleapis|fonts\.gstatic|@import\s+url\(/);
         expect(css).not.toContain('@font-face');
@@ -153,7 +153,7 @@ describe('docs CSP hash contract', () => {
     });
 
     it('renders sub-blocks as real heading levels, tables and quotes', () => {
-        const mdx = readFileSync(new URL('../../docs/content/docs/en/compression.mdx', import.meta.url), 'utf8');
+        const mdx = readFileSync(new URL('../../docs-site/content/docs/en/compression.mdx', import.meta.url), 'utf8');
         // H1 由 DocsPage 渲染，正文从 H2 起，子小节下探到 H3。
         expect(mdx).toContain('\n## ');
         expect(mdx).toContain('\n### ');
@@ -164,7 +164,7 @@ describe('docs CSP hash contract', () => {
     });
 
     it('adds contextual related links with deployment-safe relative URLs', () => {
-        const mdx = readFileSync(new URL('../../docs/content/docs/en/guide.mdx', import.meta.url), 'utf8');
+        const mdx = readFileSync(new URL('../../docs-site/content/docs/en/guide.mdx', import.meta.url), 'utf8');
         expect(mdx).toContain('\n## Keep exploring\n');
         expect(mdx).toContain('[Screenshot beautification: backgrounds, padding and shadows](../beautify/)');
         expect(mdx).toContain('[PNG, JPG and WebP compression and export guide](../compression/)');

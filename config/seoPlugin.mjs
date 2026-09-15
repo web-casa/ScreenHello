@@ -2,11 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { URL } from 'node:url';
 import { createSiteArtifacts, renderRootSeo } from '../site/site.mjs';
-import { legacyRedirects } from '../docs/src/lib/content.mjs';
+import { legacyRedirects } from '../docs-site/src/lib/content.mjs';
 
 /* 公开站分两部分：
  *   - 编辑器壳（根 `/`）由本插件注入 SEO head 与 noscript 回退；
- *   - 文档站（`/docs/*`）由 docs/（Fumadocs + Astro）在根构建前生成，
+ *   - 文档站（`/docs/*`）由 docs-site/（Fumadocs + Astro）在根构建前生成，
  *     `vite.config.js` 的 docsSitePlugin 把产物并进 dist。
  * 因此这里不再生成任何内容页，只保留根级 SEO 与旧 URL 的 301。
  * `/docs/*` 必须放行给 Vite 静态服务，否则预览会把真实产物当成未知路由返回 404。 */
