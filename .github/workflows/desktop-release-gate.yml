@@ -348,3 +348,5 @@ jobs:
           path: artifacts/release/desktop-matrix/automatic-gate.json
           if-no-files-found: warn
           retention-days: 14
+
+# desktop gate trigger: macos-arm64 DMG smoke build (candidate 5d3d4f17c5798e2f847edc0b4679b314fd4b8277)
