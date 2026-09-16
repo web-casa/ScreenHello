@@ -140,3 +140,6 @@ Phase 24 解决的是“私有候选提交与公开 GitHub Release 目标不在�
 用户提供的新 001～003 截图显示静态 CSS 修复不完整。本轮按 Tauri 实際打包路径复现出 style CSP nonce 与 unsafe-inline 的冲突，导致 CSS-in-JS 主题变量被阻止，表现为黑字、透明菜单/抽屉和层级穿透。上轮把 StyleProvider layer 与所有组件 zeroRuntime 等同的结论已纠正。
 
 修复 HTML 内联启动样式，保留安全配置；新增生产 CSP 三引擎、深浅主题 UI 验证和原生表面样式检查，并接入 macOS DMG 构建。详见[审计更正](./desktop-ui-regression-audit-2026-09-16.md)。已通过 lint/typecheck、相关 60 项 unit、站点/库/桌面构建、PWA/文档检查、生产 CSP 三引擎深浅主题测试和 Linux 原生表面样式检查。consumer 开发 15+3 项分批通过，预览 18 项通过；首轮有三项进程崩溃，原样记录于审计文档。
+
+
+补充构建环境记录：候选 `dcf9e45` 在 macOS 14 上完成签名构建，但新增 UI Gate 在 Playwright page 创建阶段报 `Unknown setting: PushAPIEnabled`；该平台被 Playwright 1.62.1 固定到旧 WebKit revision 2251，未执行产品交互断言，未上传 DMG。公开 DMG 工作流改用 macOS 15 ARM64，使其使用当前 WebKit revision，并将 UI Gate 前移至签名前；失败时保留诊断 artifact。此变更是测试 runner 更新，不表示应用最低系统版本或真实用户系统验收发生变化。

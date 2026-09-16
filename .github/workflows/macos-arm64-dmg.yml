@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     if: github.repository_id == '1353846676' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build/macos-arm64-dmg-20260916')
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 120
     defaults:
       run:
@@ -50,6 +50,11 @@ jobs:
           rustup default 1.96.0
           rustup target add aarch64-apple-darwin
           pnpm install --frozen-lockfile --strict-peer-dependencies
+      - name: Verify production desktop overlays under effective CSP
+        run: |
+          pnpm desktop:web:build
+          pnpm exec playwright install webkit
+          pnpm desktop:test:ui --project webkit
       - name: Check source and native tests
         run: |
           set -euo pipefail
@@ -123,10 +128,6 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: pnpm exec tauri build --ci --target aarch64-apple-darwin --bundles dmg --config src-tauri/tauri.phase9.conf.json -- --locked
-      - name: Verify production desktop overlays under effective CSP
-        run: |
-          pnpm exec playwright install webkit
-          pnpm desktop:test:ui --project webkit
       - name: Verify final package and write checksums
         run: |
           set -euo pipefail
@@ -192,6 +193,14 @@ jobs:
             "${SCREENHELLO_SIGNING_DEFAULT_KEYCHAIN:-}" \
             "${SCREENHELLO_SIGNING_KEYCHAIN_LIST:-}"
 
+      - name: Upload UI diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-ui-failure-${{ github.sha }}
+          path: artifacts/desktop-ui/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Upload verified DMG
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
