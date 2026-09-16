@@ -29,6 +29,17 @@ async function withPackagedCsp(page) {
 
 async function opaqueSurface(locator) {
     await expect(locator).toBeVisible();
+    await expect.poll(() => locator.page().evaluate(() => document.getAnimations().filter(animation => (
+        animation.playState === 'running' && animation.effect?.getComputedTiming().iterations !== Infinity
+    )).length)).toBe(0);
+    await locator.page().evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    // Playwright visibility does not reject opacity:0 ancestors during entry.
+    await expect.poll(() => locator.evaluate(node => {
+        for (let ancestor = node; ancestor; ancestor = ancestor.parentElement) {
+            if (Number(getComputedStyle(ancestor).opacity) < 0.99) return false;
+        }
+        return true;
+    })).toBe(true);
     await expect.poll(() => locator.evaluate(node => {
         const css = getComputedStyle(node);
         return css.backgroundColor !== 'rgba(0, 0, 0, 0)' && css.backgroundColor !== 'transparent';
