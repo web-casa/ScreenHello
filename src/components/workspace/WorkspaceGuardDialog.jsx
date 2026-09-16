@@ -46,11 +46,11 @@ export default observer(function WorkspaceGuardDialog() {
             focusable={{ focusTriggerAfterClose: false }}
             footer={[
                 <Button key="cancel" disabled={guard.busy} onClick={() => { void stores.commands.resolveWorkspaceGuard('cancel'); }}>{t("取消")}</Button>,
-                <Button key="discard" danger disabled={guard.busy} onClick={() => { void stores.commands.resolveWorkspaceGuard('discard'); }}>{t("不保存并继续")}</Button>,
-                <Button key="save" type="primary" loading={guard.busy} disabled={!canSave} onClick={() => { void stores.commands.resolveWorkspaceGuard('save'); }}>{t("保存项目并继续")}</Button>,
+                <Button key="discard" danger disabled={guard.busy} onClick={() => { void stores.commands.resolveWorkspaceGuard('discard'); }}>{guard.kind === 'exit' ? t('不保存并退出') : t("不保存并继续")}</Button>,
+                <Button key="save" type="primary" loading={guard.busy} disabled={!canSave} onClick={() => { void stores.commands.resolveWorkspaceGuard('save'); }}>{guard.kind === 'exit' ? t('保存项目并退出') : t("保存项目并继续")}</Button>,
             ]}
         >
-            <p>{t("此操作会替换当前编辑内容。自动草稿和项目文件是两份独立的本地保存。")}</p>
+            <p>{guard.kind === 'exit' ? t('退出前可保存项目文件；取消会返回编辑器。') : t("此操作会替换当前编辑内容。自动草稿和项目文件是两份独立的本地保存。")}</p>
             {guard.error ? <p role="status" aria-live="polite" className="text-red-500">{guard.error}</p> : null}
         </Modal>
     );

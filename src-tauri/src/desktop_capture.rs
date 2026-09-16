@@ -612,6 +612,32 @@ fn capture_primary() -> Result<Vec<u8>, String> {
     )
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CaptureWindowRestore {
+    None,
+    Show,
+    Focus,
+}
+
+impl CaptureWindowRestore {
+    fn for_state(visible: bool, minimized: bool, focused: bool) -> Self {
+        if !visible || minimized {
+            Self::None
+        } else if focused {
+            Self::Focus
+        } else {
+            Self::Show
+        }
+    }
+}
+
+fn finish_capture<T>(capture: Result<T, String>, restore: Result<(), String>) -> Result<T, String> {
+    // Always attempt restoration first, but preserve the original capture error.
+    let value = capture?;
+    restore?;
+    Ok(value)
+}
+
 async fn capture_while_hidden<R, F>(
     window: WebviewWindow<R>,
     capture: F,
@@ -620,22 +646,34 @@ where
     R: Runtime,
     F: FnOnce() -> Result<Vec<u8>, String> + Send + 'static,
 {
-    window
-        .hide()
-        .map_err(|_| error_code("desktop-capture-window-unavailable"))?;
+    let window_error = |_| error_code("desktop-capture-window-unavailable");
+    let restore = CaptureWindowRestore::for_state(
+        window.is_visible().map_err(window_error)?,
+        window.is_minimized().map_err(window_error)?,
+        window.is_focused().map_err(window_error)?,
+    );
+    if restore != CaptureWindowRestore::None {
+        window.hide().map_err(window_error)?;
+    }
     let result = tauri::async_runtime::spawn_blocking(move || {
-        std::thread::sleep(Duration::from_millis(CAPTURE_SETTLE_MILLIS));
+        if restore != CaptureWindowRestore::None {
+            std::thread::sleep(Duration::from_millis(CAPTURE_SETTLE_MILLIS));
+        }
         capture()
     })
     .await
-    .map_err(|_| error_code("desktop-capture-failed"));
-    let restore_result = window
-        .unminimize()
-        .and_then(|_| window.show())
-        .and_then(|_| window.set_focus())
-        .map_err(|_| error_code("desktop-capture-window-restore-failed"));
-    let bytes = result??;
-    restore_result?;
+    .map_err(|_| error_code("desktop-capture-failed"))
+    .and_then(|result| result);
+    // Do not surface a hidden/minimized window. Only explicitly request focus
+    // if originally focused; show() itself may activate on some platforms.
+    // Tray/shortcut entry points intentionally show the editor before dispatch.
+    let restore_result = match restore {
+        CaptureWindowRestore::None => Ok(()),
+        CaptureWindowRestore::Show => window.show(),
+        CaptureWindowRestore::Focus => window.show().and_then(|_| window.set_focus()),
+    }
+    .map_err(|_| error_code("desktop-capture-window-restore-failed"));
+    let bytes = finish_capture(result, restore_result)?;
     Ok(Response::new(bytes))
 }
 
@@ -745,6 +783,51 @@ pub(crate) fn desktop_release_capture_sources<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn capture_restoration_preserves_visibility_and_focus_intent() {
+        for focused in [false, true] {
+            assert_eq!(
+                CaptureWindowRestore::for_state(false, false, focused),
+                CaptureWindowRestore::None
+            );
+            assert_eq!(
+                CaptureWindowRestore::for_state(true, true, focused),
+                CaptureWindowRestore::None
+            );
+            assert_eq!(
+                CaptureWindowRestore::for_state(false, true, focused),
+                CaptureWindowRestore::None
+            );
+        }
+        assert_eq!(
+            CaptureWindowRestore::for_state(true, false, false),
+            CaptureWindowRestore::Show
+        );
+        assert_eq!(
+            CaptureWindowRestore::for_state(true, false, true),
+            CaptureWindowRestore::Focus
+        );
+    }
+
+    #[test]
+    fn capture_error_takes_precedence_over_restore_failure() {
+        let capture_error = error_code("desktop-capture-failed");
+        let restore_error = error_code("desktop-capture-window-restore-failed");
+        assert_eq!(finish_capture(Ok(7), Ok(())), Ok(7));
+        assert_eq!(
+            finish_capture(Ok(7), Err(restore_error.clone())),
+            Err(restore_error.clone())
+        );
+        assert_eq!(
+            finish_capture::<u8>(Err(capture_error.clone()), Ok(())),
+            Err(capture_error.clone())
+        );
+        assert_eq!(
+            finish_capture::<u8>(Err(capture_error.clone()), Err(restore_error)),
+            Err(capture_error)
+        );
+    }
 
     #[test]
     fn primary_intent_is_native_owned_short_lived_and_single_use() {

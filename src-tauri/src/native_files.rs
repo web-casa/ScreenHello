@@ -293,6 +293,9 @@ fn save_spec(kind: SaveKind) -> (&'static str, &'static str, &'static [&'static 
 
 fn sanitize_suggested_name(value: &str, kind: SaveKind) -> String {
     let (_, _, extensions) = save_spec(kind);
+    // Suggested names can originate on another OS; recognize both separators.
+    // This only changes the dialog suggestion, never the user-selected path.
+    let value = value.rsplit(['/', '\\']).next().unwrap_or_default();
     let mut name: String = value
         .chars()
         .map(|character| {
@@ -634,7 +637,7 @@ mod tests {
     fn suggested_names_cannot_supply_paths_or_wrong_extensions() {
         assert_eq!(
             sanitize_suggested_name("../../secret.txt", SaveKind::Project),
-            "_.._secret.txt.screenhello"
+            "secret.txt.screenhello"
         );
         assert_eq!(
             sanitize_suggested_name("capture.JPEG", SaveKind::ImageJpeg),
@@ -644,6 +647,60 @@ mod tests {
             ensure_save_extension(PathBuf::from("capture.exe"), SaveKind::ImagePng),
             PathBuf::from("capture.exe.png")
         );
+    }
+
+    #[test]
+    fn suggested_names_handle_foreign_paths_empty_names_and_unicode() {
+        for (input, expected) in [
+            (r"C:\exports\截图.PNG", "截图.PNG"),
+            (r"..\folder/mixed\capture", "capture.png"),
+            ("/tmp/", "ScreenHello.png"),
+            ("..", "ScreenHello.png"),
+            ("", "ScreenHello.png"),
+            ("/tmp/截图?.png", "截图_.png"),
+            ("capture\n.png", "capture_.png"),
+        ] {
+            assert_eq!(sanitize_suggested_name(input, SaveKind::ImagePng), expected);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_parent_preserves_create_new_and_confirmed_replace_policies() {
+        use std::os::unix::fs::symlink;
+        let directory = tempfile::tempdir().unwrap();
+        let real_parent = directory.path().join("real");
+        let alias = directory.path().join("alias");
+        fs::create_dir(&real_parent).unwrap();
+        symlink(&real_parent, &alias).unwrap();
+        let destination = alias.join("capture.png");
+        write_atomic(&destination, b"first", WritePolicy::CreateNew).unwrap();
+        assert_eq!(
+            write_atomic(&destination, b"second", WritePolicy::CreateNew).unwrap_err(),
+            "native-file-exists"
+        );
+        assert_eq!(fs::read(real_parent.join("capture.png")).unwrap(), b"first");
+        write_atomic(&destination, b"confirmed", WritePolicy::ReplaceConfirmed).unwrap();
+        assert_eq!(
+            fs::read(real_parent.join("capture.png")).unwrap(),
+            b"confirmed"
+        );
+        assert_eq!(fs::read_dir(&real_parent).unwrap().count(), 1);
+
+        let file = directory.path().join("file");
+        fs::write(&file, b"keep").unwrap();
+        let invalid_parent = directory.path().join("file-alias");
+        symlink(&file, &invalid_parent).unwrap();
+        assert_eq!(
+            write_atomic(
+                &invalid_parent.join("capture.png"),
+                b"new",
+                WritePolicy::CreateNew
+            )
+            .unwrap_err(),
+            "native-file-parent-invalid"
+        );
+        assert_eq!(fs::read(&file).unwrap(), b"keep");
     }
 
     #[test]

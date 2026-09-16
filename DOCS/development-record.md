@@ -1,8 +1,16 @@
 # 开发总记录
 
-> 最后更新：2026-09-16。本页汇总本地开发过程、代码 review、验证证据和仍未完成的外部条件。它是导航与交接记录；每个阶段的实现细节、输入输出和历史证据以链接的专题文档为准。
+> 最后更新：2026-09-17。本页汇总本地开发过程、代码 review、验证证据和仍未完成的外部条件。它是导航与交接记录；每个阶段的实现细节、输入输出和历史证据以链接的专题文档为准。
+
+## 2026-09-17：桌面审阅核实与修复
+
+核实外部 review 后，保留已有 active、版本一致性和签名配置护栏；修复截图函数无条件恢复窗口的问题，改善跨平台建议文件名，补充语言 owner 隔离、符号链接目录写入及 Rust/JS 常量一致性测试。同步桌面审计中构建命令和隐私域名分类的旧断言。
+
+复核依赖源码发现 macOS 的 show 自身可能激活窗口，因此不承诺省略 set_focus 即能跨平台无焦点切换；release panic=abort 也不在异常后恢复保证内。本轮实现、验证结果和真机缺口见[桌面 review 修复记录](./desktop-review-fixes-2026-09-17.md)。本轮没有提交推送或生成新 DMG。
 
 ## 当前结论
+
+2026-09-17 追加项目审阅后，已修复保存期间 dirty 误清、原生退出缺少 guard、预设请求乱序/跨项目污染及选择器晚返回 token 泄漏。复核补充了打开项目缓存、保存预设快照和保存期间继续编辑时禁止退出的保护；将临时复现转为永久回归测试，并新增原生关闭窗口测试探针。开发过程、最终验证结果与真机缺口见[项目审阅记录](./project-review-2026-09-17.md)。未提交推送或生成新 DMG。
 
 当前工作树已具备 Web 编辑器、公开文档站、SEO/GEO、PWA 边界和跨平台桌面发布链的本地实现；桌面发布契约推进至 Phase 24。代码美化卡片和 GIF 仍未实现。代码与本地验证均不能替代真实签名候选、平台安装验收、受保护 GitHub Environment 或公开发布。
 
@@ -143,3 +151,13 @@ Phase 24 解决的是“私有候选提交与公开 GitHub Release 目标不在�
 
 
 补充构建环境记录：候选 `dcf9e45` 在 macOS 14 上完成签名构建，但新增 UI Gate 在 Playwright page 创建阶段报 `Unknown setting: PushAPIEnabled`；该平台被 Playwright 1.62.1 固定到旧 WebKit revision 2251，未执行产品交互断言，未上传 DMG。公开 DMG 工作流改用 macOS 15 ARM64，使其使用当前 WebKit revision，并将 UI Gate 前移至签名前；失败时保留诊断 artifact。此变更是测试 runner 更新，不表示应用最低系统版本或真实用户系统验收发生变化。
+
+
+### CSP 修复版 DMG 交付（2026-09-16）
+
+- 公开候选提交 `9d5bc6a9f756145576fb006984fd6e963ef7a9fd`；[run 35060829009](https://github.com/web-casa/ScreenHello/actions/runs/35060829009) 成功；[下载 artifact 10432492990](https://github.com/web-casa/ScreenHello/actions/runs/35060829009/artifacts/10432492990)，到期 2026-10-16 05:56:39 UTC。
+- 文件 `ScreenHello_1.0.4_aarch64.dmg`，约 8 MiB；这是新产物，不能与上一份相同版本文件名的 DMG 混用。SHA-256 `91b5ced5d96d72c72517771485c90108e9965b808469b3f337e19ee90fa1105e`，本地下载复核通过。
+- macOS 15 ARM64 runner：生产 CSP 深浅主题 WebKit 2 项通过（28.5 秒）；unit 76 文件、1,220 项通过、5 项跳过；Rust 31 项通过；lint/typecheck、签名、公证、staple、Gatekeeper、ARM64 检查均通过。
+- 应用公证 ID `0064491c-26f0-4b01-bacf-455fcc66f33e`；DMG 公证 ID `80fe0185-de7e-4ae1-994c-1af016fbd13a`，均 Accepted。
+- 本地三引擎深浅主题最终 6 项通过，包括入场动画结束、祖先透明度、实际遮挡与 960×640 操作区检查；Linux 原生表面检查通过。
+- 仍未执行用户 Mac 上真实安装后的完整 GUI/权限验收，不宣称桌面所有功能已验收。PR #10 尚未合并；独立 Linux CI 的图标像素测试默认 5 秒超时和旧六平台 Gate 首次引入问题仍保留原始失败状态，未绕过合并保护。未创建 Release。

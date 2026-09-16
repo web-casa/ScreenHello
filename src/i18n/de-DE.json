@@ -1,4 +1,9 @@
 {
+  "不保存并退出": "Ohne Speichern beenden",
+  "保存项目并退出": "Projekt speichern und beenden",
+  "退出前可保存项目文件；取消会返回编辑器。": "Speichern Sie Ihr Projekt vor dem Beenden oder kehren Sie mit Abbrechen zum Editor zurück.",
+  "退出 ScreenHello": "ScreenHello beenden",
+  "保存期间内容发生变化，请再次保存或取消。": "Das Projekt wurde während des Speicherns geändert. Bitte erneut speichern oder abbrechen.",
   "AVIF 仅提供标准导出，不提供压缩预览或质量调节。旧压缩设置将使用标准导出，格式和倍率不变。": "AVIF bietet nur den Standardexport, ohne Komprimierungsvorschau oder Qualitätsregler. Bisherige Komprimierungseinstellungen werden als Standardexport mit gleichem Format und Maßstab verwendet.",
   "正在检查 AVIF 预览能力；你仍可直接下载。": "AVIF-Vorschau wird geprüft; direktes Herunterladen ist weiterhin möglich.",
   "当前浏览器无法预览 AVIF，但仍可直接下载 AVIF 文件。需要预览时，请选择 PNG、JPG 或 WebP。": "Die AVIF-Vorschau ist in diesem Browser nicht verfügbar. AVIF-Dateien können weiterhin heruntergeladen werden. Für eine Vorschau wählen Sie PNG, JPG oder WebP.",

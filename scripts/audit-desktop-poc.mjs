@@ -19,6 +19,7 @@ const captureSource = await read('src-tauri/src/desktop_capture.rs');
 const desktopStateSource = await read('src-tauri/src/desktop_state.rs');
 const systemSource = await read('src-tauri/src/desktop_system.rs');
 const localeSource = await read('src-tauri/src/native_locale.rs');
+const exitSource = await read('src-tauri/src/desktop_exit.rs');
 
 const expectEqual = (actual, expected, id) => {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) failures.push(id);
@@ -33,7 +34,7 @@ expectEqual(config.version, packageJson.version, 'desktop-tauri-version-source-m
 expectEqual(desktopCargoVersion, packageJson.version, 'desktop-cargo-version-source-mismatch');
 expectEqual(desktopLockVersion, packageJson.version, 'desktop-cargo-lock-version-source-mismatch');
 expectEqual(packageJson.scripts?.['desktop:web:dev'], 'cross-env SCREENHELLO_TARGET=desktop vite', 'desktop-dev-script-invalid');
-expectEqual(packageJson.scripts?.['desktop:web:build'], 'cross-env SCREENHELLO_TARGET=desktop vite build', 'desktop-build-script-invalid');
+expectEqual(packageJson.scripts?.['desktop:web:build'], 'pnpm check:antd-css && cross-env SCREENHELLO_TARGET=desktop vite build', 'desktop-build-script-invalid');
 expectEqual(packageJson.scripts?.['desktop:build'], 'tauri build --no-bundle --ci', 'desktop-native-build-script-invalid');
 expectEqual(packageJson.scripts?.['desktop:test:runtime'], 'xvfb-run -a dbus-run-session -- node scripts/test-desktop-runtime.mjs', 'desktop-runtime-test-script-invalid');
 expectEqual(config.build?.frontendDist, '../dist-desktop', 'desktop-frontend-dist-invalid');
@@ -60,6 +61,9 @@ const expectedCommands = [
     'desktop_system_status',
     'desktop_subscribe_system_events',
     'desktop_unsubscribe_system_events',
+    'desktop_subscribe_exit_requests',
+    'desktop_unsubscribe_exit_requests',
+    'desktop_resolve_exit_request',
 ];
 const expectedPermissions = [
     'allow-desktop-environment',
@@ -78,6 +82,9 @@ const expectedPermissions = [
     'allow-desktop-system-status',
     'allow-desktop-subscribe-system-events',
     'allow-desktop-unsubscribe-system-events',
+    'allow-desktop-subscribe-exit-requests',
+    'allow-desktop-unsubscribe-exit-requests',
+    'allow-desktop-resolve-exit-request',
     'core:image:allow-from-bytes',
     'core:resources:allow-close',
     'clipboard-manager:allow-write-image',
@@ -250,7 +257,9 @@ expectEqual(
     expectedCommands,
     'desktop-command-handler-missing',
 );
-if (!localeSource.includes('fn desktop_set_locale(') || !localeSource.includes('window.label() != "main"')) failures.push('desktop-locale-boundary-missing');
+if (!localeSource.includes('fn desktop_set_locale(')
+    || !localeSource.includes('.set_for_owner(window.label(), locale)?')
+    || !localeSource.includes('if owner != "main"')) failures.push('desktop-locale-boundary-missing');
 for (const command of [
     'desktop_pick_files',
     'desktop_read_file',
@@ -284,6 +293,14 @@ for (const command of [
 }
 if (!/#\[tauri::command\][\s\S]{0,160}fn desktop_state_status\b/u.test(desktopStateSource)) {
     failures.push('desktop-state-command-missing:desktop_state_status');
+}
+for (const command of ['desktop_subscribe_exit_requests', 'desktop_unsubscribe_exit_requests', 'desktop_resolve_exit_request']) {
+    if (!new RegExp(`#\\[tauri::command\\][\\s\\S]{0,160}fn ${command}\\b`, 'u').test(exitSource)) {
+        failures.push(`desktop-exit-command-missing:${command}`);
+    }
+}
+for (const required of ['api.prevent_close()', 'api.prevent_exit()', 'take_approval()', 'desktop_exit::request_exit']) {
+    if (!rustSource.includes(required)) failures.push(`desktop-exit-guard-missing:${required}`);
 }
 for (const pluginInit of ['tauri_plugin_dialog::init()', 'tauri_plugin_clipboard_manager::init()']) {
     if (!rustSource.includes(pluginInit)) failures.push(`desktop-plugin-init-missing:${pluginInit}`);
@@ -436,9 +453,11 @@ const web = await scanBuild('dist', [
     /desktop_pick_files/u,
     /desktop_capture_primary/u,
     /desktop_subscribe_system_events/u,
+    /desktop_subscribe_exit_requests/u,
     /plugin:clipboard-manager/u,
     /__TAURI_INTERNALS__/u,
-    /ipc\.localhost/u,
+    // Hostname literals alone are also used by the shared privacy monitor to
+    // classify local traffic. Actual native commands/bridge globals stay banned.
 ], 'web-build-contains-desktop-runtime');
 const desktop = await scanBuild('dist-desktop', [/manifest\.webmanifest/u, /registerSW/u, /serviceWorker\.register/u], 'desktop-build-contains-pwa-runtime');
 if (!web.files) failures.push('web-build-missing');

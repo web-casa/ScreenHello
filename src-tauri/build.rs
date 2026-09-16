@@ -25,6 +25,9 @@ fn main() {
             "desktop_system_status",
             "desktop_subscribe_system_events",
             "desktop_unsubscribe_system_events",
+            "desktop_subscribe_exit_requests",
+            "desktop_unsubscribe_exit_requests",
+            "desktop_resolve_exit_request",
         ]),
     ))
     .expect("failed to build ScreenHello desktop configuration");

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import * as desktopContract from '../../src/platform/desktopPlatform.js';
 import {
     createDesktopPlatform,
     DESKTOP_MAX_CAPTURE_PIXELS,
@@ -8,6 +10,32 @@ import { browserPlatform } from '../../src/platform/browserPlatform.js';
 
 const tokens = Array.from({ length: 20 }, (_, index) => index.toString(16).padStart(48, '0'));
 const captureToken = 'f'.repeat(48);
+
+describe('Rust / JavaScript desktop IPC boundaries', () => {
+    const files = readFileSync(new URL('../../src-tauri/src/native_files.rs', import.meta.url), 'utf8');
+    const capture = readFileSync(new URL('../../src-tauri/src/desktop_capture.rs', import.meta.url), 'utf8');
+    // Deliberately limited to integer products: changed Rust expressions require
+    // review instead of evaluating arbitrary source text in the test runner.
+    const nativeLimit = (source, name) => {
+        const expression = source.match(new RegExp(`const ${name}: \\w+ = ([\\d_* ]+);`, 'u'))?.[1];
+        expect(expression, `Missing native limit ${name}`).toBeDefined();
+        return expression.split('*').reduce((product, value) => product * Number(value.replaceAll('_', '').trim()), 1);
+    };
+
+    it.each(['PROJECT_BYTES', 'IMAGE_BYTES', 'EXPORT_BYTES', 'BATCH_BYTES', 'PICKED_IMAGES'])(
+        'keeps %s consistent with native file validation', (name) => {
+            expect(desktopContract[`DESKTOP_MAX_${name}`]).toBe(nativeLimit(files, `MAX_${name}`));
+        },
+    );
+    it.each(['CAPTURE_BYTES', 'CAPTURE_PIXELS'])('keeps %s consistent with native capture validation', (name) => {
+        expect(desktopContract[`DESKTOP_MAX_${name}`]).toBe(nativeLimit(capture, `MAX_${name}`));
+    });
+    it('keeps the source count and token header consistent', () => {
+        expect(capture).toMatch(/const MAX_CAPTURE_SOURCES: usize = MAX_MONITORS \+ MAX_WINDOWS;/u);
+        expect(desktopContract.DESKTOP_MAX_CAPTURE_SOURCES).toBe(nativeLimit(capture, 'MAX_MONITORS') + nativeLimit(capture, 'MAX_WINDOWS'));
+        expect(desktopContract.DESKTOP_FILE_TOKEN_HEADER).toBe(files.match(/const TOKEN_HEADER: &str = "([^"]+)";/u)?.[1]);
+    });
+});
 
 const pngBytes = (width = 64, height = 48) => {
     const bytes = new Uint8Array(24);

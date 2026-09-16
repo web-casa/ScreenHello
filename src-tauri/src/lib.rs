@@ -2,6 +2,7 @@ use serde::Serialize;
 use tauri::Manager;
 
 mod desktop_capture;
+mod desktop_exit;
 mod desktop_state;
 mod desktop_system;
 mod native_files;
@@ -61,6 +62,15 @@ pub fn run() {
         .manage(desktop_capture::CaptureSourceState::default())
         .manage(desktop_state::DesktopState::default())
         .manage(desktop_system::DesktopSystemState::default())
+        .manage(desktop_exit::DesktopExitState::default())
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    desktop_exit::request_exit(window.app_handle());
+                }
+            }
+        })
         .setup(|app| {
             app.state::<desktop_state::DesktopState>().initialize(app);
             desktop_system::setup_system_integrations(app);
@@ -83,9 +93,23 @@ pub fn run() {
             desktop_system::desktop_system_status,
             desktop_system::desktop_subscribe_system_events,
             desktop_system::desktop_unsubscribe_system_events,
+            desktop_exit::desktop_subscribe_exit_requests,
+            desktop_exit::desktop_unsubscribe_exit_requests,
+            desktop_exit::desktop_resolve_exit_request,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run ScreenHello desktop application");
+        .build(tauri::generate_context!())
+        .expect("failed to build ScreenHello desktop application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                if !app
+                    .state::<desktop_exit::DesktopExitState>()
+                    .take_approval()
+                {
+                    api.prevent_exit();
+                    desktop_exit::request_exit(app);
+                }
+            }
+        });
 }
 
 #[cfg(test)]

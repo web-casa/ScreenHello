@@ -13,6 +13,17 @@ pub(crate) enum NativeLocale {
 #[derive(Default)]
 pub(crate) struct NativeLocaleState(AtomicBool);
 
+impl NativeLocaleState {
+    fn set_for_owner(&self, owner: &str, locale: NativeLocale) -> Result<(), String> {
+        if owner != "main" {
+            return Err("desktop-locale-owner-invalid".into());
+        }
+        self.0
+            .store(matches!(locale, NativeLocale::English), Ordering::Release);
+        Ok(())
+    }
+}
+
 pub(crate) fn text<R: Runtime>(app: &AppHandle<R>, source: &'static str) -> &'static str {
     if !app.state::<NativeLocaleState>().0.load(Ordering::Acquire) {
         return source;
@@ -22,6 +33,7 @@ pub(crate) fn text<R: Runtime>(app: &AppHandle<R>, source: &'static str) -> &'st
 
 fn english(source: &str) -> &str {
     match source {
+        "编辑器尚未就绪，退出可能丢失未保存内容。仍要退出吗？" => "The editor is not ready. Quitting may lose unsaved changes. Quit anyway?",
         "显示 ScreenHello" => "Show ScreenHello", "截取主屏幕" => "Capture primary display", "退出" => "Quit",
         "打开 ScreenHello 项目" => "Open ScreenHello project", "选择本地图片" => "Choose local images",
         "保存 ScreenHello 项目" => "Save ScreenHello project", "ScreenHello 项目" => "ScreenHello project",
@@ -43,13 +55,9 @@ pub(crate) fn desktop_set_locale(
     window: WebviewWindow,
     locale: NativeLocale,
 ) -> Result<(), String> {
-    if window.label() != "main" {
-        return Err("desktop-locale-owner-invalid".into());
-    }
     window
         .state::<NativeLocaleState>()
-        .0
-        .store(matches!(locale, NativeLocale::English), Ordering::Release);
+        .set_for_owner(window.label(), locale)?;
     crate::desktop_system::refresh_tray_menu(window.app_handle())
         .map_err(|_| "desktop-locale-tray-unavailable".into())
 }
@@ -57,6 +65,22 @@ pub(crate) fn desktop_set_locale(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_main_can_change_application_locale() {
+        let state = NativeLocaleState::default();
+        for owner in ["", "other", "Main"] {
+            assert_eq!(
+                state.set_for_owner(owner, NativeLocale::English),
+                Err("desktop-locale-owner-invalid".into())
+            );
+            assert!(!state.0.load(Ordering::Acquire));
+        }
+        state.set_for_owner("main", NativeLocale::English).unwrap();
+        assert!(state.set_for_owner("other", NativeLocale::Chinese).is_err());
+        assert!(state.0.load(Ordering::Acquire));
+        state.set_for_owner("main", NativeLocale::Chinese).unwrap();
+        assert!(!state.0.load(Ordering::Acquire));
+    }
     #[test]
     fn locale_contract_is_bounded_and_user_text_is_not_translated() {
         assert!(serde_json::from_str::<NativeLocale>("\"en-US\"").is_ok());

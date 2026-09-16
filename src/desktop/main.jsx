@@ -5,6 +5,7 @@ import EditorErrorBoundary from '../components/EditorErrorBoundary.jsx';
 import StoreProvider from '../stores/StoreProvider.jsx';
 import DesktopRuntimeStatus from './DesktopRuntimeStatus.jsx';
 import DesktopCaptureController from './DesktopCaptureController.jsx';
+import DesktopExitController from './DesktopExitController.jsx';
 import { createDesktopPlatform } from '../platform/desktopPlatform.js';
 import './desktop.css';
 import StandaloneLocale from '../i18n/StandaloneLocale.jsx';
@@ -34,6 +35,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                         <>
                             <DesktopRuntimeStatus />
                             <DesktopCaptureController />
+                            <DesktopExitController />
                         </>
                     )}
                 />

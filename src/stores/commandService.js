@@ -108,6 +108,7 @@ export class CommandService {
     guardOpen = false;
     guardBusy = false;
     guardLabel = '';
+    guardKind = 'replace';
     guardError = null;
     exportActive = false;
     framePanelVisible = true;
@@ -144,6 +145,7 @@ export class CommandService {
             open: this.guardOpen,
             busy: this.guardBusy,
             label: this.guardLabel,
+            kind: this.guardKind,
             error: this.guardError,
         };
     }
@@ -512,7 +514,7 @@ export class CommandService {
         return true;
     }
 
-    requestWorkspaceReplacement(action, { label = this.root.i18n.t("替换当前项目") } = {}) {
+    requestWorkspaceReplacement(action, { label = this.root.i18n.t("替换当前项目"), kind = 'replace' } = {}) {
         if (this.root.isDisposed || !this.root.isActive || typeof action !== 'function' || this.guardOpen || this.exportActive || this.root.exportService.isBusy) {
             return Promise.resolve(false);
         }
@@ -521,11 +523,26 @@ export class CommandService {
         this.guardOpen = true;
         this.guardBusy = false;
         this.guardLabel = label;
+        this.guardKind = kind;
         this.guardError = null;
         this._pendingGuardAction = action;
         return new Promise((resolve) => {
             this._pendingGuardResolve = resolve;
         });
+    }
+
+    async requestApplicationExit() {
+        if (this.isBusy || this.guardOpen || this.root.isDisposed || !this.root.isActive) {
+            this.root.editor.message?.info?.(this.root.i18n.t("正在处理其他本地任务"));
+            return false;
+        }
+        let approvedSignature;
+        const approved = await this.requestWorkspaceReplacement(() => {
+            approvedSignature = this.root.workspace._signature();
+            return true;
+        }, { label: this.root.i18n.t('退出 ScreenHello'), kind: 'exit' });
+        return approved && !this.root.isDisposed && this.root.isActive
+            && approvedSignature === this.root.workspace._signature();
     }
 
     async resolveWorkspaceGuard(choice) {
@@ -544,10 +561,12 @@ export class CommandService {
         this.guardError = null;
         if (choice === 'save') {
             const saved = await this.root.workspace.saveProject();
-            if (!saved) {
+            if (!saved || this.root.workspace.isDirty) {
                 runInAction(() => {
                     this.guardBusy = false;
-                    this.guardError = this.root.i18n.t("项目未能保存；当前内容保持不变。你可以重试、选择不保存或取消。");
+                    this.guardError = saved
+                        ? this.root.i18n.t('保存期间内容发生变化，请再次保存或取消。')
+                        : this.root.i18n.t("项目未能保存；当前内容保持不变。你可以重试、选择不保存或取消。");
                 });
                 return false;
             }
@@ -560,9 +579,12 @@ export class CommandService {
     }
 
     async _runReplacement(action) {
-        if (this.root.draftService.isEnabled()) await this.root.draftService.flush();
-        if (this.root.isDisposed || !this.root.isActive || typeof action !== 'function' || this.exportActive || this.root.exportService.isBusy) return false;
+        const signature = this.root.workspace._signature();
         try {
+            if (this.root.draftService.isEnabled()) await this.root.draftService.flush();
+            if (signature !== this.root.workspace._signature()
+                || this.root.isDisposed || !this.root.isActive || typeof action !== 'function'
+                || this.exportActive || this.root.exportService.isBusy) return false;
             const result = await action();
             return result !== false && result !== 'cancelled' && result !== 'unsupported';
         } catch {
@@ -602,6 +624,7 @@ export class CommandService {
         this.guardOpen = false;
         this.guardBusy = false;
         this.guardLabel = '';
+        this.guardKind = 'replace';
         this.guardError = null;
         this._pendingGuardAction = null;
         this._pendingGuardResolve = null;

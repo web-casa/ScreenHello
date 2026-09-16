@@ -18,6 +18,9 @@ import { createDesktopToken, isDesktopToken } from '../desktop/desktopToken';
 /** @typedef {'ready' | 'system-permission-required' | 'portal-required' | 'no-display'} DesktopCaptureCapabilityStatus */
 /** @typedef {{schemaVersion: 1, backend: DesktopCaptureBackend, status: DesktopCaptureCapabilityStatus, sourcePicker: boolean}} DesktopCaptureCapability */
 
+// Keep in sync with native_files.rs / desktop_capture.rs; desktopPlatform.test.js
+// compares the native limits and token header against these IPC boundaries.
+export const DESKTOP_FILE_TOKEN_HEADER = 'x-screenhello-file-token';
 export const DESKTOP_MAX_PROJECT_BYTES = 64 * 1024 * 1024;
 export const DESKTOP_MAX_IMAGE_BYTES = 48 * 1024 * 1024;
 export const DESKTOP_MAX_EXPORT_BYTES = 128 * 1024 * 1024;
@@ -386,7 +389,7 @@ export const createDesktopPlatform = ({
             const bytes = new Uint8Array(await blob.arrayBuffer());
             try {
                 await invokeCommand('desktop_write_file', bytes, {
-                    headers: { 'x-screenhello-file-token': target.token },
+                    headers: { [DESKTOP_FILE_TOKEN_HEADER]: target.token },
                 });
             } catch (error) {
                 // Only expose a fixed backend code, never native error text or paths.

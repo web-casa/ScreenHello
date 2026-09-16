@@ -89,6 +89,10 @@ React View → Leafer App → Frame（最终画布）
 
 会替换整个 workspace 的动作共用三选一 guard，并在受控切换前 flush 草稿；浏览器关闭只使用标准 `beforeunload`，不在 unload 链路写 IndexedDB。项目文件状态与 DraftService 草稿状态保持正交。
 
+桌面关闭主窗口与应用退出由 Rust `CloseRequested` / `ExitRequested` 拦截，通过实例级 `DesktopExitController` 接入同一 guard。保存失败、保存期间继续编辑、导出/文件任务忙碌或草稿 flush 期间内容改变均不批准退出。原生请求与当前 main-window 订阅 token 绑定，批准只能消费一次；订阅不存在或消息发送失败时需原生对话框确认。此流程不承诺拦截系统强制结束进程，也不包含 WebView 卡死后的自动恢复。
+
+项目保存先同步捕获文档、名称、导出设置和资源引用，异步写入完成后只推进该快照对应的保存基线；后续编辑保持 dirty。预设应用同时校验请求序号、workspace 生命周期和项目版本，防止旧请求覆盖后来的选择或新项目。文件选择器返回的句柄先登记到清理范围，再校验生命周期。
+
 ### `batch`：隔离批量处理
 
 standalone runtime 拥有实例级 `BatchStore`；只有 `workspace` 开启时显示批量入口。面板、`BatchExportService` 和隔离 renderer 分层动态加载，library 默认不会显示入口或新增公共导出。

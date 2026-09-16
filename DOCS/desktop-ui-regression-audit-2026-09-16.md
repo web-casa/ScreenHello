@@ -148,3 +148,13 @@ Ant Design 的层兼容与静态样式路径见其[兼容样式文档](https://a
 - Windows 和 macOS 仍需要各自运行修复后的原生 artifact。之前任何历史候选的通过记录不能覆盖新的源码。
 - 新 build 需要重新启动桌面应用才会形成新的页面级隐私计数会话；旧窗口中已经累计的 6.8 MB 不会被原地重新分类。
 - 如果产品决定追求完全一体化的自绘标题栏，应单独立项并定义三平台窗口交互验收，而不是取消系统装饰后依赖普通网页 CSS。
+
+
+### CSP 修复版 DMG 交付（2026-09-16）
+
+- 公开候选提交 `9d5bc6a9f756145576fb006984fd6e963ef7a9fd`；[run 35060829009](https://github.com/web-casa/ScreenHello/actions/runs/35060829009) 成功；[下载 artifact 10432492990](https://github.com/web-casa/ScreenHello/actions/runs/35060829009/artifacts/10432492990)，到期 2026-10-16 05:56:39 UTC。
+- 文件 `ScreenHello_1.0.4_aarch64.dmg`，约 8 MiB；这是新产物，不能与上一份相同版本文件名的 DMG 混用。SHA-256 `91b5ced5d96d72c72517771485c90108e9965b808469b3f337e19ee90fa1105e`，本地下载复核通过。
+- macOS 15 ARM64 runner：生产 CSP 深浅主题 WebKit 2 项通过（28.5 秒）；unit 76 文件、1,220 项通过、5 项跳过；Rust 31 项通过；lint/typecheck、签名、公证、staple、Gatekeeper、ARM64 检查均通过。
+- 应用公证 ID `0064491c-26f0-4b01-bacf-455fcc66f33e`；DMG 公证 ID `80fe0185-de7e-4ae1-994c-1af016fbd13a`，均 Accepted。
+- 本地三引擎深浅主题最终 6 项通过，包括入场动画结束、祖先透明度、实际遮挡与 960×640 操作区检查；Linux 原生表面检查通过。
+- 仍未执行用户 Mac 上真实安装后的完整 GUI/权限验收，不宣称桌面所有功能已验收。PR #10 尚未合并；独立 Linux CI 的图标像素测试默认 5 秒超时和旧六平台 Gate 首次引入问题仍保留原始失败状态，未绕过合并保护。未创建 Release。

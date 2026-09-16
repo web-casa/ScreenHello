@@ -65,6 +65,7 @@ export class WorkspaceStore {
     _storageRequest = 0;
     _persistenceRequest = 0;
     _operationGeneration = 0;
+    _presetRequest = 0;
 
     constructor(root) {
         this.root = root;
@@ -102,6 +103,7 @@ export class WorkspaceStore {
     }
 
     teardown() {
+        this._presetRequest += 1;
         this._setupGeneration += 1;
         this._libraryRequest += 1;
         this._storageRequest += 1;
@@ -136,9 +138,9 @@ export class WorkspaceStore {
         return 'never-saved';
     }
 
-    _markClean({ saved = true } = {}) {
-        this._baselineSignature = this._signature();
-        this.isDirty = false;
+    _markClean({ saved = true, signature = this._signature() } = {}) {
+        this._baselineSignature = signature;
+        this.isDirty = this._signature() !== signature;
         this.lastSavedAt = saved ? Date.now() : null;
         this.saveErrorCode = null;
     }
@@ -173,6 +175,7 @@ export class WorkspaceStore {
     }
 
     resetProject() {
+        this._presetRequest += 1;
         this.root.renderTaskTracker?.changedProject();
         this.projectName = this.root.i18n.t("未命名项目");
         this.currentRecentId = null;
@@ -296,18 +299,39 @@ export class WorkspaceStore {
         }
     }
 
-    async _currentProjectParts() {
-        const layers = this.root.imageStore.list;
-        if (!layers.length) throw Object.assign(new Error('project-image-missing'), { code: 'project-image-missing' });
-        const images = [];
-        for (const layer of layers) {
-            const imageMeta = this.root.imageStore.resolve(layer);
-            const blob = imageMeta?.blob || await this._blobFromSource(imageMeta?.src, 'project-image-unavailable');
-            images.push({ blob, metadata: layer });
-        }
+    _projectSnapshot() {
         const doc = this.root.editor.serializeProject();
-        const background = await this._currentBackground(doc);
-        return { doc, images, background };
+        const asset = this.root.assetStore.get(doc.option.backgroundAssetId);
+        return {
+            doc,
+            name: this.projectName,
+            exportSettings: { ...this.exportSettings },
+            signature: this._signature(),
+            images: doc.images.map(metadata => {
+                const resource = this.root.imageStore.resolve(metadata);
+                return { metadata, blob: resource?.blob, src: resource?.src };
+            }),
+            background: doc.option.frameConf?.background?.type === 'image' ? {
+                blob: asset?.blob, src: doc.option.frameConf.background.url,
+                name: asset?.name || 'background', type: asset?.type,
+            } : null,
+        };
+    }
+
+    async _currentProjectParts(snapshot = this._projectSnapshot()) {
+        if (!snapshot.images.length) throw Object.assign(new Error('project-image-missing'), { code: 'project-image-missing' });
+        const images = [];
+        for (const image of snapshot.images) {
+            const blob = image.blob || await this._blobFromSource(image.src, 'project-image-unavailable');
+            images.push({ blob, metadata: image.metadata });
+        }
+        let background = null;
+        if (snapshot.background) {
+            const captured = snapshot.background;
+            const blob = captured.blob || await this._blobFromSource(captured.src, 'background-asset-missing');
+            background = { blob, name: captured.name, type: captured.type || blob.type };
+        }
+        return { doc: snapshot.doc, images, background };
     }
 
     async _currentBackground(doc = this.root.editor.serializeProject()) {
@@ -315,7 +339,7 @@ export class WorkspaceStore {
         if (doc.option?.frameConf?.background?.type === 'image') {
             const asset = this.root.assetStore.get(doc.option.backgroundAssetId);
             const blob = asset?.blob || await this._blobFromSource(
-                this.root.option.frameConf.background?.url,
+                doc.option.frameConf.background?.url,
                 'background-asset-missing'
             );
             background = {
@@ -344,20 +368,21 @@ export class WorkspaceStore {
         }
     }
 
-    async createProjectBlob() {
-        const { doc, images, background } = await this._currentProjectParts();
+    async createProjectBlob(snapshot = this._projectSnapshot()) {
+        const { doc, images, background } = await this._currentProjectParts(snapshot);
         const { createProjectArchive } = await loadArchiveTools();
         return createProjectArchive({
-            name: this.projectName,
+            name: snapshot.name,
             document: doc,
             images,
             background,
-            exportSettings: this.exportSettings,
+            exportSettings: snapshot.exportSettings,
         });
     }
 
     async saveProject({ saveAs = false } = {}) {
         if (this.busy) return false;
+        this._presetRequest += 1;
         this.saveErrorCode = null;
         this.busy = saveAs ? 'save-as' : 'save';
         const operation = this._operationGeneration;
@@ -383,7 +408,8 @@ export class WorkspaceStore {
                 }
             }
             this._assertOperation(operation);
-            const blob = await this.createProjectBlob();
+            const snapshot = this._projectSnapshot();
+            const blob = await this.createProjectBlob(snapshot);
             this._assertOperation(operation);
             if (handle) {
                 await this.root.platform.file.writeToHandle(handle, blob);
@@ -398,14 +424,14 @@ export class WorkspaceStore {
             const recentId = saveAs || !this.currentRecentId ? createId('recent') : this.currentRecentId;
             const cached = await this._cacheRecentProject({
                 id: recentId,
-                name: this.projectName,
+                name: snapshot.name,
                 fileName: suggestedName,
                 blob,
                 size: blob.size,
             }, operation);
             this._assertOperation(operation);
             runInAction(() => { this.currentRecentId = cached ? recentId : null; });
-            this._markClean();
+            this._markClean({ signature: snapshot.signature });
             await this.refreshStorage();
             this._assertOperation(operation);
             this.root.editor.message?.success?.(saveMethod === 'download'
@@ -438,9 +464,9 @@ export class WorkspaceStore {
                 multiple: false,
                 id: 'screenhello-project-open',
             });
+            if (result.status === 'selected') pendingHandle = result.handle;
             this._assertOperation(operation);
             if (result.status !== 'selected') return result.status;
-            pendingHandle = result.handle;
             const opening = this.openProjectFile(result.file, { handle: pendingHandle });
             pendingHandle = null;
             return opening;
@@ -460,6 +486,7 @@ export class WorkspaceStore {
             return false;
         }
         this.busy = 'open';
+        this._presetRequest += 1;
         const operation = this._operationGeneration;
         let adoptedHandle = false;
         try {
@@ -468,6 +495,11 @@ export class WorkspaceStore {
             this._assertOperation(operation);
             await this._applyProject(decoded, operation);
             this._assertOperation(operation);
+            runInAction(() => {
+                this.projectName = decoded.name;
+                this.exportSettings = normalizeExportSettings(decoded.exportSettings);
+                this._markClean();
+            });
             const id = recentId || createId('recent');
             const cached = await this._cacheRecentProject({
                 id,
@@ -478,13 +510,10 @@ export class WorkspaceStore {
             }, operation);
             this._assertOperation(operation);
             runInAction(() => {
-                this.projectName = decoded.name;
-                this.exportSettings = normalizeExportSettings(decoded.exportSettings);
                 this.currentRecentId = cached ? id : null;
             });
             this._setFileHandle(handle);
             adoptedHandle = true;
-            this._markClean();
             await this.refreshStorage();
             this._assertOperation(operation);
             this.root.editor.message?.success?.(this.root.i18n.t("项目已打开"));
@@ -609,6 +638,7 @@ export class WorkspaceStore {
 
     async openDraft(key) {
         if (this.busy) return false;
+        this._presetRequest += 1;
         this.busy = 'open-draft';
         const operation = this._operationGeneration;
         try {
@@ -802,14 +832,16 @@ export class WorkspaceStore {
         this.busy = 'save-preset';
         const operation = this._operationGeneration;
         try {
-            const background = await this._currentBackground();
+            const doc = this.root.editor.serializeProject();
+            const exportSettings = { ...this.exportSettings };
+            const background = await this._currentBackground(doc);
             this._assertOperation(operation);
             const id = createId('preset');
             const preset = createStylePreset({
                 id,
                 name,
-                option: this.root.option.toDocument(),
-                exportSettings: this.exportSettings,
+                option: doc.option,
+                exportSettings,
             });
             await this.root.draftStore.savePreset({
                 id,
@@ -835,10 +867,19 @@ export class WorkspaceStore {
     }
 
     async applyPreset(id) {
+        if (this.busy || this.root.isDisposed) return false;
+        const request = ++this._presetRequest;
         const operation = this._operationGeneration;
+        const project = this.root.renderTaskTracker?.projectVersion;
+        const assertCurrent = () => {
+            this._assertOperation(operation);
+            if (request !== this._presetRequest || project !== this.root.renderTaskTracker?.projectVersion) {
+                throw Object.assign(new Error('workspace-operation-cancelled'), { code: 'workspace-operation-cancelled' });
+            }
+        };
         try {
             const record = await this.root.draftStore.loadPreset(id);
-            this._assertOperation(operation);
+            assertCurrent();
             if (!record?.preset) throw new Error('preset-missing');
             const validation = validateStylePreset(record.preset);
             if (!validation.ok) throw new Error('preset-invalid');
@@ -852,7 +893,7 @@ export class WorkspaceStore {
                     role: 'background-image',
                     platform: this.root.platform,
                 });
-                this._assertOperation(operation);
+                assertCurrent();
                 asset = this.root.assetStore.add(new File(
                     [record.backgroundBlob],
                     record.backgroundName || 'background',

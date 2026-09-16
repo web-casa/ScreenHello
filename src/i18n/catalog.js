@@ -1,5 +1,10 @@
 // Source-language messages are stable lookup keys, never persisted document keys.
 export const englishMessages = Object.freeze({
+  "不保存并退出": "Quit without saving",
+  "保存项目并退出": "Save project and quit",
+  "退出前可保存项目文件；取消会返回编辑器。": "Save your project before quitting, or cancel to return to the editor.",
+  "退出 ScreenHello": "Quit ScreenHello",
+  "保存期间内容发生变化，请再次保存或取消。": "The project changed while saving. Save again or cancel.",
     'AVIF 仅提供标准导出，不提供压缩预览或质量调节。旧压缩设置将使用标准导出，格式和倍率不变。': 'AVIF offers standard export only, without compression preview or quality controls. Previous compression settings use standard export with the same format and scale.',
     '正在检查 AVIF 预览能力；你仍可直接下载。': 'Checking AVIF preview support; you can still download directly.',
     '当前浏览器无法预览 AVIF，但仍可直接下载 AVIF 文件。需要预览时，请选择 PNG、JPG 或 WebP。': 'AVIF preview is unavailable in this browser. You can still download AVIF files. For a preview, choose PNG, JPG or WebP.',

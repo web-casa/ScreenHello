@@ -6,6 +6,50 @@ import { createPngFixture } from '../fixtures/createPngFixture.js';
 
 const isDemoRequest = (url) => /(?:^|\/)demo(?:-[^/]+)?\.(?:jpg|webp)$/.test(new URL(url).pathname);
 
+test('keeps edits made during an asynchronous project save visibly unsaved', async ({ page }) => {
+    await page.goto('/');
+    await importFixture(page);
+    await page.getByRole('spinbutton', { name: '内边距数值', exact: true }).fill('10');
+    await page.evaluate(() => {
+        const root = window.__shoteasyStores;
+        root.platform.file.supportsFileSystemAccess = () => true;
+        root.platform.file.chooseSaveHandle = async () => ({ status: 'selected', handle: {} });
+        root.platform.file.writeToHandle = async (_handle, blob) => {
+            window.__savedSnapshot = blob;
+            await new Promise(resolve => { window.__finishProjectSave = resolve; });
+        };
+    });
+    await runMenuCommand(page, '文件', /^保存项目/);
+    await expect.poll(() => page.evaluate(() => !!window.__finishProjectSave)).toBe(true);
+    await page.getByRole('spinbutton', { name: '内边距数值', exact: true }).fill('90');
+    await page.evaluate(() => window.__finishProjectSave());
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.workspace.projectFileStatus)).toBe('dirty');
+    const bytes = await page.evaluate(async () => Array.from(new Uint8Array(await window.__savedSnapshot.arrayBuffer())));
+    const manifest = JSON.parse(Buffer.from(unzipSync(Uint8Array.from(bytes))['manifest.json']).toString('utf8'));
+    expect(manifest.document.option.padding).toBe(10);
+    await expect(page.getByRole('spinbutton', { name: '内边距数值', exact: true })).toHaveValue('90');
+});
+
+test('uses an exit-specific save discard cancel dialog without allowing failed saves', async ({ page }) => {
+    await page.goto('/');
+    await importFixture(page);
+    await expect.poll(() => page.evaluate(() => window.__shoteasyStores.commands.isBusy)).toBe(false);
+    await page.evaluate(() => {
+        const root = window.__shoteasyStores;
+        root.workspace.saveProject = async () => false;
+        window.__exitDecision = 'pending';
+        void root.commands.requestApplicationExit().then(result => { window.__exitDecision = result; });
+    });
+    const dialog = page.getByRole('dialog', { name: '退出 ScreenHello？' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: '保存项目并退出' }).click();
+    await expect(dialog.getByRole('status')).toContainText('项目未能保存');
+    expect(await page.evaluate(() => window.__exitDecision)).toBe('pending');
+    await dialog.getByRole('button', { name: /^取\s*消$/ }).click();
+    await expect(dialog).toBeHidden();
+    expect(await page.evaluate(() => window.__exitDecision)).toBe(false);
+});
+
 async function importFixture(page, { width = 64, height = 48 } = {}) {
     const fileInput = page.locator('.shoteasy-upload-card input[type="file"]');
     await fileInput.setInputFiles({

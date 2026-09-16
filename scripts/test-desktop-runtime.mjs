@@ -617,6 +617,26 @@ try {
     await driver.executeScript('window.__screenhelloDesktopMessageObserver?.disconnect()');
     if (!clipboardMessage.includes('复制成功')) throw new Error('desktop-clipboard-image-write-failed');
 
+    // Optional native close probe; no production IPC close permission is added.
+    // The helper must send the platform's ordinary window-close request.
+    const closeHelper = process.env.SCREENHELLO_DESKTOP_CLOSE_HELPER;
+    if (closeHelper) {
+        stage = 'native-close-cancel';
+        const executable = await resolveExecutable(closeHelper);
+        await new Promise((resolve, reject) => {
+            const child = spawn(executable, [], { env: runtimeEnvironment, stdio: 'inherit' });
+            child.once('error', reject);
+            child.once('exit', code => code === 0 ? resolve() : reject(new Error(`desktop-close-helper-failed:${code}`)));
+        });
+        const dialog = await waitForVisible(driver, '.shoteasy-workspace-guard [role="dialog"]');
+        if (!(await dialog.getText()).includes('退出 ScreenHello')) throw new Error('desktop-exit-guard-missing');
+        const cancel = await dialog.findElement(By.xpath('.//button[normalize-space(.)="取 消" or normalize-space(.)="取消"]'));
+        await cancel.click();
+        await driver.wait(async () => !(await driver.findElements(By.css('.shoteasy-workspace-guard'))).length, 10_000);
+        if (await driver.getTitle() !== 'ScreenHello Desktop') throw new Error('desktop-close-cancel-lost-window');
+        console.log('Native close -> unsaved guard -> cancel: passed');
+    }
+
     const result = {
         title: await driver.getTitle(),
         status: await status.getAttribute('data-status'),
