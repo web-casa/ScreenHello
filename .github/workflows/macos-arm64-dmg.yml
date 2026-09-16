@@ -2,6 +2,8 @@ name: macOS ARM64 DMG
 
 on:
   workflow_dispatch:
+  push:
+    branches: [build/macos-arm64-dmg-20260916]
 
 permissions:
   contents: read
@@ -12,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.repository_id == '1353846676' && github.ref == 'refs/heads/main'
+    if: github.repository_id == '1353846676' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build/macos-arm64-dmg-20260916')
     runs-on: macos-14
     timeout-minutes: 120
     defaults:

@@ -115,7 +115,7 @@ Phase 24 解决的是“私有候选提交与公开 GitHub Release 目标不在�
 
 ## 2026-09-16：公开仓库 macOS ARM64 DMG 构建
 
-用户要求在 `web-casa/ScreenHello` 公开仓库构建 Apple Silicon DMG。新增手动工作流 `.github/workflows/macos-arm64-dmg.yml`，限定公开仓库 numeric ID 与 main；使用 macOS 14 ARM64 runner、Node 24、锁定 pnpm/Rust 和 Cargo.lock，复用空密码 P12 导入与清理流程。构建包含本轮桌面 UI 与公网计数修复，通过公开源码 allowlist 导出，不带本地设备素材包。
+用户要求在 `web-casa/ScreenHello` 公开仓库构建 Apple Silicon DMG。新增手动工作流 `.github/workflows/macos-arm64-dmg.yml`，限定公开仓库 numeric ID；main 支持手动触发，本次专用 `build/macos-arm64-dmg-20260916` 分支支持 push 构建；使用 macOS 14 ARM64 runner、Node 24、锁定 pnpm/Rust 和 Cargo.lock，复用空密码 P12 导入与清理流程。构建包含本轮桌面 UI 与公网计数修复，通过公开源码 allowlist 导出，不带本地设备素材包。
 
 工作流验证 Developer ID 签名、应用及最终 DMG 公证/staple、Gatekeeper 和主程序 ARM64 架构，输出最终 DMG 的 SHA-256 与源码/run 信息。产物仅上传 Actions，保留 30 天，不创建 Release。Secrets 缺失会明确失败，不静默降级为未签名包。原有私有六平台候选流程保持独立；本流程不表示六平台发布 Gate 或人工 GUI 验收通过。
 
