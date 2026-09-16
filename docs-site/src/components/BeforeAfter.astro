@@ -1,0 +1,26 @@
+---
+// 旧站 renderSitePage 的对比图：同一张本地图片的“原始 / 加外框”示意。
+// 放进组件而不是内联在 MDX 里，避免 markdown 与 JSX 混排的解析问题。
+interface Props {
+    before: string;
+    after: string;
+    beforeAlt: string;
+    afterAlt: string;
+    caption: string;
+}
+
+const { before, after, beforeAlt, afterAlt, caption } = Astro.props;
+const assetUrl = (url: string) => `${import.meta.env.BASE_URL}${url.replace(/^\//, '')}`;
+---
+
+<figure class="sh-figure">
+    <div>
+        <img src={assetUrl(before)} alt={beforeAlt} width="640" height="400" loading="lazy" decoding="async" />
+        <span>{beforeAlt}</span>
+    </div>
+    <div>
+        <img src={assetUrl(after)} alt={afterAlt} width="640" height="400" loading="lazy" decoding="async" />
+        <span>{afterAlt}</span>
+    </div>
+    <figcaption>{caption}</figcaption>
+</figure>

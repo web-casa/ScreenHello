@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     PWA_APP_SHELL_MAX_BYTES,
+    WEB_ICON_FILES,
     createCoreManifestTransform,
     createPwaOptions,
     isCorePrecacheEntry,
@@ -39,8 +40,8 @@ describe('PWA build contract', () => {
             },
         });
         expect(options.manifest.icons).toEqual([
-            { src: '/tools/screenhello/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: '/tools/screenhello/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/tools/screenhello/web-app-manifest-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/tools/screenhello/web-app-manifest-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
             { src: '/tools/screenhello/pwa-maskable-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
             { src: '/tools/screenhello/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ]);
@@ -52,6 +53,10 @@ describe('PWA build contract', () => {
             ['assets/index-AbCd1234.js', 780_000],
             ['assets/index-EfGh5678.css', 70_000],
             ['assets/useStores-A1_b2-C3.js', 280_000],
+            ['assets/useI18n-A1_b2-C3.js', 232_000],
+            ['assets/i18n-catalogs-A1_b2-C3.js', 320_000],
+            ['assets/utils-A1_b2-C3.js', 230_000],
+            ['assets/browser-A1_b2-C3.js', 18_000],
             ['assets/PurePanel-AbCd1234.js', 240_000],
             ['assets/Icon-AbCd1234.js', 140_000],
             ['assets/exportService-AbCd1234.js', 160_000],
@@ -62,11 +67,15 @@ describe('PWA build contract', () => {
             ['assets/workbox-window.prod.es5-AbCd1234.js', 6_000],
             ['assets/logo-AbCd1234.png', 100_000],
             ['assets/favicon-AbCd1234.png', 15_000],
+            ['assets/ambient-import-AbCd1234.webp', 80_000],
             ['assets/color-AbCd1234.svg', 2_000],
             ['assets/13-green-AbCd1234.webp', 80_000],
-            ['pwa-512x512.png', 300_000],
+            ['pwa-maskable-512x512.png', 300_000],
+            ...WEB_ICON_FILES.map(filename => [filename, 100]),
         ];
         const excluded = [
+            ['assets/demo-mobile-AbCd1234.webp', 53_404],
+            ['assets/demo-desktop-AbCd1234.webp', 162_160],
             ['assets/avif_enc-AbCd1234.wasm', 3_500_000],
             ['assets/avifEncoder.worker-AbCd1234.js', 22_000],
             ['assets/EmojiPicker-AbCd1234.js', 510_000],
@@ -118,6 +127,17 @@ describe('PWA build contract', () => {
     });
 });
 
+it('uses the same content version in the manifest and exact precache URL', () => {
+    const versions = Object.fromEntries(WEB_ICON_FILES.map(filename => [filename, '123456789abc']));
+    const options = createPwaOptions('/nested/', versions);
+    expect(options.manifest.id).toBe('/nested/');
+    expect(options.manifest.icons[0].src).toBe('/nested/web-app-manifest-192x192.png?v=123456789abc');
+    const transform = options.workbox.manifestTransforms[0];
+    const result = transform(WEB_ICON_FILES.map(url => ({ url, size: 10, revision: 'content-revision' })));
+    expect(result.manifest.map(entry => entry.url)).toEqual(WEB_ICON_FILES.map(filename => `${filename}?v=123456789abc`));
+    expect(result.manifest.every(entry => entry.revision === 'content-revision')).toBe(true);
+});
+
 describe('PWA runtime guards', () => {
     it('only exposes install UI for a real Chromium prompt or iOS manual path', () => {
         expect(getInstallMode({ standalone: true, hasPrompt: true })).toBe('installed');
@@ -131,27 +151,27 @@ describe('PWA runtime guards', () => {
     it('blocks updates while local work is busy and requires explicit discard when dirty', () => {
         expect(getUpdateBlockReason({
             workspace: { isDirty: true, busy: 'save' },
-            batch: { isRunning: false },
+            batch: { isBusy: false },
             exportService: { isBusy: false },
         })).toBe('busy');
         expect(getUpdateBlockReason({
             workspace: { isDirty: true, busy: null },
-            batch: { isRunning: false },
+            batch: { isBusy: false },
             exportService: { isBusy: false },
         })).toBe('dirty');
         expect(getUpdateBlockReason({
             workspace: { isDirty: false, busy: null },
-            batch: { isRunning: true },
+            batch: { isBusy: true },
             exportService: { isBusy: false },
         })).toBe('busy');
         expect(getUpdateBlockReason({
             workspace: { isDirty: false, busy: null },
-            batch: { isRunning: false },
+            batch: { isBusy: false },
             exportService: { isBusy: true },
         })).toBe('busy');
         expect(getUpdateBlockReason({
             workspace: { isDirty: false, busy: null },
-            batch: { isRunning: false },
+            batch: { isBusy: false },
             exportService: { isBusy: false },
         })).toBeNull();
     });

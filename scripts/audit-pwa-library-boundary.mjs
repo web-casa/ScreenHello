@@ -13,9 +13,15 @@ const walk = (directory) => readdirSync(directory).flatMap((name) => {
 
 const files = walk(libDir);
 const basenames = files.map((file) => path.basename(file));
+// Devices.css 机型只服务独立站：library 产物里出现这些位图就说明边界被破坏
+const deviceAssets = basenames.filter((filename) => /^devicescss-.*\.png$/.test(filename));
+if (deviceAssets.length) fail(`library-device-assets-bundled:${deviceAssets.length}`);
 for (const forbidden of [
     /^sw\.js$/,
     /^manifest\.webmanifest$/,
+    /^site\.webmanifest$/,
+    /^(?:robots\.txt|sitemap\.xml|llms\.txt|social\.(?:png|svg)|before\.svg|after\.svg|site\.css)$/,
+    /^(?:favicon(?:-96x96)?\.(?:svg|png|ico)|apple-touch-icon\.png|web-app-manifest-(?:192x192|512x512)\.png)$/,
     /^workbox-[\w-]+\.js$/,
     /^pwa-(?:maskable-)?(?:192x192|512x512)\.png$/,
 ]) {
@@ -40,4 +46,5 @@ console.log(JSON.stringify({
     files: files.length,
     pwaArtifacts: 0,
     pwaRuntimeMarkers: 0,
+    libraryDeviceAssets: 0,
 }, null, 2));

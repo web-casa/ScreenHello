@@ -319,12 +319,16 @@ export default function ShapeLine({ parent, type, id, width, height, x, y, fill,
             ? (raw) => blurSnapshot(raw, param)
             : (raw) => mosaicSnapshot(raw, param);
         let cancelled = false;
+        const renderEffect = stores.renderTaskTracker?.beginEffect(shape);
         // snap 为空时 getVariant 内部会触发底图快照生成（schedule）并返回 null；
         // 快照就绪后 onUpdate → snap 变化 → 本 effect 重跑，取到处理变体。
-        stores.baseSnapshot.getVariant(stores.editor, `${type}:${param}`, gen).then((v) => {
+        const operation = stores.baseSnapshot.getVariant(stores.editor, `${type}:${param}`, gen).then((v) => {
             if (!cancelled && v) setRegionVariant(v);
+        }).catch(() => {
+            if (!cancelled) renderEffect?.fail('export-effect-failed');
         });
-        return () => { cancelled = true; };
+        stores.renderTaskTracker?.track(operation);
+        return () => { cancelled = true; renderEffect?.dispose(); };
         // 仅在底图 / 类型 / 效果参数变化时重新取变体，避免每次渲染空跑
     }, [snap, type, effect && effect.strength, effect && effect.blockSize]);
 
@@ -394,7 +398,9 @@ export default function ShapeLine({ parent, type, id, width, height, x, y, fill,
             fillBg();
         };
         shape.on(PropertyEvent.CHANGE, onChange);
+        const unregister = stores.renderTaskTracker?.registerFlusher(() => fillBg.flush());
         return (() => {
+            unregister?.();
             fillBg.cancel();
             shape.off(PropertyEvent.CHANGE, onChange);
         })

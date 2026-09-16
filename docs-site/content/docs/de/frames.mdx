@@ -1,0 +1,34 @@
+---
+title: "Browserrahmen und optionale Gerätemockups"
+seoTitle: "Browser- und Geräterahmen für Screenshots"
+description: "Ergänze Browserrahmen mit anpassbarer Adressleiste. Erfahre, wie Gerätegrafiken, Farben, Bildanpassung und Materiallizenzen in ScreenHello funktionieren."
+reviewed: "2026-09-13"
+---
+import BeforeAfter from '../../../src/components/BeforeAfter.astro';
+
+## Eine Adresse anzeigen, nicht aufrufen
+
+Wähle links einen Browserrahmen und passe die angezeigte URL sowie die Höhe der Werkzeugleiste an. Die Adresse ist lediglich Teil der Grafik. ScreenHello ruft die Website nicht auf und erstellt daraus keinen automatischen Screenshot.
+
+
+## Geräte hängen vom Grafikpaket ab
+
+Die Auswahl zeigt nur Grafiken des installierten Builds. Manche lokalen Installationen enthalten MacBook Air M2, iMac 24 Zoll, Surface Pro, Surface Studio oder Pixel 9 Pro. Die öffentliche Distribution garantiert diese Motive nicht. Auch Farben hängen vom installierten Paket ab.
+
+
+## Proportionen und Lizenzen beachten
+
+Einpassen zeigt das ganze Bild, Ausfüllen kann es beschneiden, Strecken kann es verzerren. Optionale Grafiken haben eigene Lizenzen; die Codelizenz deckt sie nicht automatisch ab. Projekte speichern nur eine Gerätekennung, nicht das Grafikpaket. Fehlende Grafiken müssen installiert oder durch einen anderen Rahmen ersetzt werden.
+
+
+<BeforeAfter
+  before="/site/before.svg"
+  after="/site/after.svg"
+  beforeAlt="Original"
+  afterAlt="Mit Browserrahmen"
+  caption="Beispieldarstellung: dasselbe lokale Bild mit Hintergrund, Abstand und Browserrahmen."
+/>
+
+## Mehr erfahren
+
+[Screenshots gestalten: Hintergrund, Abstand und Schatten](../beautify/) · [ScreenHello-Anleitung: Import, Gestaltung und Export](../guide/)

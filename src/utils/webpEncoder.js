@@ -1,8 +1,11 @@
 import webpWasmUrl from '@jsquash/webp/codec/enc/webp_enc.wasm?url&no-inline';
+import { compressionTimeoutMs, MAX_COMPRESSED_PIXELS, MAX_PREVIEW_PIXELS, validateExportSettings } from './exportSettings';
 
 export const WEBP_MIME_TYPE = 'image/webp';
 export const WEBP_ENCODE_TIMEOUT_MS = 120_000;
-export const WEBP_WORKER_IDLE_MS = 1_000;
+// Keep rapid preview/switch/retry cycles warm; still release the WASM worker
+// after a short idle window and terminate immediately on cancellation/dispose.
+export const WEBP_WORKER_IDLE_MS = 5_000;
 
 const webpError = (code, cause) => {
     const error = Object.assign(new Error(code), { code });
@@ -71,10 +74,12 @@ export class WebpEncoder {
         this._idleTimer = setTimeout(() => this._terminateWorker(), this.idleMs);
     }
 
-    async encode({ pixels, width, height, signal } = {}) {
+    async encode({ pixels, width, height, signal, compression, quality } = {}) {
         if (this._disposed || signal?.aborted) throw webpError('export-cancelled');
         if (this._active) throw webpError('webp-encoder-busy');
         if (!validPixels(pixels, width, height)) throw webpError('webp-input-invalid');
+        const settings = validateExportSettings({ format: 'webp', compression, quality });
+        if (width > 8192 || height > 8192 || width * height > (settings.compression ? MAX_COMPRESSED_PIXELS : 16_777_216)) throw webpError('webp-input-invalid');
 
         clearTimeout(this._idleTimer);
         this._idleTimer = null;
@@ -104,7 +109,7 @@ export class WebpEncoder {
                 const onAbort = () => fail(webpError('export-cancelled'));
                 const timeout = setTimeout(
                     () => fail(webpError('webp-encode-timeout')),
-                    this.timeoutMs
+                    settings.compression ? Math.min(this.timeoutMs, compressionTimeoutMs(width, height)) : this.timeoutMs
                 );
                 this._cancelActive = () => fail(webpError('export-cancelled'));
                 worker.onmessage = ({ data }) => {
@@ -129,6 +134,8 @@ export class WebpEncoder {
                         pixels: transferBuffer,
                         width,
                         height,
+                        compression: settings.compression,
+                        quality: settings.quality,
                         wasmUrl: webpWasmUrl,
                     }, [transferBuffer]);
                 } catch (error) {
@@ -146,7 +153,9 @@ export class WebpEncoder {
             return new Blob([buffer], { type: WEBP_MIME_TYPE });
         } finally {
             this._active = false;
-            if (this._worker) this._scheduleIdleTermination();
+            // Large direct exports must not retain a grown WASM heap across jobs.
+            if (settings.compression && width * height > MAX_PREVIEW_PIXELS) this._terminateWorker();
+            else if (this._worker) this._scheduleIdleTermination();
         }
     }
 

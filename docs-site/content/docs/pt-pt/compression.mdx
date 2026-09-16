@@ -1,0 +1,44 @@
+---
+title: "Veja a compressão antes de transferir"
+seoTitle: "Guia de compressão e exportação PNG, JPG e WebP"
+description: "Compare otimização PNG sem perdas, redução de cores, WebP sem perdas e níveis de qualidade. O ScreenHello mostra o tamanho real e os limites da exportação."
+reviewed: "2026-09-13"
+---
+
+## Qualidade 100 não significa sem perdas
+
+A otimização PNG sem perdas preserva os píxeis, mas não garante um ficheiro menor. A redução com perdas usa 256, 128 ou 64 cores e pode alterar gradientes e sombras translúcidas. O WebP tem um modo sem perdas separado. Os controlos de JPG e WebP continuam com perdas mesmo a 100. O WebP preenche a transparência a branco antes de codificar. O AVIF só permite exportação padrão, sem controlo de qualidade nem pré-visualização de compressão.
+
+### Standard, sem perdas e com perdas
+
+A exportação padrão usa a codificação predefinida do formato. PNG e WebP oferecem modos sem perdas; JPG e WebP oferecem qualidade com perdas ajustável. AVIF só oferece exportação padrão, sem controlo de qualidade nem pré-visualização da compressão.
+
+### Limites que vai encontrar
+
+O editor verifica estes valores antes de iniciar uma transferência.
+
+| Operação | Limite |
+| --- | --- |
+| Pré-visualização completa | 1 048 576 píxeis (cerca de 1 MP) |
+| Transferência comprimida | 4 194 304 píxeis (cerca de 4 MP), lado maior 8192 px |
+| Exportação AVIF | 4 194 304 píxeis, apenas exportação standard |
+| Redução de paleta PNG | 256, 128 ou 64 cores |
+| Qualidade com perdas | JPG / WebP: 90 / 80 / 60 |
+| Escala de exportação | 1x, 2x ou 3x |
+| Tempo de compressão | 30 segundos |
+
+> AVIF é apenas exportação standard: sem controlo de qualidade nem pré-visualização de compressão.
+
+## Compare a mesma composição
+
+Crie uma pré-visualização na exportação e alterne entre o resultado padrão e o comprimido com as mesmas dimensões. Veja os detalhes a 100% e os bytes reais. A referência é a tela editada, não a imagem original. Um resultado maior também é apresentado. Transferir uma pré-visualização válida reutiliza exatamente os dados já gerados.
+
+
+## Limites e processamento local
+
+O AVIF só permite exportação padrão, sem controlo de qualidade nem pré-visualização de compressão. As transferências comprimidas PNG/JPG/WebP permitem 4,194,304 píxeis. A pré-visualização completa de PNG/JPG/WebP permite 1,048,576 píxeis. Sem pré-visualização, pode transferir diretamente dentro do limite de tamanho. PNG/JPG/WebP padrão permitem 16,777,216 e AVIF padrão 4,194,304; cada lado tem um limite de 8192 píxeis. Reduza a tela ou a escala se necessário. Os codificadores são carregados deste site na primeira utilização e executados localmente. Os lotes aceitam até 12 imagens e entregam os resultados bem-sucedidos num ZIP.
+
+
+## Continuar a explorar
+
+[Como melhorar capturas: fundos, espaço e sombras](../beautify/) · [Processamento local, armazenamento e privacidade](../privacy/)

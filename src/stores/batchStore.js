@@ -1,5 +1,6 @@
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx';
 import { browserPlatform } from '../platform/browserPlatform';
+import { isExportCancelled } from './exportService';
 import {
     MAX_BATCH_FILES,
     batchError,
@@ -19,6 +20,7 @@ export class BatchStore {
     archiveFilename = null;
     summary = null;
     errorCode = null;
+    isHandingOff = false;
 
     constructor(root, { serviceFactory = defaultServiceFactory, platform = browserPlatform } = {}) {
         this.root = root;
@@ -28,6 +30,7 @@ export class BatchStore {
         this._controller = null;
         this._disposed = false;
         this._jobSequence = 0;
+        this._styleSnapshot = null;
         makeAutoObservable(this, {
             root: false,
             serviceFactory: false,
@@ -38,6 +41,7 @@ export class BatchStore {
             _controller: false,
             _disposed: false,
             _jobSequence: false,
+            _styleSnapshot: observableRef,
         });
     }
 
@@ -61,15 +65,29 @@ export class BatchStore {
         return this.state === 'running';
     }
 
+    get isBusy() {
+        return this.isRunning || this.isHandingOff;
+    }
+
     get canRetry() {
-        return !this.isRunning && this.jobs.some((job) => job.status === 'failed' || job.status === 'cancelled');
+        return !this._disposed && !this.isBusy && Boolean(this._styleSnapshot)
+            && this.jobs.some((job) => job.status === 'failed' || job.status === 'cancelled');
+    }
+
+    get snapshotSettings() {
+        return this._styleSnapshot?.exportSettings || null;
+    }
+
+    get hasSettingsWarning() {
+        return Boolean(this._styleSnapshot?.warnings?.length);
     }
 
     selectFiles(files) {
-        if (this.isRunning) throw batchError('batch-busy');
+        if (this.isBusy || this._disposed) throw batchError('batch-busy');
         const list = Array.from(files || []);
         if (list.length < 1 || list.length > MAX_BATCH_FILES) throw batchError('batch-file-count-invalid');
         this.jobs = list.map((file) => this._createJob(file));
+        this._styleSnapshot = null;
         this.archive = null;
         this.archiveFilename = null;
         this.summary = null;
@@ -78,7 +96,7 @@ export class BatchStore {
     }
 
     setPreset(id) {
-        if (this.isRunning) return;
+        if (this.isBusy || this._disposed) return;
         this.presetId = id || null;
     }
 
@@ -98,20 +116,23 @@ export class BatchStore {
     }
 
     async start(files = null, { presetId = this.presetId } = {}) {
-        if (this.isRunning || this._disposed) return false;
+        if (this.isBusy || this._disposed) return false;
         if (files) this.selectFiles(files);
         if (this.jobs.length < 1 || this.jobs.length > MAX_BATCH_FILES) {
             this.errorCode = 'batch-file-count-invalid';
             return false;
         }
         this.presetId = presetId || null;
-        const styleSource = this.presetId
-            ? { kind: 'preset', id: this.presetId }
-            : captureCurrentBatchStyleSource(this.root);
+        this._styleSnapshot = null;
+        return this._runJobs();
+    }
+
+    async _runJobs(styleSnapshot = null) {
         this.jobs = this.jobs.map((item) => ({
             ...item,
             status: 'queued',
             errorCode: null,
+            releaseErrorCode: null,
             filename: null,
             bytes: null,
             width: null,
@@ -125,13 +146,23 @@ export class BatchStore {
         const controller = new AbortController();
         this._controller = controller;
         try {
+            // Capture current JSON before lazy loading; preset bytes resolve once in the service.
+            const styleSource = styleSnapshot ? null : this.presetId
+                ? { kind: 'preset', id: this.presetId, theme: this.root.editor?.theme === 'dark' ? 'dark' : 'light' }
+                : captureCurrentBatchStyleSource(this.root);
             const service = await this._getService();
             if (controller.signal.aborted || this._disposed) throw batchError('batch-cancelled');
             const result = await service.run({
                 jobs: this.jobs.map(({ id, file }) => ({ id, file })),
                 styleSource,
+                styleSnapshot,
                 signal: controller.signal,
-                onUpdate: (id, patch) => runInAction(() => this._updateJob(id, patch)),
+                onStyleReady: snapshot => runInAction(() => {
+                    if (!this._disposed && !controller.signal.aborted && this._controller === controller) this._styleSnapshot = snapshot;
+                }),
+                onUpdate: (id, patch) => runInAction(() => {
+                    if (!this._disposed && this._controller === controller) this._updateJob(id, patch);
+                }),
             });
             if (this._disposed) return false;
             runInAction(() => {
@@ -146,6 +177,8 @@ export class BatchStore {
             runInAction(() => {
                 this.errorCode = error?.code || 'batch-failed';
                 this.state = controller.signal.aborted || error?.code === 'batch-cancelled' ? 'cancelled' : 'error';
+                this.jobs = this.jobs.map(job => ['queued', 'preparing', 'rendering', 'encoding'].includes(job.status)
+                    ? { ...job, status: this.state === 'cancelled' ? 'cancelled' : 'failed', errorCode: this.errorCode } : job);
             });
             return false;
         } finally {
@@ -168,26 +201,35 @@ export class BatchStore {
 
     async retryFailed() {
         if (!this.canRetry) return false;
-        const files = this.jobs
-            .filter((job) => job.status === 'failed' || job.status === 'cancelled')
-            .map((job) => job.file);
-        return this.start(files, { presetId: this.presetId });
+        this.jobs = this.jobs.filter((job) => job.status === 'failed' || job.status === 'cancelled');
+        return this._runJobs(this._styleSnapshot);
     }
 
     async download() {
-        if (!this.archive || !this.archiveFilename || this.isRunning) return false;
+        if (!this.archive || !this.archiveFilename || this.isBusy || this._disposed) return false;
+        this.isHandingOff = true;
+        this.errorCode = null;
         try {
+            const archive = this.archive;
+            await this.root.deviceLicense?.request(this._styleSnapshot?.option?.frame);
+            if (this._disposed || this.archive !== archive) return false;
             await this.platform.export.download(this.archive, this.archiveFilename);
-            return true;
-        } catch {
-            this.errorCode = 'batch-download-failed';
+            return !this._disposed;
+        } catch (error) {
+            if (this._disposed || isExportCancelled(error)) return false;
+            runInAction(() => {
+                this.errorCode = error?.code === 'desktop-file-exists' ? error.code : 'batch-download-failed';
+            });
             return false;
+        } finally {
+            runInAction(() => { this.isHandingOff = false; });
         }
     }
 
     clear() {
-        if (this.isRunning) return false;
+        if (this.isBusy || this._disposed) return false;
         this.jobs = [];
+        this._styleSnapshot = null;
         this.archive = null;
         this.archiveFilename = null;
         this.summary = null;
@@ -204,6 +246,7 @@ export class BatchStore {
         this._controller = null;
         this._service = null;
         this.jobs = [];
+        this._styleSnapshot = null;
         this.archive = null;
         this.archiveFilename = null;
         this.summary = null;

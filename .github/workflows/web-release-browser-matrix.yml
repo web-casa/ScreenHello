@@ -2,46 +2,77 @@ name: Web Release Browser Matrix
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_web_sha256:
+        description: 'Optional exact Web build SHA256; reject different bytes before browser execution'
+        type: string
+        default: ''
+      memory_firefox_probe:
+        description: 'Only the native x64 Firefox 1MP noise memory supplement (six exports; not a release gate)'
+        type: boolean
+        default: false
+      firefox_only:
+        description: 'Run only the Firefox 128 diagnostic (not a full release matrix)'
+        type: boolean
+        default: false
+      compression_checks:
+        description: 'Add bounded compression download checks (not memory or full MG3 acceptance)'
+        type: boolean
+        default: false
+      recovery_checks:
+        description: 'Add one real AVIF cancellation and PNG recovery (requires compression_checks)'
+        type: boolean
+        default: false
+      batch_checks:
+        description: 'Add two bounded batch cancellation/recovery checks (not memory acceptance)'
+        type: boolean
+        default: false
+      continuous_checks:
+        description: 'Add six consecutive PC standard AVIF exports (requires compression_checks; not memory acceptance)'
+        type: boolean
+        default: false
+
+env:
+  SCREENHELLO_EXPECTED_WEB_SHA256: ${{ inputs.expected_web_sha256 }}
+  SCREENHELLO_COMPRESSION_CHECKS: ${{ inputs.compression_checks && 'true' || 'false' }}
+  SCREENHELLO_RECOVERY_CHECKS: ${{ inputs.recovery_checks && 'true' || 'false' }}
+  SCREENHELLO_BATCH_CHECKS: ${{ inputs.batch_checks && 'true' || 'false' }}
+  SCREENHELLO_CONTINUOUS_CHECKS: ${{ inputs.continuous_checks && 'true' || 'false' }}
 
 permissions:
   contents: read
 
 jobs:
   minimum-browser:
+    if: ${{ !inputs.memory_firefox_probe }}
     name: ${{ matrix.target }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: chrome-111
-            image: selenium/standalone-chrome:111.0@sha256:38bb75fb9c8ad82e1eee6f299b612a09d9c874ecde1d776beddc2eb0bdcb0bea
-          - target: edge-111
-            image: selenium/standalone-edge:111.0@sha256:0648185233f0adbe286a39ede22befdedc2f9be66db81916d328821b825a855f
-          - target: firefox-128
-            image: selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef
+        include: ${{ fromJSON(inputs.firefox_only && '[{"target":"firefox-128","image":"selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef"}]' || '[{"target":"chrome-111","image":"selenium/standalone-chrome:111.0@sha256:38bb75fb9c8ad82e1eee6f299b612a09d9c874ecde1d776beddc2eb0bdcb0bea"},{"target":"edge-111","image":"selenium/standalone-edge:111.0@sha256:0648185233f0adbe286a39ede22befdedc2f9be66db81916d328821b825a855f"},{"target":"firefox-128","image":"selenium/standalone-firefox:128.0@sha256:7ae351d2835f774d1a6f97c40e9c68205c5d78e0e2acd604f2b1463bc2608fef"}]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 10.12.1
-          run_install: false
-
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .node-version
-          cache: pnpm
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --strict-peer-dependencies
 
       - name: Build release candidate
         run: pnpm build
+
+      - name: Record candidate bytes and native host
+        run: node tests/release/record-candidate.mjs
 
       - name: Start production preview
         run: |
@@ -87,12 +118,16 @@ jobs:
           name: web-release-${{ matrix.target }}-${{ github.sha }}
           path: |
             artifacts/release/browser-matrix/${{ matrix.target }}.json
+            artifacts/release/browser-matrix/${{ matrix.target }}-batch-*.zip
+            artifacts/release/browser-matrix/${{ matrix.target }}-continuous-*.avif
+            artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/selenium.log
           if-no-files-found: warn
           retention-days: 30
 
   safari-macos-14:
+    if: ${{ !inputs.firefox_only && !inputs.memory_firefox_probe }}
     name: safari-macos-14
     runs-on: macos-14
     timeout-minutes: 40
@@ -102,21 +137,21 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 10.12.1
-          run_install: false
-
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .node-version
-          cache: pnpm
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --strict-peer-dependencies
 
       - name: Build release candidate
         run: pnpm build
+
+      - name: Record candidate bytes and native host
+        run: node tests/release/record-candidate.mjs
 
       - name: Start production preview
         run: |
@@ -159,7 +194,47 @@ jobs:
           name: web-release-safari-macos-14-${{ github.sha }}
           path: |
             artifacts/release/browser-matrix/safari-macos-14.json
+            artifacts/release/browser-matrix/safari-macos-14-batch-*.zip
+            artifacts/release/browser-matrix/safari-macos-14-continuous-*.avif
+            artifacts/release/browser-matrix/candidate.json
             ${{ runner.temp }}/screenhello-preview.log
             ${{ runner.temp }}/safari-webdriver-logs
           if-no-files-found: warn
+          retention-days: 30
+
+  native-firefox-memory:
+    if: ${{ inputs.memory_firefox_probe && github.repository == 'web-casa/ScreenHello' && !github.event.repository.private }}
+    name: native-x64-firefox-memory-supplement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
+      - name: Prepare locked dependencies and current Firefox
+        run: |
+          pnpm install --frozen-lockfile --strict-peer-dependencies
+          pnpm exec playwright install --with-deps firefox
+      - name: Build both candidates before measurement
+        run: |
+          pnpm build
+          pnpm test:compression:build
+      - name: Register and collect one fixed memory supplement
+        env:
+          SCREENHELLO_MEMORY_RUNNER: ubuntu-24.04
+        run: node tests/compression-product/run-native-firefox-memory.mjs
+      - name: Preserve raw memory evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: native-firefox-memory-${{ github.sha }}
+          path: |
+            artifacts/native-firefox-memory/
+            artifacts/compression-product-evidence/*mg3-native-firefox.json.v2/
+          if-no-files-found: error
           retention-days: 30

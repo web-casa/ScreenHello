@@ -1,0 +1,316 @@
+{
+  "lang": "en",
+  "name": "English",
+  "open": "Open editor",
+  "skip": "Skip to content",
+  "nav": "Explore ScreenHello",
+  "languages": "Language",
+  "before": "Original",
+  "after": "With a browser frame",
+  "example": "Illustrative sample: the same local image, with background, padding and a browser frame.",
+  "related": "Keep exploring",
+  "source": "Source code",
+  "upstream": "Based on Shoteasy. Code and optional artwork have separate licences.",
+  "browser": "Browser support: Chrome/Edge 111+, Firefox 128+, Safari 16.4+. Capture, clipboard and installation depend on your browser and permissions.",
+  "updated": "Content reviewed",
+  "reviewed": "2026-09-13",
+  "labels": [
+    "Overview",
+    "Beautify",
+    "Frames",
+    "Compression",
+    "Guide",
+    "Privacy"
+  ],
+  "pages": [
+    {
+      "title": "Screenshot beautification, on your device",
+      "seoTitle": "Screenshot editor features, local processing and privacy",
+      "description": "ScreenHello is a free, local-first screenshot editor. Add backgrounds, browser frames and annotations, then preview compression and export without uploading your images.",
+      "sections": [
+        [
+          "From a screenshot to a finished visual",
+          "Import a local image, paste from the clipboard or try the bundled example. Add space, a background, a browser frame and annotations for a product update, tutorial or social post. The editor processes your images on your device; no account or cloud sync is required.",
+          [
+            {
+              "h": "Paragraphs and backgrounds",
+              "p": "Add padding, rounded corners, a shadow and an inner border. Choose a solid colour, a gradient, one of the bundled image backgrounds, or a local image of your own."
+            },
+            {
+              "h": "Frames and annotations",
+              "p": "Wrap the screenshot in browser chrome or a raster device frame. Arrows, step numbers and magnifiers point at the part that matters, and the exported canvas keeps the result."
+            },
+            {
+              "note": "Everything runs in your browser. There is no account, no upload and no cloud sync, so a screenshot never leaves your device."
+            }
+          ]
+        ],
+        [
+          "Edit once. Keep the project.",
+          "Arrange up to 12 image layers, undo changes and save a portable .screenhello project. A project file is your own backup; an automatically saved browser draft is a separate local copy and may be cleared by the browser."
+        ],
+        [
+          "A Web tool with clear boundaries",
+          "Export PNG, JPG, WebP or AVIF and compare a compression preview before downloading. The Web editor is the available workflow described here. Desktop builds are still test candidates, and a Chrome/Edge extension is planned, not offered as a released download. AVIF offers standard export only, without quality controls or compression preview."
+        ]
+      ]
+    },
+    {
+      "title": "Give your screenshots room to breathe",
+      "seoTitle": "Screenshot beautification: backgrounds, padding and shadows",
+      "description": "Add backgrounds, padding, rounded corners, shadows and annotations to screenshots locally in ScreenHello. Keep edits reversible and export the complete canvas.",
+      "sections": [
+        [
+          "1. Bring in an image",
+          "Choose a local file, drop it into the welcome area, or paste an image. Screen capture asks for browser permission. The example button loads a portrait sample on narrow screens and a landscape sample on tablet or desktop-sized windows.",
+          [
+            {
+              "h": "Work with up to 12 images",
+              "p": "A project holds at most 12 images. Each one keeps its own position, size and appearance settings, and you switch between them from the layer list."
+            },
+            {
+              "h": "Keyboard shortcuts",
+              "p": "Drive the editor without leaving the keyboard. On macOS use Command wherever the table says Ctrl."
+            },
+            {
+              "table": {
+                "head": [
+                  "Action",
+                  "Keys"
+                ],
+                "rows": [
+                  [
+                    "Open project",
+                    "Ctrl + O"
+                  ],
+                  [
+                    "Save project",
+                    "Ctrl + S"
+                  ],
+                  [
+                    "Save project as",
+                    "Ctrl + Shift + S"
+                  ],
+                  [
+                    "Open export",
+                    "Ctrl + Shift + E"
+                  ],
+                  [
+                    "Copy final image",
+                    "Ctrl + C"
+                  ],
+                  [
+                    "Undo",
+                    "Ctrl + Z"
+                  ],
+                  [
+                    "Redo",
+                    "Ctrl + Shift + Z"
+                  ],
+                  [
+                    "Delete selection",
+                    "Delete or Backspace"
+                  ],
+                  [
+                    "Zoom in",
+                    "Ctrl + +"
+                  ],
+                  [
+                    "Zoom out",
+                    "Ctrl + -"
+                  ],
+                  [
+                    "Fit canvas",
+                    "Ctrl + 0"
+                  ]
+                ]
+              }
+            },
+            {
+              "note": "Shortcuts are ignored while you are typing in a text field, so they never interrupt a label you are editing."
+            }
+          ]
+        ],
+        [
+          "2. Build a consistent style",
+          "Set the canvas size, padding, corner radius, shadow and inner border. Choose a solid colour, gradient, bundled image background or your own local background. Use arrows, step numbers and magnifiers to explain what matters. Save reusable styles as local presets."
+        ],
+        [
+          "3. Export the whole composition",
+          "Choose PNG for a transparent canvas, or JPG, WebP and AVIF for the other supported workflows. JPEG and WebP exports use a white background for transparency. Zoom changes only the editing view; export scale changes the final pixel dimensions. Review the export settings before downloading."
+        ]
+      ]
+    },
+    {
+      "title": "Browser frames and optional device mockups",
+      "seoTitle": "Browser and device frames for screenshots",
+      "description": "Frame a screenshot with a configurable browser window in ScreenHello. Learn how device availability, colours, image fitting and artwork licences work.",
+      "sections": [
+        [
+          "A browser frame, without fetching a website",
+          "Choose a browser frame from the left panel, enter the address shown in the title bar and adjust the toolbar size. The displayed address is decoration: ScreenHello does not visit the URL or capture that website automatically.",
+          [
+            {
+              "h": "Browser chrome or device frame",
+              "p": "Browser chrome draws a title bar around the canvas and needs no extra assets. Raster device frames reproduce a specific screen and keep the source aspect ratio."
+            },
+            {
+              "note": "Raster device frames come from an optional local pack. When the pack is not installed the picker says so instead of showing an empty list, and every other feature keeps working."
+            }
+          ]
+        ],
+        [
+          "Devices depend on installed artwork",
+          "The frame picker shows only artwork available in the current build. Some local installations include MacBook Air M2, iMac 24-inch, Surface Pro, Surface Studio or Pixel 9 Pro variants. These are not guaranteed in the public distribution; available colour choices also depend on the installed pack."
+        ],
+        [
+          "Preserve proportions and respect licences",
+          "Use contain to keep the entire screenshot, cover to fill the display with cropping, or stretch when distortion is acceptable. Optional artwork has its own licence; the application's code licence does not automatically cover it. A saved project stores a device identifier, not the optional device pack. Missing artwork must be installed or replaced before a complete export."
+        ]
+      ]
+    },
+    {
+      "title": "Image compression you can preview",
+      "seoTitle": "PNG, JPG and WebP compression and export guide",
+      "description": "Compare PNG lossless optimisation and lossy palette reduction, WebP lossless and quality-controlled exports in ScreenHello. See actual output size before downloading.",
+      "sections": [
+        [
+          "Lossless is not the same as quality 100",
+          "PNG lossless optimisation preserves pixels but does not guarantee a smaller file. PNG lossy mode reduces the palette to 256, 128 or 64 colours and may change gradients and translucent shadows. WebP has a true lossless option; JPG and WebP quality sliders are lossy, even at 100. WebP export flattens transparency to white before encoding. AVIF offers standard export only, without quality controls or compression preview.",
+          [
+            {
+              "h": "Standard, lossless and lossy",
+              "p": "Standard export uses the format’s default encoding settings. PNG and WebP offer lossless modes; JPG and WebP offer adjustable lossy quality. AVIF offers standard export only, without quality controls or compression preview."
+            },
+            {
+              "h": "Limits you can hit",
+              "p": "These numbers are enforced by the editor before a download starts."
+            },
+            {
+              "table": {
+                "head": [
+                  "Operation",
+                  "Limit"
+                ],
+                "rows": [
+                  [
+                    "Full in-app preview",
+                    "1,048,576 pixels (about 1 MP)"
+                  ],
+                  [
+                    "Compressed download",
+                    "4,194,304 pixels (about 4 MP), longest side 8192 px"
+                  ],
+                  [
+                    "AVIF export",
+                    "4,194,304 pixels, standard export only"
+                  ],
+                  [
+                    "PNG palette reduction",
+                    "256, 128 or 64 colours"
+                  ],
+                  [
+                    "Lossy quality presets",
+                    "JPG / WebP: 90 / 80 / 60"
+                  ],
+                  [
+                    "Export scale",
+                    "1x, 2x or 3x"
+                  ],
+                  [
+                    "Compression timeout",
+                    "30 seconds"
+                  ]
+                ]
+              }
+            },
+            {
+              "note": "AVIF is standard export only: no quality control and no compression preview."
+            }
+          ]
+        ],
+        [
+          "Compare the same composition",
+          "Open Export and generate a preview. Compare the standard export and compressed result at the same canvas size, inspect at 100%, and read the actual byte size. The reference is the rendered composition, not the imported original. A larger result is reported honestly. Downloading a valid preview reuses those exact bytes."
+        ],
+        [
+          "Limits and local processing",
+          "AVIF offers standard export only, without quality controls or compression preview. Compressed PNG/JPG/WebP downloads allow 4,194,304 pixels. Full previews for PNG/JPG/WebP allow 1,048,576 pixels. When preview is unavailable, direct downloads remain available within their size limit. Standard PNG/JPG/WebP allow 16,777,216 pixels; standard AVIF allows 4,194,304 pixels. Each side is limited to 8192 pixels. Reduce canvas size or scale when necessary. Encoders load from this site on first use and run locally. Batch processing accepts up to 12 images and downloads successful results in a ZIP."
+        ]
+      ]
+    },
+    {
+      "title": "Your first ScreenHello project",
+      "seoTitle": "How to use ScreenHello: import, beautify and export",
+      "description": "Learn to import, style, save and export a ScreenHello project. Understand local drafts, portable backups, offline resources and recovery without cloud accounts.",
+      "sections": [
+        [
+          "1. Open an example or import an image",
+          "Use Open editor on this page, then select Try an example in the centre of the canvas. To use your own screenshot, choose Choose image and pick a local file. Your image should appear in the central canvas before you continue."
+        ],
+        [
+          "2. Set the background and frame",
+          "Use Background on the right to choose a solid colour, gradient or image, then adjust padding, corners and shadow. Set the canvas size and browser frame on the left. Use the bottom tools for arrows or other annotations when needed, and check that no text is cropped."
+        ],
+        [
+          "3. Check the size and download a PNG",
+          "Select Export at the top. In the export panel choose PNG, standard export and 1× scale. Check the final pixel dimensions, then select Download image and keep the downloaded file. Canvas zoom does not change output dimensions; 2× scale doubles both width and height."
+        ],
+        [
+          "4. Save an editable project",
+          "Choose Save project in the File menu to save a .screenhello file. The downloaded image is the finished output; the project file preserves editable content. Later, use File → Open project to select that file and continue editing."
+        ],
+        [
+          "Save a file, not just a draft",
+          "Use File → Save project or Save as for a portable backup. File → Open project restores it. Local drafts and recent projects live in this browser, not in a cloud account. Clearing site data can remove them. Save a project file before clearing storage or moving to another device; transfer that file yourself."
+        ],
+        [
+          "Offline and troubleshooting",
+          "After the editor reports offline readiness, its cached core can reopen without a connection. Unused backgrounds, optional devices and encoders may still require a first online load. These guide pages require a connection and are not part of the offline editor cache. If capture or clipboard access is denied, use a local file instead. If export exceeds its budget, lower the canvas dimensions or pixel scale."
+        ]
+      ]
+    },
+    {
+      "title": "Your pictures stay on your device",
+      "seoTitle": "Local image processing, project storage and privacy",
+      "description": "How ScreenHello processes images locally, stores drafts in your browser and loads application resources. Understand privacy boundaries, backups and data removal.",
+      "sections": [
+        [
+          "What is processed locally?",
+          "Imported images, captured screenshots, canvas editing and compression are processed in the browser on your device. This application has no image-upload backend, cloud account or cloud synchronisation. Local-first does not mean that loading the website makes no network requests."
+        ],
+        [
+          "What is stored or requested?",
+          "Projects, drafts and presets can be stored in IndexedDB; language and appearance preferences are saved locally. The browser requests the site code, icons, backgrounds and encoding resources as needed. Hosting providers may process ordinary request metadata such as IP addresses and user agents. This source version adds no analytics SDK, advertising pixel or session recording."
+        ],
+        [
+          "How can I remove or move my data?",
+          "Manage drafts, presets and recent projects in the local library, or clear this site's data in browser settings. First save any .screenhello project files you want to keep. Clearing browser data does not delete files already downloaded to your device. External source-code links leave this site and are governed by the destination's policies."
+        ]
+      ]
+    }
+  ],
+  "docsUi": {
+    "Search": "Search",
+    "Close Search": "Close search",
+    "No results found": "No results found. Try another keyword.",
+    "Choose a language": "Choose a language",
+    "Toggle Theme": "Toggle theme",
+    "Light": "Light",
+    "Dark": "Dark",
+    "System": "System",
+    "Open Sidebar": "Open sidebar",
+    "Close Sidebar": "Close sidebar",
+    "Collapse Sidebar": "Collapse sidebar",
+    "Hide Sidebar": "Hide sidebar",
+    "Show Sidebar": "Show sidebar",
+    "Next Page": "Next page",
+    "Previous Page": "Previous page",
+    "On this page": "On this page",
+    "No Headings": "No headings",
+    "Toggle Menu": "Toggle menu",
+    "searchHint": "Search this language’s guides, for example PNG or project.",
+    "guideCaption": "The editor with the built-in example. Canvas settings are on the left; appearance controls are on the right.",
+    "exportCaption": "The export panel: choose a format and scale, check the final size, then download."
+  }
+}

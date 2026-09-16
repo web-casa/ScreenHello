@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "active": true,
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "tsp": true
+    }
+  }
+}

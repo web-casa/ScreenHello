@@ -26,6 +26,14 @@ export default class UndoRedoManager {
         return this._pointer < this._stacks.length - 1;
     }
 
+    /**
+     * 当前游标位置。调用方用它判断某个提交是否仍是栈顶（toast 撤销凭据），
+     * 不要从外部写这个值。
+     */
+    get pointer() {
+        return this._pointer;
+    }
+
     get count() {
         return this._stacks.length;
     }

@@ -1,0 +1,294 @@
+{
+  "lang": "de",
+  "name": "Deutsch",
+  "open": "Editor öffnen",
+  "skip": "Zum Inhalt",
+  "nav": "ScreenHello entdecken",
+  "languages": "Sprache",
+  "before": "Original",
+  "after": "Mit Browserrahmen",
+  "example": "Beispieldarstellung: dasselbe lokale Bild mit Hintergrund, Abstand und Browserrahmen.",
+  "related": "Mehr erfahren",
+  "source": "Quellcode",
+  "upstream": "Basiert auf Shoteasy. Für Code und optionale Grafiken gelten getrennte Lizenzen.",
+  "browser": "Unterstützt: Chrome/Edge 111+, Firefox 128+, Safari 16.4+. Bildschirmaufnahme, Zwischenablage und Installation hängen von Browser und Berechtigungen ab.",
+  "updated": "Inhalt geprüft",
+  "reviewed": "2026-09-13",
+  "labels": [
+    "Überblick",
+    "Gestaltung",
+    "Rahmen",
+    "Komprimierung",
+    "Anleitung",
+    "Datenschutz"
+  ],
+  "pages": [
+    {
+      "title": "Schöne Screenshots. Auf deinem Gerät.",
+      "seoTitle": "Screenshot-Editor: Funktionen und Datenschutz",
+      "description": "ScreenHello ist ein kostenloser, lokaler Screenshot-Editor. Ergänze Hintergründe, Browserrahmen und Markierungen und prüfe die Komprimierung, ohne Bilder hochzuladen.",
+      "sections": [
+        [
+          "Aus einem Screenshot wird eine Präsentation",
+          "Öffne ein lokales Bild, füge es aus der Zwischenablage ein oder nutze das Beispiel. Hintergründe, Abstand und Markierungen machen Produktneuigkeiten, Anleitungen und Beiträge verständlicher. Die Bildverarbeitung erfolgt auf deinem Gerät, ohne Konto oder Cloud-Synchronisierung."
+        ],
+        [
+          "Bearbeiten und später fortsetzen",
+          "Ordne bis zu 12 Bildebenen an, mache Änderungen rückgängig und speichere eine portable .screenhello-Projektdatei. Sie ist deine eigene Sicherung. Automatische Browserentwürfe sind getrennte lokale Kopien und können beim Löschen von Websitedaten verloren gehen."
+        ],
+        [
+          "Web-Funktionen und Grenzen",
+          "Exportiere PNG, JPG, WebP oder AVIF und vergleiche eine Komprimierungsvorschau. Diese Seiten beschreiben den Web-Editor. Desktop-Versionen sind noch Testkandidaten; eine Chrome/Edge-Erweiterung ist geplant und kein fertiger Download. AVIF bietet nur Standardexport, ohne Qualitätsregler oder Komprimierungsvorschau."
+        ]
+      ]
+    },
+    {
+      "title": "Gib deinen Screenshots mehr Raum",
+      "seoTitle": "Screenshots gestalten: Hintergrund, Abstand und Schatten",
+      "description": "Gestalte Screenshots lokal mit Hintergrund, Abstand, Rundungen, Schatten und Markierungen. ScreenHello bietet rückgängig machbare Änderungen und Stilvorlagen.",
+      "sections": [
+        [
+          "1. Bild öffnen",
+          "Wähle eine Datei, ziehe sie in den Begrüßungsbereich oder füge ein Bild ein. Die Bildschirmaufnahme benötigt eine Browserfreigabe. Das Beispiel wird erst beim Anklicken geladen: im schmalen Fenster im Hochformat, auf Tablet- und Desktop-Breite im Querformat.",
+          [
+            {
+              "h": "Bis zu 12 Bilder",
+              "p": "Ein Projekt fasst höchstens 12 Bilder. Jedes behält Position, Größe und Darstellung."
+            },
+            {
+              "h": "Tastenkürzel",
+              "p": "Bedienen Sie den Editor ohne die Tastatur zu verlassen. Unter macOS gilt Command statt Ctrl."
+            },
+            {
+              "table": {
+                "head": [
+                  "Aktion",
+                  "Tasten"
+                ],
+                "rows": [
+                  [
+                    "Projekt öffnen",
+                    "Ctrl + O"
+                  ],
+                  [
+                    "Projekt speichern",
+                    "Ctrl + S"
+                  ],
+                  [
+                    "Projekt speichern unter",
+                    "Ctrl + Shift + S"
+                  ],
+                  [
+                    "Export öffnen",
+                    "Ctrl + Shift + E"
+                  ],
+                  [
+                    "Fertiges Bild kopieren",
+                    "Ctrl + C"
+                  ],
+                  [
+                    "Rückgängig",
+                    "Ctrl + Z"
+                  ],
+                  [
+                    "Wiederholen",
+                    "Ctrl + Shift + Z"
+                  ],
+                  [
+                    "Auswahl löschen",
+                    "Delete / Backspace"
+                  ],
+                  [
+                    "Vergrößern",
+                    "Ctrl + +"
+                  ],
+                  [
+                    "Verkleinern",
+                    "Ctrl + -"
+                  ],
+                  [
+                    "An Canvas anpassen",
+                    "Ctrl + 0"
+                  ]
+                ]
+              }
+            },
+            {
+              "note": "In einem Textfeld sind Tastenkürzel inaktiv und unterbrechen die Eingabe nicht."
+            }
+          ]
+        ],
+        [
+          "2. Einen Stil entwickeln",
+          "Stelle Leinwandgröße, Innenabstand, Rundungen, Schatten und Innenrahmen ein. Wähle Farben, Verläufe, mitgelieferte oder eigene Hintergründe. Pfeile, Schrittnummern und Lupen verdeutlichen Details. Wiederkehrende Einstellungen lassen sich als lokale Vorlagen speichern."
+        ],
+        [
+          "3. Die gesamte Leinwand exportieren",
+          "Verwende PNG für Transparenz oder exportiere JPG, WebP und AVIF. JPG und WebP füllen transparente Bereiche weiß. Der Ansichtszoom ändert nicht die Ausgabegröße; dafür ist der Exportmaßstab zuständig. Prüfe Format und Pixelmaße vor dem Download."
+        ]
+      ]
+    },
+    {
+      "title": "Browserrahmen und optionale Gerätemockups",
+      "seoTitle": "Browser- und Geräterahmen für Screenshots",
+      "description": "Ergänze Browserrahmen mit anpassbarer Adressleiste. Erfahre, wie Gerätegrafiken, Farben, Bildanpassung und Materiallizenzen in ScreenHello funktionieren.",
+      "sections": [
+        [
+          "Eine Adresse anzeigen, nicht aufrufen",
+          "Wähle links einen Browserrahmen und passe die angezeigte URL sowie die Höhe der Werkzeugleiste an. Die Adresse ist lediglich Teil der Grafik. ScreenHello ruft die Website nicht auf und erstellt daraus keinen automatischen Screenshot."
+        ],
+        [
+          "Geräte hängen vom Grafikpaket ab",
+          "Die Auswahl zeigt nur Grafiken des installierten Builds. Manche lokalen Installationen enthalten MacBook Air M2, iMac 24 Zoll, Surface Pro, Surface Studio oder Pixel 9 Pro. Die öffentliche Distribution garantiert diese Motive nicht. Auch Farben hängen vom installierten Paket ab."
+        ],
+        [
+          "Proportionen und Lizenzen beachten",
+          "Einpassen zeigt das ganze Bild, Ausfüllen kann es beschneiden, Strecken kann es verzerren. Optionale Grafiken haben eigene Lizenzen; die Codelizenz deckt sie nicht automatisch ab. Projekte speichern nur eine Gerätekennung, nicht das Grafikpaket. Fehlende Grafiken müssen installiert oder durch einen anderen Rahmen ersetzt werden."
+        ]
+      ]
+    },
+    {
+      "title": "Komprimierung mit sichtbarem Ergebnis",
+      "seoTitle": "PNG-, JPG- und WebP-Komprimierung und Export",
+      "description": "Vergleiche verlustfreie PNG-Optimierung, Farbreduktion, verlustfreies WebP und Qualitätsstufen. ScreenHello zeigt die tatsächliche Dateigröße vor dem Download.",
+      "sections": [
+        [
+          "Qualität 100 bedeutet nicht verlustfrei",
+          "Verlustfreie PNG-Optimierung erhält die Pixel, verkleinert aber nicht jede Datei. Die verlustbehaftete Variante reduziert auf 256, 128 oder 64 Farben und kann Verläufe verändern. WebP bietet einen eigenen verlustfreien Modus. Die Qualitätsregler für JPG und WebP bleiben auch bei 100 verlustbehaftet. WebP ersetzt Transparenz vor der Kodierung durch Weiß. AVIF bietet nur Standardexport, ohne Qualitätsregler oder Komprimierungsvorschau.",
+          [
+            {
+              "h": "Standard, verlustfrei und verlustbehaftet",
+              "p": "Der Standardexport verwendet die Standardkodierung des Formats. PNG und WebP bieten verlustfreie Modi; JPG und WebP bieten einstellbare verlustbehaftete Qualität. AVIF bietet nur Standardexport ohne Qualitätsregler oder Komprimierungsvorschau."
+            },
+            {
+              "h": "Grenzen, die greifen",
+              "p": "Diese Werte prüft der Editor, bevor ein Download startet."
+            },
+            {
+              "table": {
+                "head": [
+                  "Vorgang",
+                  "Grenze"
+                ],
+                "rows": [
+                  [
+                    "Vollständige Vorschau",
+                    "1.048.576 Pixel (ca. 1 MP)"
+                  ],
+                  [
+                    "Komprimierter Download",
+                    "4.194.304 Pixel (ca. 4 MP), längste Seite 8192 px"
+                  ],
+                  [
+                    "AVIF-Export",
+                    "4.194.304 Pixel, nur Standardexport"
+                  ],
+                  [
+                    "PNG-Palettenreduktion",
+                    "256, 128 oder 64 Farben"
+                  ],
+                  [
+                    "Verlustbehaftete Qualität",
+                    "JPG / WebP: 90 / 80 / 60"
+                  ],
+                  [
+                    "Exportskalierung",
+                    "1x, 2x oder 3x"
+                  ],
+                  [
+                    "Komprimierungs-Timeout",
+                    "30 Sekunden"
+                  ]
+                ]
+              }
+            },
+            {
+              "note": "AVIF gibt es nur als Standardexport: ohne Qualitätsregler und ohne Kompressionsvorschau."
+            }
+          ]
+        ],
+        [
+          "Dieselbe Komposition vergleichen",
+          "Erzeuge im Exportdialog eine Vorschau und wechsle zwischen Standardexport und komprimiertem Ergebnis bei gleicher Größe. Prüfe Details bei 100 % und die tatsächliche Bytezahl. Verglichen wird die bearbeitete Leinwand, nicht das importierte Original. Auch größere Ergebnisse werden angezeigt. Der Download einer gültigen Vorschau verwendet exakt deren Daten."
+        ],
+        [
+          "Grenzen und lokale Verarbeitung",
+          "AVIF bietet nur Standardexport, ohne Qualitätsregler oder Komprimierungsvorschau. Komprimierte PNG/JPG/WebP-Downloads erlauben 4,194,304 Pixel. Vollständige PNG/JPG/WebP-Vorschauen erlauben 1,048,576 Pixel. Ohne Vorschau sind direkte Downloads innerhalb ihrer Größenbegrenzung weiterhin möglich. Standard-PNG/JPG/WebP erlauben 16,777,216, Standard-AVIF 4,194,304 Pixel; maximal 8192 je Seite. Verkleinere bei Bedarf Leinwand oder Maßstab. Encoder werden beim ersten Gebrauch von dieser Website geladen und lokal ausgeführt. Stapel mit bis zu 12 Bildern liefern erfolgreiche Ergebnisse als ZIP."
+        ]
+      ]
+    },
+    {
+      "title": "Dein erstes ScreenHello-Projekt",
+      "seoTitle": "ScreenHello-Anleitung: Import, Gestaltung und Export",
+      "description": "Bilder importieren, gestalten, speichern und exportieren: eine Anleitung zu ScreenHello, lokalen Entwürfen, portablen Sicherungen und Offline-Ressourcen.",
+      "sections": [
+        [
+          "1. Beispiel öffnen oder Bild importieren",
+          "Wähle auf dieser Seite Editor öffnen und dann das Beispiel in der Mitte der Leinwand. Für einen eigenen Screenshot wähle eine lokale Bilddatei über die Bildauswahl. Warte, bis das Bild auf der Leinwand erscheint."
+        ],
+        [
+          "2. Hintergrund und Rahmen einstellen",
+          "Wähle rechts einen einfarbigen Hintergrund, Farbverlauf oder ein Bild und passe Abstand, Ecken und Schatten an. Links stellst du Leinwandgröße und Browserrahmen ein. Ergänze bei Bedarf Pfeile über die untere Werkzeugleiste und prüfe, dass kein Text abgeschnitten wird."
+        ],
+        [
+          "3. Größe prüfen und PNG herunterladen",
+          "Öffne oben den Export. Wähle PNG, Standardexport und den Maßstab 1×. Prüfe die endgültigen Pixelmaße und lade das Bild herunter. Der Leinwandzoom ändert die Ausgabegröße nicht; 2× verdoppelt Breite und Höhe."
+        ],
+        [
+          "4. Bearbeitbares Projekt speichern",
+          "Speichere über das Dateimenü eine .screenhello-Projektdatei. Das heruntergeladene Bild ist das fertige Ergebnis; die Projektdatei erhält die bearbeitbaren Inhalte. Öffne sie später über das Dateimenü, um weiterzuarbeiten."
+        ],
+        [
+          "Projektdateien als Sicherung",
+          "Nutze im Dateimenü Projekt speichern oder Speichern unter und später Projekt öffnen. Entwürfe und zuletzt verwendete Projekte liegen in diesem Browser, nicht in der Cloud. Sichere Projektdateien vor dem Löschen von Websitedaten. Übertrage sie selbst auf andere Geräte; es gibt keine automatische Synchronisierung."
+        ],
+        [
+          "Offline arbeiten und Probleme lösen",
+          "Nach der Offline-Bereitschaftsmeldung kann der zwischengespeicherte Editor ohne Verbindung starten. Noch ungenutzte Hintergründe, Geräte und Encoder benötigen eventuell zuerst Internet. Diese Anleitungsseiten gehören nicht zum Offline-Cache. Bei verweigerter Aufnahme- oder Zwischenablageberechtigung öffne eine Datei. Bei überschrittenem Exportlimit reduziere Maße oder Maßstab."
+        ]
+      ]
+    },
+    {
+      "title": "Deine Bilder bleiben auf deinem Gerät",
+      "seoTitle": "Lokale Bildverarbeitung, Projekte und Datenschutz",
+      "description": "So verarbeitet ScreenHello Bilder lokal, speichert Browserentwürfe und lädt Ressourcen. Erfahre mehr über Datengrenzen, Sicherungen und das Löschen lokaler Daten.",
+      "sections": [
+        [
+          "Was wird lokal verarbeitet?",
+          "Importierte Bilder, Bildschirmaufnahmen, Bearbeitung und Komprimierung werden im Browser auf deinem Gerät verarbeitet. Die Anwendung hat kein Backend für Bilduploads, kein Cloud-Konto und keine Cloud-Synchronisierung. Lokal bedeutet nicht, dass beim Laden der Website keine Netzwerkverbindungen entstehen."
+        ],
+        [
+          "Speicherung und Netzwerk",
+          "Projekte, Entwürfe und Vorlagen können in IndexedDB liegen; Sprach- und Darstellungsoptionen werden lokal gespeichert. Code, Symbole, Hintergründe und Encoder werden nach Bedarf angefordert. Der Hostinganbieter kann übliche Zugriffsdaten wie IP-Adresse und Browserkennung verarbeiten. Diese Quellcodeversion ergänzt weder Analyse-SDK noch Werbepixel oder Sitzungsaufzeichnung."
+        ],
+        [
+          "Daten löschen oder übertragen",
+          "Verwalte Entwürfe, Vorlagen und letzte Projekte in der lokalen Bibliothek oder lösche Websitedaten über den Browser. Sichere zuvor benötigte .screenhello-Dateien. Bereits heruntergeladene Dateien werden dadurch nicht vom Gerät entfernt. Externe Quellcodelinks führen zu anderen Websites mit eigenen Regeln."
+        ]
+      ]
+    }
+  ],
+  "docsUi": {
+    "Search": "Dokumentation durchsuchen",
+    "Close Search": "Suche schließen",
+    "No results found": "Keine Ergebnisse. Versuche ein anderes Suchwort.",
+    "Choose a language": "Sprache wählen",
+    "Toggle Theme": "Design wechseln",
+    "Light": "Hell",
+    "Dark": "Dunkel",
+    "System": "System",
+    "Open Sidebar": "Seitenleiste öffnen",
+    "Close Sidebar": "Seitenleiste schließen",
+    "Collapse Sidebar": "Seitenleiste einklappen",
+    "Hide Sidebar": "Seitenleiste ausblenden",
+    "Show Sidebar": "Seitenleiste anzeigen",
+    "Next Page": "Nächste Seite",
+    "Previous Page": "Vorherige Seite",
+    "On this page": "Auf dieser Seite",
+    "No Headings": "Keine Überschriften",
+    "Toggle Menu": "Menü umschalten",
+    "searchHint": "Durchsuche die deutschen Anleitungen, zum Beispiel nach PNG oder Projekt.",
+    "guideCaption": "Das integrierte Beispiel im Editor: links die Leinwand, rechts die Gestaltung. Abbildung mit englischer Oberfläche.",
+    "exportCaption": "Export: Format und Skalierung wählen, Ausgabegröße prüfen und herunterladen. Abbildung mit englischer Oberfläche."
+  }
+}

@@ -1,11 +1,19 @@
 import { defineConfig, esmExternalRequirePlugin } from 'vite';
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { createPwaOptions, normalizeWebBase } from './config/pwaConfig.js';
+import { upngCjsPlugin } from './config/upngCodecPlugin.mjs';
+import { radixCssPlugin } from './config/radixCss.mjs';
+import { libraryDeviceBoundaryPlugin } from './config/libraryDeviceBoundaryPlugin.mjs';
+import { devFaviconPlugin, readWebIconVersions, webFaviconPlugin } from './config/devFaviconPlugin.mjs';
+import { publicSitePlugin } from './config/seoPlugin.mjs';
+import { docsDevMiddleware } from './config/docsDevPlugin.mjs';
+import { resolveCodecPreloads, codecPreloadHashPlugin } from './config/codecPreload.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const libraryPeers = Object.keys(pkg.peerDependencies || {});
@@ -13,14 +21,42 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const libraryPeerPatterns = libraryPeers.map((dependency) => new RegExp(`^${escapeRegExp(dependency)}(?:/|$)`));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const browserTargets = ['chrome111', 'edge111', 'firefox128', 'safari16.4'];
-
 const resolve = (url) => path.resolve(__dirname, url);
 const type = process.env.NODE_TYPE;
+const desktopMode = process.env.SCREENHELLO_TARGET === 'desktop';
+// Playwright runs against an immutable source snapshot. Its screenshot/report
+// output is generated while the server is live, so filesystem watching can turn
+// a report write into an HMR reload during a fresh page bootstrap.
+const e2eMode = process.env.SCREENHELLO_E2E === '1';
+const tauriDevHost = process.env.TAURI_DEV_HOST;
 const webBase = normalizeWebBase(process.env.SCREENHELLO_BASE_PATH || '/');
+const webIconVersions = type === 'lib' || desktopMode ? {} : readWebIconVersions(resolve('./public'));
 const buildConf = {
-    base: type === 'lib' ? './' : webBase,
-    build: { target: browserTargets },
+    base: type === 'lib' || desktopMode ? './' : webBase,
+    build: {
+        target: browserTargets,
+        ...(type === 'lib' || desktopMode ? {} : { modulePreload: { resolveDependencies: resolveCodecPreloads } }),
+        rolldownOptions: {
+            output: {
+                // Keep all translations available offline without pushing the entry
+                // past the existing 1 MiB per-file precache budget.
+                codeSplitting: {
+                    groups: [{ name: 'i18n-catalogs', test: /\/src\/i18n\/(?:catalog\.js|[^/]+\.json)$/ }],
+                },
+            },
+        },
+    },
 };
+
+if (desktopMode) {
+    buildConf.root = resolve('./desktop');
+    buildConf.publicDir = false;
+    buildConf.build = {
+        ...buildConf.build,
+        outDir: resolve('./dist-desktop'),
+        emptyOutDir: true,
+    };
+}
 
 // Vite library mode emits `new URL("assets/...", import.meta.url)` for `?no-inline`
 // assets. A consumer's dependency optimizer may relocate that JS chunk without the
@@ -39,7 +75,8 @@ const preserveLibraryAssetImports = () => ({
                 // 把包内 .js?url 作为普通依赖导入会被 Rolldown 优化器当成 JS 模块。
                 if (/\.worker-[^/]+\.js$/.test(assetPath)) return match;
                 if (!imports.has(assetPath)) {
-                    const assetQuery = assetPath.endsWith('.wasm') ? '?url&no-inline' : '';
+                    const assetQuery = assetPath.endsWith('.wasm') ? '?url&no-inline'
+                        : /\/bg-(?:image|thumb)-/.test(assetPath) ? '?no-inline' : '';
                     imports.set(assetPath, {
                         identifier: `__screenhello_asset_${imports.size}`,
                         // 裸 `.wasm` import 会被宿主 Vite 当成原生 WASM 模块；
@@ -95,13 +132,53 @@ if (type === 'lib') {
     }
 }
 
+// 公开文档站由独立的 Astro + Fumadocs 应用生成（docs-site/），根应用只负责把它的
+// 产物并入同一个部署目录。docs-site/ 的构建后处理会写出含 hash CSP 的 _headers、
+// _redirects、sitemap 等；这些文件只由那一侧产出，根应用不再重复生成。
+const docsSitePlugin = () => {
+    const docsDist = resolve('./docs-site/dist');
+    let outDir;
+    let isBuild = false;
+    const buildDocs = () => {
+        execFileSync('pnpm', ['--dir', resolve('./docs-site'), 'build'], {
+            stdio: 'inherit',
+            shell: process.platform === 'win32',
+            env: { ...process.env, SCREENHELLO_BASE_PATH: webBase },
+        });
+    };
+    return {
+        name: 'screenhello-docs-site',
+        configResolved(config) { outDir = config.build.outDir; isBuild = config.command === 'build'; },
+        buildStart() {
+            // Each environment needs its own base/origin; never reuse a stale docs build.
+            if (isBuild) buildDocs();
+        },
+        configureServer(server) {
+            buildDocs();
+            server.middlewares.use(docsDevMiddleware(docsDist, webBase));
+        },
+        closeBundle() {
+            if (!isBuild) return;
+            if (!existsSync(path.join(docsDist, 'docs'))) {
+                throw new Error('docs-site-not-built: run "pnpm build:docs" before the site build');
+            }
+            cpSync(docsDist, outDir, { recursive: true });
+        },
+    };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
+    appType: type === 'lib' || desktopMode ? undefined : 'mpa',
+    define: { 'import.meta.env.SCREENHELLO_PUBLIC_SITE': JSON.stringify(type !== 'lib' && !desktopMode) },
+    clearScreen: desktopMode ? false : undefined,
     optimizeDeps: {
         // 根应用只扫描自己的入口；tests/consumer 是独立安装、独立启动的真实包消费端。
         entries: ['index.html'],
         // jSquash 官方文档要求 Vite 不预构建其动态 WASM 路径；实际生产构建仍由 Vite 接管资源 URL。
-        exclude: ['@jsquash/avif', '@jsquash/webp'],
+        exclude: ['@jsquash/avif', '@jsquash/webp', '@jsquash/oxipng'],
+        include: ['upng-js'],
+        rolldownOptions: { plugins: [upngCjsPlugin()] },
     },
     resolve: {
         // 根应用与嵌套/已安装 consumer fixture 必须解析到同一组宿主实例。
@@ -120,12 +197,48 @@ export default defineConfig({
         // Release browsers run in a sibling Docker container and reach the host through this explicit gateway name.
         allowedHosts: ['host.docker.internal'],
     },
+    server: {
+        // `null` is Vite's documented switch for disabling chokidar. Keep normal
+        // development watching intact; only the hermetic Playwright server turns
+        // it off because no test edits source files at runtime.
+        watch: e2eMode ? null : {
+            // Test reports, screenshots and build output are written while the
+            // E2E dev server is alive. They are not source modules; watching
+            // them can send an HMR reload into a page that is still booting.
+            ignored: ['**/src-tauri/**', '**/artifacts/**', '**/test-results/**', '**/docs-site/dist/**', '**/dist/**', '**/lib/**'],
+        },
+        ...(desktopMode ? {
+            port: 1420,
+            strictPort: true,
+            host: tauriDevHost || false,
+            hmr: tauriDevHost ? {
+                protocol: 'ws',
+                host: tauriDevHost,
+                port: 1421,
+            } : undefined,
+        } : {}),
+    },
     plugins: [
+        // library 产物不带 Devices.css 位图设备素材（见 config/libraryDeviceBoundaryPlugin.mjs）
+        ...(type === 'lib' ? [libraryDeviceBoundaryPlugin()] : []),
+        ...(type === 'lib' || desktopMode ? [] : [codecPreloadHashPlugin()]),
+        devFaviconPlugin(resolve('./src/assets/favicon.png')),
+        ...(type === 'lib' || desktopMode ? [] : [webFaviconPlugin(resolve('./public'), webIconVersions)]),
+        // 公开文档站（Fumadocs）只进独立站产物，library/desktop 不带。
+        ...(type === 'lib' || desktopMode ? [] : [docsSitePlugin()]),
+        ...(type === 'lib' || desktopMode ? [] : [publicSitePlugin({
+            base: webBase,
+            origin: process.env.SCREENHELLO_SITE_ORIGIN || 'https://screenhello.com',
+            indexable: process.env.SCREENHELLO_SITE_INDEXABLE !== 'false',
+        })]),
+        upngCjsPlugin(),
+        radixCssPlugin(),
         tailwindcss(),
         react(),
         ...(type === 'lib'
             ? [preserveLibraryAssetImports()]
-            : [VitePWA(createPwaOptions(webBase))]),
+            : (desktopMode ? [] : [VitePWA(createPwaOptions(webBase, webIconVersions))])),
     ],
+    worker: { plugins: () => [upngCjsPlugin()] },
     ...buildConf
 });

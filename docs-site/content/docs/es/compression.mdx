@@ -1,0 +1,44 @@
+---
+title: "Comprueba la compresión antes de descargar"
+seoTitle: "Guía de compresión y exportación PNG, JPG y WebP"
+description: "Compara PNG sin pérdida, reducción de colores, WebP sin pérdida y niveles de calidad. ScreenHello muestra el tamaño real de la exportación y sus límites."
+reviewed: "2026-09-13"
+---
+
+## Calidad 100 no significa sin pérdida
+
+La optimización PNG sin pérdida conserva píxeles, pero no siempre reduce el archivo. El modo con pérdida usa 256, 128 o 64 colores y puede alterar degradados y sombras translúcidas. WebP tiene un modo sin pérdida independiente. Los controles de JPG y WebP siguen siendo con pérdida incluso a 100. WebP rellena la transparencia de blanco antes de codificar. AVIF solo ofrece exportación estándar, sin control de calidad ni vista previa de compresión.
+
+### Estándar, sin pérdida y con pérdida
+
+La exportación estándar usa la codificación predeterminada del formato. PNG y WebP ofrecen modos sin pérdida; JPG y WebP ofrecen calidad con pérdida ajustable. AVIF solo ofrece exportación estándar, sin controles de calidad ni vista previa de compresión.
+
+### Límites que verás
+
+El editor comprueba estos valores antes de iniciar una descarga.
+
+| Operación | Límite |
+| --- | --- |
+| Vista previa completa | 1.048.576 píxeles (unos 1 MP) |
+| Descarga comprimida | 4.194.304 píxeles (unos 4 MP), lado mayor 8192 px |
+| Exportación AVIF | 4.194.304 píxeles, solo exportación estándar |
+| Reducción de paleta PNG | 256, 128 o 64 colores |
+| Calidad con pérdida | JPG / WebP: 90 / 80 / 60 |
+| Escala de exportación | 1x, 2x o 3x |
+| Tiempo de compresión | 30 segundos |
+
+> AVIF es solo exportación estándar: sin control de calidad ni vista previa de compresión.
+
+## Compara la misma composición
+
+Genera una vista previa en Exportar y alterna entre exportación estándar y resultado comprimido del mismo tamaño. Examina al 100 % y consulta los bytes reales. La referencia es el lienzo editado, no el original importado; también se informa si el resultado aumenta. Descargar una vista previa válida reutiliza exactamente sus datos.
+
+
+## Límites y procesamiento local
+
+AVIF solo ofrece exportación estándar, sin control de calidad ni vista previa de compresión. Las descargas comprimidas PNG/JPG/WebP admiten 4,194,304 píxeles. La vista previa completa de PNG/JPG/WebP admite 1,048,576 píxeles. Sin vista previa, se puede descargar directamente dentro del límite de tamaño. PNG/JPG/WebP estándar admiten 16,777,216 y AVIF estándar 4,194,304; cada lado tiene un límite de 8192 píxeles. Reduce lienzo o escala cuando sea necesario. Los codificadores se cargan desde este sitio al primer uso y se ejecutan localmente. Los lotes aceptan hasta 12 imágenes y descargan los resultados correctos en ZIP.
+
+
+## Sigue explorando
+
+[Cómo mejorar capturas: fondos, espacio y sombras](../beautify/) · [Procesamiento local, almacenamiento y privacidad](../privacy/)

@@ -6,6 +6,10 @@ export interface ScreenHelloPersistenceOptions {
 }
 
 export interface ImageBeautifierProps {
+    /** Instance-local UI language. Defaults to simplified Chinese. */
+    locale?: 'zh-CN' | 'en-US' | 'zh-TW' | 'de-DE' | 'ko-KR' | 'es-ES' | 'pt-PT';
+    /** Plain-text overrides keyed by source-language UI messages. */
+    messages?: Readonly<Record<string, string>>;
     defaultImg?: string;
     headLeft?: ReactNode;
     headRight?: ReactNode;

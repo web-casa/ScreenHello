@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { observer } from 'mobx-react-lite';
 import { Input, Slider, Segmented, Button } from 'antd';
 import ColorPicker from '@components/ColorPicker';
@@ -13,6 +14,7 @@ import useStores from '@stores/useStores';
  * 在交互结束（失焦 / onChangeComplete / 离散切换）时统一 stores.history.commit('text')。
  */
 const TextProperties = observer(() => {
+    const t = useI18n();
     const stores = useStores();
     const shape = stores.editor.selectedTextShape;
     if (!shape) return null;
@@ -23,20 +25,20 @@ const TextProperties = observer(() => {
     return (
         <>
             <div className="pb-3">
-                <label>内容</label>
+                <label>{t("内容")}</label>
                 <div className="py-2">
                     <Input.TextArea
                         autoSize={{ minRows: 2, maxRows: 6 }}
                         value={shape.text}
                         onChange={(e) => stores.editor.setTextContent(e.target.value)}
                         onBlur={commit}
-                        placeholder="输入文字"
+                        placeholder={t("输入文字")}
                     />
                 </div>
             </div>
 
             <div className="pb-3">
-                <label>字号</label>
+                <label>{t("字号")}</label>
                 <Slider
                     min={8}
                     max={96}
@@ -44,52 +46,52 @@ const TextProperties = observer(() => {
                     value={ts.fontSize ?? 24}
                     onChange={(v) => stores.editor.setTextStyle({ fontSize: v })}
                     onChangeComplete={commit}
-                    ariaLabelForHandle="文字字号"
+                    ariaLabelForHandle={t("文字字号")}
                 />
             </div>
 
             <div className="pb-3">
-                <label>粗细</label>
+                <label>{t("粗细")}</label>
                 <div className="py-2">
                     <Segmented
                         block
                         size="small"
                         value={ts.fontWeight ?? 'normal'}
                         onChange={(v) => { stores.editor.setTextStyle({ fontWeight: v }); commit(); }}
-                        options={[{ label: '正常', value: 'normal' }, { label: '粗体', value: 'bold' }]}
+                        options={[{ label: t("正常"), value: 'normal' }, { label: t("粗体"), value: 'bold' }]}
                     />
                 </div>
             </div>
 
             <div className="pb-3">
                 <div className="flex justify-between items-center">
-                    <label>颜色</label>
+                    <label>{t("颜色")}</label>
                     <ColorPicker
                         value={ts.fill ?? '#000000'}
                         onChange={(e) => stores.editor.setTextStyle({ fill: e.toHexString() })}
                         onChangeComplete={commit}
                         size="small"
-                        aria-label="文字颜色"
+                        aria-label={t("文字颜色")}
                     />
                 </div>
             </div>
 
             <div className="pb-3">
-                <label>对齐</label>
+                <label>{t("对齐")}</label>
                 <div className="py-2">
                     <Segmented
                         block
                         size="small"
                         value={ts.textAlign ?? 'left'}
                         onChange={(v) => { stores.editor.setTextStyle({ textAlign: v }); commit(); }}
-                        options={[{ label: '左', value: 'left' }, { label: '中', value: 'center' }, { label: '右', value: 'right' }]}
+                        options={[{ label: t("左"), value: 'left' }, { label: t("中"), value: 'center' }, { label: t("右"), value: 'right' }]}
                     />
                 </div>
             </div>
 
             <div className="pb-3">
                 <div className="flex justify-between items-center">
-                    <label>背景色</label>
+                    <label>{t("背景色")}</label>
                     <div className="flex items-center gap-2">
                         <Button
                             type="text"
@@ -97,20 +99,20 @@ const TextProperties = observer(() => {
                             className="text-xs opacity-80 px-1"
                             disabled={!ts.backgroundColor}
                             onClick={() => { stores.editor.setTextStyle({ backgroundColor: null }); commit(); }}
-                        >无</Button>
+                        >{t("无")}</Button>
                         <ColorPicker
                             value={ts.backgroundColor ?? '#ffffff'}
                             onChange={(e) => stores.editor.setTextStyle({ backgroundColor: e.toHexString() })}
                             onChangeComplete={commit}
                             size="small"
-                            aria-label="文字背景色"
+                            aria-label={t("文字背景色")}
                         />
                     </div>
                 </div>
             </div>
 
             <div className="pb-3">
-                <label>内边距</label>
+                <label>{t("内边距")}</label>
                 <Slider
                     min={0}
                     max={40}
@@ -118,12 +120,12 @@ const TextProperties = observer(() => {
                     value={ts.padding ?? 0}
                     onChange={(v) => stores.editor.setTextStyle({ padding: v })}
                     onChangeComplete={commit}
-                    ariaLabelForHandle="文字内边距"
+                    ariaLabelForHandle={t("文字内边距")}
                 />
             </div>
 
             <div className="pb-3">
-                <label>圆角</label>
+                <label>{t("圆角")}</label>
                 <Slider
                     min={0}
                     max={40}
@@ -131,7 +133,7 @@ const TextProperties = observer(() => {
                     value={ts.cornerRadius ?? 0}
                     onChange={(v) => stores.editor.setTextStyle({ cornerRadius: v })}
                     onChangeComplete={commit}
-                    ariaLabelForHandle="文字圆角"
+                    ariaLabelForHandle={t("文字圆角")}
                 />
             </div>
         </>

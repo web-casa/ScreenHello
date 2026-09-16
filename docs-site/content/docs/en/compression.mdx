@@ -1,0 +1,44 @@
+---
+title: "Image compression you can preview"
+seoTitle: "PNG, JPG and WebP compression and export guide"
+description: "Compare PNG lossless optimisation and lossy palette reduction, WebP lossless and quality-controlled exports in ScreenHello. See actual output size before downloading."
+reviewed: "2026-09-13"
+---
+
+## Lossless is not the same as quality 100
+
+PNG lossless optimisation preserves pixels but does not guarantee a smaller file. PNG lossy mode reduces the palette to 256, 128 or 64 colours and may change gradients and translucent shadows. WebP has a true lossless option; JPG and WebP quality sliders are lossy, even at 100. WebP export flattens transparency to white before encoding. AVIF offers standard export only, without quality controls or compression preview.
+
+### Standard, lossless and lossy
+
+Standard export uses the format’s default encoding settings. PNG and WebP offer lossless modes; JPG and WebP offer adjustable lossy quality. AVIF offers standard export only, without quality controls or compression preview.
+
+### Limits you can hit
+
+These numbers are enforced by the editor before a download starts.
+
+| Operation | Limit |
+| --- | --- |
+| Full in-app preview | 1,048,576 pixels (about 1 MP) |
+| Compressed download | 4,194,304 pixels (about 4 MP), longest side 8192 px |
+| AVIF export | 4,194,304 pixels, standard export only |
+| PNG palette reduction | 256, 128 or 64 colours |
+| Lossy quality presets | JPG / WebP: 90 / 80 / 60 |
+| Export scale | 1x, 2x or 3x |
+| Compression timeout | 30 seconds |
+
+> AVIF is standard export only: no quality control and no compression preview.
+
+## Compare the same composition
+
+Open Export and generate a preview. Compare the standard export and compressed result at the same canvas size, inspect at 100%, and read the actual byte size. The reference is the rendered composition, not the imported original. A larger result is reported honestly. Downloading a valid preview reuses those exact bytes.
+
+
+## Limits and local processing
+
+AVIF offers standard export only, without quality controls or compression preview. Compressed PNG/JPG/WebP downloads allow 4,194,304 pixels. Full previews for PNG/JPG/WebP allow 1,048,576 pixels. When preview is unavailable, direct downloads remain available within their size limit. Standard PNG/JPG/WebP allow 16,777,216 pixels; standard AVIF allows 4,194,304 pixels. Each side is limited to 8192 pixels. Reduce canvas size or scale when necessary. Encoders load from this site on first use and run locally. Batch processing accepts up to 12 images and downloads successful results in a ZIP.
+
+
+## Keep exploring
+
+[Screenshot beautification: backgrounds, padding and shadows](../beautify/) · [Local image processing, project storage and privacy](../privacy/)
