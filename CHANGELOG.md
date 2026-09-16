@@ -1,5 +1,7 @@
 # Changelog
 
+- 修复桌面打包时启动背景内联 CSS 触发 CSP nonce，导致菜单黑字透明、尺寸浮层穿透和导出抽屉透明的问题；新增生产 CSP 主题与弹层回归。
+
 ScreenHello 的重要用户可见变化记录在这里。版本采用何种 SemVer 起点将在首次公共发布前确认；在此之前所有条目保留在 `Unreleased`。
 
 ## Unreleased

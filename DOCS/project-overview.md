@@ -2,6 +2,9 @@
 
 ## 当前状态
 
+桌面 `1.0.4` 首个签名 DMG 已生成，但用户复测暴露生产 CSP 阻止动态样式的问题。本轮将启动背景改为外部 CSS，并增加生产 CSP 弹层回归；构建成功、公证通过不能替代 UI 验收。详见[复测根因更正](./desktop-ui-regression-audit-2026-09-16.md)。以下历史 phase 状态仍仅对各自记录成立。
+
+
 正式域名 [screenhello.com](https://screenhello.com) 已部署当前发布版本。当前工作树另含[大图压缩下载修复](./compression-download.md)、Web-only 编码器预加载兼容和严格 CSP／原站失联恢复测试；这些改动只在隔离预览验证，尚未部署到正式域名。
 
 公开测试候选 `50702a8` 已通过原生 Chrome／Edge 111、Firefox 128 和 macOS 14 真 Safari 功能矩阵。该证据仅适用于该候选：正式域名仍不是它，跨版本更新、真实目标 HTTPS 和完整发布门仍待完成，不能用本机 WebKit 替代真实 Safari 验收。隔离预览的静态响应、三引擎离线恢复和 18 个原件复核记录见[压缩下载文档](./compression-download.md#隔离-https-预览验收)。

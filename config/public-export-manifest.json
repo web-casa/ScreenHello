@@ -241,6 +241,7 @@
       "src-tauri",
       "tests/compression-product",
       "tests/consumer",
+      "tests/desktop-ui",
       "tests/e2e",
       "tests/fixtures",
       "tests/pwa",

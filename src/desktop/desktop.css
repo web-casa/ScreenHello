@@ -1,3 +1,7 @@
+/* Keep startup styles external: an inline <style> makes Tauri add a CSP
+ * nonce, which disables unsafe-inline for runtime CSS-in-JS styles. */
+html { background: #000; }
+
 @layer components {
     /* Tauri keeps the platform title bar. Hiding the duplicate in-WebView
        brand leaves one application title while retaining native window

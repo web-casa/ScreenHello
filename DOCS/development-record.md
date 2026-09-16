@@ -119,4 +119,24 @@ Phase 24 解决的是“私有候选提交与公开 GitHub Release 目标不在�
 
 工作流验证 Developer ID 签名、应用及最终 DMG 公证/staple、Gatekeeper 和主程序 ARM64 架构，输出最终 DMG 的 SHA-256 与源码/run 信息。产物仅上传 Actions，保留 30 天，不创建 Release。Secrets 缺失会明确失败，不静默降级为未签名包。原有私有六平台候选流程保持独立；本流程不表示六平台发布 Gate 或人工 GUI 验收通过。
 
-本地新增流程已通过 actionlint、Actions 供应链审计、lint 和相关 39 项 unit 测试；公开源码预览审计通过。远端构建结果在实际运行结束后补记。
+本地新增流程已通过 actionlint、Actions 供应链审计、lint 和相关 39 项 unit 测试；公开源码预览审计通过。远端构建结果如下。
+
+
+### ARM64 DMG 实际交付结果
+
+- 公开源码提交：`1a728e8e9f944863e549386e0d7a854202c620dd`，专用构建分支 `build/macos-arm64-dmg-20260916`。
+- [GitHub Actions run 35052400929](https://github.com/web-casa/ScreenHello/actions/runs/35052400929)：2026-09-16 成功。
+- [下载 Actions artifact 10429548314](https://github.com/web-casa/ScreenHello/actions/runs/35052400929/artifacts/10429548314)，含 `ScreenHello_1.0.4_aarch64.dmg`、SHA256SUMS、签名与公证记录；到期时间 2026-10-16 03:45:23 UTC，下载需 GitHub 登录。
+- 最终 DMG SHA-256：`109d3721b9c7c8cae7329efeaabf905fa2f3ffb4a3c2d6d62b26f228e0bcaba4`。下载到本地 `artifacts/macos-arm64-20260916/ScreenHello-macos-arm64-1a728e8e9f944863e549386e0d7a854202c620dd/` 后复核一致。
+- macOS runner：源码 lint/typecheck/静态 CSS 检查通过，76 个 unit 文件、1,220 项测试通过，5 项跳过；Rust 31 项测试通过。
+- 安装包内主程序经 lipo 验证为纯 ARM64；bundle ID `com.webcasa.screenhello`，Developer ID Application 签名验证通过；应用与最终 DMG 的公证、staple、Gatekeeper 验证通过。
+- 应用公证 ID `1c53e0fd-4f4c-4010-a5d3-0f9f9dc199d6`；最终 DMG 公证 ID `b120cf46-7fe3-4e0d-8ebe-52e4a449486f`，均 Accepted。
+- 人工干净安装、真实 Mac GUI/权限/升级验收：未执行。本次是已签名公证的构建产物，不是六平台产品发布验收。
+- [PR #10](https://github.com/web-casa/ScreenHello/pull/10) 尚未合并。独立 Linux CI 两次出现 `brandAssets.test.js` maskable 像素检查超过默认 5 秒；旧版六平台 Gate 首次引入公开仓时从旧 main 读取不存在的矩阵脚本而失败。以上检查没有被伪装为通过，也没有绕过 main 合并规则。已取消被新提交取代的旧 CI；本次 DMG 的独立 macOS 构建完整通过。未创建 GitHub Release。
+
+
+## 2026-09-16：DMG 复测样式故障与根因更正
+
+用户提供的新 001～003 截图显示静态 CSS 修复不完整。本轮按 Tauri 实際打包路径复现出 style CSP nonce 与 unsafe-inline 的冲突，导致 CSS-in-JS 主题变量被阻止，表现为黑字、透明菜单/抽屉和层级穿透。上轮把 StyleProvider layer 与所有组件 zeroRuntime 等同的结论已纠正。
+
+修复 HTML 内联启动样式，保留安全配置；新增生产 CSP 三引擎、深浅主题 UI 验证和原生表面样式检查，并接入 macOS DMG 构建。详见[审计更正](./desktop-ui-regression-audit-2026-09-16.md)。已通过 lint/typecheck、相关 60 项 unit、站点/库/桌面构建、PWA/文档检查、生产 CSP 三引擎深浅主题测试和 Linux 原生表面样式检查。consumer 开发 15+3 项分批通过，预览 18 项通过；首轮有三项进程崩溃，原样记录于审计文档。

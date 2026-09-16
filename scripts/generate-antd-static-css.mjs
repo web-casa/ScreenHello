@@ -8,9 +8,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = resolve(root, 'src/style/antd-static.css');
 
 // Keep this list aligned with the named imports from `antd` in `src/`.  Ant
-// Design 6 disables runtime component-style injection when StyleProvider uses
-// a cascade layer, so these rules are part of the application bundle rather
-// than an optional optimization.
+// Design component rules are bundled for first paint. Runtime injection is
+// still required for instance/theme CSS variables; static rules do not replace
+// that path or compensate for a CSP that blocks it.
 const components = [
     'Alert', 'Button', 'ColorPicker', 'Divider', 'Drawer', 'Dropdown', 'Empty',
     'Input', 'InputNumber', 'Menu', 'Modal', 'Popover', 'Popconfirm', 'Radio',

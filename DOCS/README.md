@@ -17,7 +17,7 @@
 - [真实位图设备框](./raster-device-frames.md)：可选 Surface 素材包、透视渲染、下载许可与分发边界。
 - [开发指南](./development.md)：环境、命令、开发约定、验证方法和已知问题。
 - [开发总记录](./development-record.md)：跨阶段开发过程、review 修复、验证证据和剩余发布前置条件。
-- [桌面 UI 回归审计（2026-09-16）](./desktop-ui-regression-audit-2026-09-16.md)：001～005 截图的根因、修复、验证与 macOS/Windows 待验收边界。
+- [桌面 UI 回归审计（2026-09-16）](./desktop-ui-regression-audit-2026-09-16.md)：001～005 初次审计、新 001～003 的 CSP 复现与根因更正、修复和实机待验收边界。
 - [Phase 1 质量基线](./quality-baseline.md)：Node/pnpm、自动测试、构建体积、golden 与最低浏览器验收方法。
 - [Phase 2 质量验收](./phase-2-quality.md)：多实例 runtime、生命周期、错误恢复和最终验证结果。
 - [Phase 3 基础验收](./phase-3-foundation.md)：离线资源、动态加载、library/type/platform 边界和体积预算。

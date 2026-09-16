@@ -1,7 +1,7 @@
 @layer theme, base, antd, components, utilities;
 /*
- * Ant Design 6 treats `StyleProvider layer` as zero-runtime styling. The
- * runtime provider in App.jsx still supplies theme variables, while this
+ * StyleProvider puts runtime rules in the antd cascade layer. The
+ * runtime provider in App.jsx supplies instance/theme variables, while this
  * generated, used-component subset supplies layout rules before a lazy
  * Drawer, Modal, Popover, or Dropdown opens. Keeping it in `antd` preserves
  * the intended ordering with Tailwind and the local component overrides.

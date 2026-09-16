@@ -123,6 +123,10 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: pnpm exec tauri build --ci --target aarch64-apple-darwin --bundles dmg --config src-tauri/tauri.phase9.conf.json -- --locked
+      - name: Verify production desktop overlays under effective CSP
+        run: |
+          pnpm exec playwright install webkit
+          pnpm desktop:test:ui --project webkit
       - name: Verify final package and write checksums
         run: |
           set -euo pipefail

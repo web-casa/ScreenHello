@@ -2,7 +2,30 @@
 
 > 范围：用户提供的 `001.png`～`005.png`、当前工作树与本机 Linux Tauri 运行时。本文记录的是本轮代码审计和本地验证，不代表 macOS、Windows 的真实安装验收，也不代表已发布。
 
-## 结论
+## 后续复测更正：CSP 才是本轮样式故障的直接根因
+
+用户在已签名 `1.0.4` DMG 中再次提供 001～003 截图：尺寸弹层被下方缩略图覆盖、帮助菜单黑字透明、导出抽屉透明并重叠。按打包后的 CSP 复现后，确认上轮“StyleProvider layer 使所有组件进入 zeroRuntime”的解释错误；安装的 antd 中该 `!!layer` 分支用于图标 context，组件是否进入 zeroRuntime 由另一条主题路径决定。以下旧结论保留为调查记录，不应继续引用为最终根因。
+
+真实链路是 `desktop/index.html` 的启动背景 `<style>` → Tauri 对该元素注入 nonce 并向 `style-src` 增加 nonce → 浏览器忽略同一 directive 中的 `unsafe-inline` → 没有 nonce 的 CSS-in-JS 样式和主题变量被拒绝 → 菜单/抽屉背景、字体、层级失效。上轮的静态 CSS 只能补部分布局，不能恢复被拦截的实例主题变量。
+
+在 Chromium 生产预览中按 Tauri 2.11.5 的 `tauri-codegen::map_core_assets` 与 `manager::replace_csp_nonce` 路径模拟该策略，帮助菜单计算值为黑色 `rgb(0, 0, 0)`、透明背景 `rgba(0, 0, 0, 0)`、空 `--ant-color-bg-elevated`，收到 68 条样式 CSP 错误。此处是可重复的集成故障，不是仅凭截图推测 Safari 引擎不兼容。
+
+修复将启动背景迁到 `src/desktop/desktop.css`，移除 HTML 内联 style，避免产生这个意外 nonce；保留 CSP 配置、脚本保护和资源协议限制。静态 CSS 仍作为首屏组件规则存在，但不能当作 runtime CSS 允许加载的证据。
+
+新增 `pnpm desktop:test:ui`，先 `pnpm desktop:web:build`，再对生产入口施加按 HTML 实际生成的 Tauri style CSP；覆盖四个菜单、尺寸面板遮挡、裁剪和导出背景、主题变量、底部操作可见性和样式 CSP 违规。该测试模型不模拟原生 IPC，不替代真实 Mac GUI。原生 runtime 同步增加主题变量及不透明表面检查；macOS DMG workflow 新增生产前端 WebKit 验证步骤，失败不上传 DMG。
+
+依据：[Tauri CSP 自动 nonce/hash](https://v2.tauri.app/security/csp/)、[MDN nonce 与 unsafe-inline 规则](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP)。
+
+### 本次复测验证记录
+
+- 负向回归：在生成产物中临时恢复原来的启动 `<style>`，两种主题在新生产 CSP 测试中均失败；随后恢复产物，不修改源码。
+- 正向回归：外部启动 CSS 下，Chromium / Firefox / WebKit 的深浅主题测试通过；菜单、尺寸面板实际遮挡、裁剪、导出背景和操作按钮均检查，且 style CSP 违规为空。
+- 原生 Linux ARM64 release 构建和 runtime 通过，菜单/尺寸/导出表面均读到主题变量；导出背景 `rgb(32, 32, 32)`、文字 `rgba(255, 255, 255, 0.85)`。
+- lint、typecheck、相关 60 项 unit、Web/组件库构建、PWA 预算审计、文档内容检查通过。
+- consumer 开发模式首轮 15 项通过、3 项浏览器进程崩溃；原生编译结束后单独重跑该 3 项通过。生产预览完整 18 项通过。没有把首轮崩溃记为成功。
+- 当前 WebKit 不是用户机器上的 Safari/WKWebView；具体系统版本、真实 Mac 新包 GUI 仍待验证。
+
+## 上轮结论（已由上述证据更正）
 
 这些现象不是六个彼此无关的业务功能失效。主因是一次 Tailwind 4 迁移后，Ant Design 6 的 `StyleProvider layer` 被启用，却没有把 Ant Design 的静态基础样式放进生产 CSS。菜单、Popover、Input、Modal 和 Drawer 的 React 状态、事件处理和 Portal 节点仍在运行，但没有正确的定位、遮罩和布局规则，因此用户看到的是“点击没有反应”、裸文字输入框和导出面板流式溢出。
 
@@ -28,7 +51,7 @@
 
 ### 1. CSS 构建契约在迁移时被拆开
 
-仓库提交 `a6046fa`（`chore: migrate styles to Tailwind CSS 4`）把 `src/App.jsx` 的 `<StyleProvider>` 改为 `<StyleProvider layer>`，并同时替换了旧 Tailwind 层写法。当前安装的 Ant Design 6.6.2 会在 `layer` 模式下启用 `zeroRuntime`；也就是说，运行时不再自动注入每个组件的基础 CSS。迁移没有同时引入静态提取产物。
+仓库提交 `a6046fa`（`chore: migrate styles to Tailwind CSS 4`）把 `src/App.jsx` 的 `<StyleProvider>` 改为 `<StyleProvider layer>`，并同时替换了旧 Tailwind 层写法。上轮曾将图标 context 中的 `zeroRuntime: !!layer` 误读为所有组件均禁用 runtime CSS；复查安装源码与浏览器实际 style 元素后已否定这一推断，见本文顶部更正。
 
 这类错误很容易被误诊为点击事件、MobX 状态或 Tauri IPC 故障，因为组件本身仍会 mount：
 
@@ -44,7 +67,7 @@
 
 Ant Design 的层兼容与静态样式路径见其[兼容样式文档](https://ant.design/docs/react/compatible-style/)和[主题文档](https://ant.design/docs/react/customize-theme/)。本轮以官方 `@ant-design/static-style-extract` 提取实际命名导入的组件样式，生成 [`src/style/antd-static.css`](../src/style/antd-static.css)，并在 [`src/style/main.css`](../src/style/main.css) 的 `antd` layer 先于本地覆盖规则导入。
 
-生成脚本会从 `src/` 的 `antd` 命名导入中核对组件清单；新增可见组件而未加入提取清单会使 `pnpm check:antd-css` 失败。`build`、`build:preview`、`build:lib` 和 `desktop:web:build` 都先执行这个检查，避免再次提交“运行时样式关闭但静态样式遗漏”的产物。
+生成脚本会从 `src/` 的 `antd` 命名导入中核对组件清单；新增可见组件而未加入提取清单会使 `pnpm check:antd-css` 失败。`build`、`build:preview`、`build:lib` 和 `desktop:web:build` 都先执行这个检查，校验静态组件清单同步；它不检测 CSP 是否阻止 runtime 主题注入。
 
 ### 2. 减少动态效果规则破坏了第三方浮层的时序
 

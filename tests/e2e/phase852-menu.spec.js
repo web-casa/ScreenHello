@@ -40,7 +40,7 @@ async function expectViewportOverlay(page, locator, { fixed = false } = {}) {
         };
     });
     // DOM presence alone does not prove an Ant Design overlay is usable. In a
-    // layer/zero-runtime CSS regression, Drawer/Modal/Popover nodes exist but
+    // blocked or missing CSS regression, Drawer/Modal/Popover nodes exist but
     // render in ordinary document flow outside the usable viewport.
     if (fixed) expect(geometry.position).toBe('fixed');
     else expect(geometry.position).toMatch(/^(absolute|fixed)$/);

@@ -66,6 +66,23 @@ const waitForVisible = async (driver, selector, timeoutMs = 10_000) => {
     return element;
 };
 
+// Geometry can pass while CSP has rejected the theme's dynamic style tags.
+const assertThemedSurface = async (driver, selector) => {
+    await waitForVisible(driver, selector);
+    const surface = await driver.executeScript(`
+        const style = getComputedStyle(document.querySelector(arguments[0]));
+        return {
+            background: style.backgroundColor,
+            color: style.color,
+            token: style.getPropertyValue('--ant-color-text').trim(),
+        };
+    `, selector);
+    if (!surface.token || ['transparent', 'rgba(0, 0, 0, 0)'].includes(surface.background)) {
+        throw new Error(`desktop-theme-style-missing:${selector}:${JSON.stringify(surface)}`);
+    }
+    return surface;
+};
+
 const assertViewportOverlay = async (driver, selector, { fixed = false } = {}) => {
     await waitForVisible(driver, selector);
     const geometry = await driver.executeScript(`
@@ -531,11 +548,13 @@ try {
     const fileMenu = await driver.findElement(By.xpath("//button[contains(@class,'shoteasy-app-menu__trigger') and normalize-space()='文件']"));
     await fileMenu.click();
     overlayLayouts.menu = await assertViewportOverlay(driver, '.shoteasy-command-menu--file');
+    overlayLayouts.menuSurface = await assertThemedSurface(driver, '.shoteasy-command-menu--file .ant-dropdown-menu');
     await fileMenu.click();
 
     const sizeTrigger = await driver.findElement(By.css('button[aria-label="选择画布尺寸"]'));
     await sizeTrigger.click();
     overlayLayouts.sizePopover = await assertViewportOverlay(driver, '.shoteasy-size-overlay');
+    overlayLayouts.sizeSurface = await assertThemedSurface(driver, '.shoteasy-size-overlay .ant-popover-container');
     await sizeTrigger.click();
 
     const browserFrame = await driver.findElement(By.css('.shoteasy-frame-option input[value="macosBarLight"]'));
@@ -562,6 +581,7 @@ try {
     // driver can report the decorative header glyph as non-interactable while
     // the drawer is entering, so use the semantic Cancel action to prove that
     // a user can close the fully laid-out panel.
+    overlayLayouts.exportSurface = await assertThemedSurface(driver, '.shoteasy-export-overlay .ant-drawer-section');
     const exportCancel = await waitForVisible(driver, '[data-testid="export-cancel"]');
     await exportCancel.click();
     await driver.wait(async () => !(await driver.findElements(By.css('.shoteasy-export-overlay.ant-drawer'))).length, 10_000);
