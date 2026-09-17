@@ -90,6 +90,9 @@ const createEvidence = (target, scope = 'full') => {
                 format: target.binaryFormat,
                 architecture: target.binaryArchitecture,
             }],
+            ...(target.platform === 'windows' ? { installerBinaries: [
+                { path: '$PLUGINSDIR/nsDialogs.dll', format: 'pe', architecture: 'x86' },
+            ] } : {}),
         },
         checks: Object.fromEntries(matrix.requiredBuildChecks.map((id) => [id, true])),
     },
@@ -246,6 +249,12 @@ describe('desktop release evidence audit', () => {
     });
 
     it.each([
+        ['an unknown installer helper', (evidence, target) => {
+            if (target.platform === 'windows') evidence.build.package.installerBinaries[0].path = '$PLUGINSDIR/unknown.dll';
+        }],
+        ['an installer helper outside its exact path', (evidence, target) => {
+            if (target.platform === 'windows') evidence.build.package.installerBinaries[0].path = 'nsDialogs.dll';
+        }],
         ['an unrelated repository ID', (evidence) => { evidence.source.repositoryId = 42; }],
         ['a string repository ID', (evidence) => { evidence.source.repositoryId = '1353846676'; }],
         ['a cross-candidate result', (evidence, target) => {

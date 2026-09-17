@@ -27,6 +27,14 @@ PR Gate 的矩阵入口读取 base SHA；公开 main 的旧基线还没有相应
 
 ## Store 源码与本地验证
 
+### 原生包检查追加修复
+
+候选 `784ea38` 的 Windows ARM64 编译、测试、桌面运行与 NSIS 生成均通过，但包检查错误地把 `$PLUGINSDIR/nsDialogs.dll` 的 x86 架构当作应用架构错误。已核对 Tauri CLI 2.11.4 的 NSIS 模板，并用真实 NSIS 3.11 生成/解包样例复现：安装器插件运行在 x86 安装器进程，应用本体仍是 ARM64。
+
+修复将五个明确插件路径单独检查并记录为 `installerBinaries`；应用 `nativeBinaries` 继续要求目标架构。新增错误应用 DLL、未知插件、错误插件架构和证据篡改回归，34 项相关测试通过。Gate 同时提前留存原始安装件；检查失败时保留 `PACKAGE-NOT-VERIFIED.txt` 标记，只有证据收集成功后才移除。
+
+`784ea38` 已取得 macOS ARM64、Linux x64/ARM64 的完整 Gate 证据，macOS ARM64 的独立签名、公证 DMG 在 [run 35179560957](https://github.com/web-casa/ScreenHello/actions/runs/35179560957) 成功，SHA-256 为 `536235b9702d7df8440d4f6cbcd5650e4f10cb7ea7314e0e8ac404e328b779aa`。Windows 检查修复需要新候选重跑；不能将旧候选的部分通过合并成六平台全通过。
+
 新增独立原生打包命令、身份和版本校验、MSIX PE/Runtime/解包检查、MAS profile/沙箱/签名检查。MAS feature 禁用共享 `/tmp` 单实例插件，前端兼容 `singleInstance: unavailable`，编译时禁止混入测试驱动。
 
 本地已执行：lint、typecheck、Web build、desktop Web build；94 个单测文件 / 1,372 项通过（随后增加的公开仓证据测试单独再跑）；默认 Rust 与 MAS feature 各 40 项通过；MAS feature 的 clippy `-D warnings` 通过。构建保留 Vite 大 chunk 提示。缺少身份时打包命令明确以 `store-input-required:SCREENHELLO_MAS_BUNDLE_ID` 退出，没有生成假身份包。

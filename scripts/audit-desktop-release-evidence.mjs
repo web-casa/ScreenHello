@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { candidateTargets } from './audit-desktop-release-contract.mjs';
 import { desktopGateRepositoryIds } from './desktop-release-matrix.mjs';
+import { isNsisInstallerBinaryRecord } from './inspect-desktop-artifacts.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../config/desktop-release-matrix.json', import.meta.url), 'utf8'));
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -105,6 +106,11 @@ const safePayloadPath = (value) => (
 );
 
 const nativePayloadValid = (packageResult, target) => {
+    const installerBinaries = packageResult?.installerBinaries;
+    if (installerBinaries !== undefined && (target.platform !== 'windows'
+        || !Array.isArray(installerBinaries) || installerBinaries.length > 5
+        || !installerBinaries.every(isNsisInstallerBinaryRecord)
+        || new Set(installerBinaries.map((record) => record.path.toLowerCase())).size !== installerBinaries.length)) return false;
     const nativeBinaries = packageResult?.nativeBinaries;
     if (!safePayloadPath(packageResult?.mainBinary)
         || !Array.isArray(nativeBinaries)

@@ -7,6 +7,7 @@ import process from 'node:process';
 import { promisify } from 'node:util';
 import { candidateTargets } from './audit-desktop-release-contract.mjs';
 import { desktopGateRepositoryIds } from './desktop-release-matrix.mjs';
+import { isNsisInstallerBinaryRecord } from './inspect-desktop-artifacts.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = await realpath(process.cwd());
@@ -134,6 +135,11 @@ const safePayloadPath = (value) => (
 );
 
 const nativePayloadValid = (packageResult) => {
+    const installerBinaries = packageResult?.installerBinaries;
+    if (installerBinaries !== undefined && (target.platform !== 'windows'
+        || !Array.isArray(installerBinaries) || installerBinaries.length > 5
+        || !installerBinaries.every(isNsisInstallerBinaryRecord)
+        || new Set(installerBinaries.map((record) => record.path.toLowerCase())).size !== installerBinaries.length)) return false;
     const nativeBinaries = packageResult?.nativeBinaries;
     if (!safePayloadPath(packageResult?.mainBinary)
         || !Array.isArray(nativeBinaries)

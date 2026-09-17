@@ -64,7 +64,7 @@ export const inspectBinaryHeader = (buffer) => {
             throw new Error('desktop-pe-header-invalid');
         }
         const machine = buffer.readUInt16LE(peOffset + 4);
-        const architecture = ({ 0x8664: 'x86_64', 0xaa64: 'arm64' })[machine];
+        const architecture = ({ 0x14c: 'x86', 0x8664: 'x86_64', 0xaa64: 'arm64' })[machine];
         if (!architecture) throw new Error(`desktop-pe-architecture-unsupported:${machine}`);
         return { format: 'pe', architecture };
     }
@@ -256,6 +256,42 @@ const findWindowsMainBinary = (files) => {
     return matches[0];
 };
 
+// Tauri CLI 2.11.4's NSIS template executes these plugins in its x86
+// installer process. They are not DLLs loaded by the installed application.
+const nsisPluginPaths = new Set([
+    '$pluginsdir/nsdialogs.dll', '$pluginsdir/nsis_tauri_utils.dll',
+    '$pluginsdir/system.dll', '$pluginsdir/nsisdl.dll', '$pluginsdir/langdll.dll',
+]);
+export const isNsisInstallerBinaryRecord = (record) => (
+    typeof record?.path === 'string'
+    && nsisPluginPaths.has(record.path.toLowerCase())
+    && record.format === 'pe' && record.architecture === 'x86'
+    && !record.architectures
+);
+
+export const inspectNsisExtractedPayload = async ({ payloadRoot, target }) => {
+    const files = await collectRegularFiles(payloadRoot);
+    const applicationFiles = [];
+    const installerBinaries = [];
+    for (const file of files) {
+        const relative = relativePayloadPath(payloadRoot, file);
+        if (nsisPluginPaths.has(relative.toLowerCase())) {
+            const header = await readNativeHeader(file);
+            if (!header) throw new Error('desktop-nsis-plugin-header-invalid');
+            const record = nativeBinaryRecord(payloadRoot, file, header);
+            if (!isNsisInstallerBinaryRecord(record)) throw new Error('desktop-nsis-plugin-architecture-invalid');
+            installerBinaries.push(record);
+        } else {
+            // Unknown plugins and every application DLL retain target checks.
+            applicationFiles.push(file);
+        }
+    }
+    return {
+        ...await inspectNativePayload({ payloadRoot, primary: findWindowsMainBinary(applicationFiles), target, files: applicationFiles }),
+        installerBinaries,
+    };
+};
+
 const inspectNsisPayload = async ({ bundle, config, root, target }) => {
     const listing = await runText('7z', ['l', '-slt', bundle], root);
     const expectedVersionFragment = `_${config.version}_${target.packageArchitecture}-setup.exe`.toLowerCase();
@@ -266,13 +302,7 @@ const inspectNsisPayload = async ({ bundle, config, root, target }) => {
     }
     return withTemporaryDirectory('screenhello-nsis-', async (payloadRoot) => {
         await runText('7z', ['x', '-y', `-o${payloadRoot}`, bundle], root);
-        const files = await collectRegularFiles(payloadRoot);
-        return inspectNativePayload({
-            payloadRoot,
-            primary: findWindowsMainBinary(files),
-            target,
-            files,
-        });
+        return inspectNsisExtractedPayload({ payloadRoot, target });
     });
 };
 
@@ -364,6 +394,7 @@ const execute = async () => {
     }
     packageResult.mainBinary = payload.mainBinary;
     packageResult.nativeBinaries = payload.nativeBinaries;
+    if (payload.installerBinaries) packageResult.installerBinaries = payload.installerBinaries;
     packageResult.payloadVerified = true;
 
     const output = path.resolve(

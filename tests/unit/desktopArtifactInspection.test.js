@@ -1,6 +1,8 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { desktopPackageChannel, inspectBinaryHeader } from '../../scripts/inspect-desktop-artifacts.mjs';
+import { desktopPackageChannel, inspectBinaryHeader, inspectNsisExtractedPayload } from '../../scripts/inspect-desktop-artifacts.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/desktop-release-matrix.json', import.meta.url), 'utf8'));
 
@@ -36,6 +38,31 @@ const fatMachO = (...cpuTypes) => {
 };
 
 describe('desktop artifact binary inspection', () => {
+    it('separates known x86 installer plugins from the ARM64 application and rejects wrong-architecture app DLLs', async () => {
+        const payloadRoot = await mkdtemp(path.join(tmpdir(), 'screenhello-nsis-test-'));
+        const target = matrix.targets.find(({ id }) => id === 'windows-arm64');
+        try {
+            await mkdir(path.join(payloadRoot, '$PLUGINSDIR'));
+            await writeFile(path.join(payloadRoot, 'screenhello-desktop.exe'), pe(0xaa64));
+            const plugin = path.join(payloadRoot, '$PLUGINSDIR', 'nsDialogs.dll');
+            await writeFile(plugin, pe(0x14c));
+            const result = await inspectNsisExtractedPayload({ payloadRoot, target });
+            expect(result.nativeBinaries).toEqual([{ path: 'screenhello-desktop.exe', format: 'pe', architecture: 'arm64' }]);
+            expect(result.installerBinaries).toEqual([{ path: '$PLUGINSDIR/nsDialogs.dll', format: 'pe', architecture: 'x86' }]);
+            const library = path.join(payloadRoot, 'nsDialogs.dll');
+            await writeFile(library, pe(0x14c));
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('target-mismatch');
+            await rm(library);
+            const unknown = path.join(payloadRoot, '$PLUGINSDIR', 'unknown.dll');
+            await writeFile(unknown, pe(0x14c));
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('target-mismatch');
+            await rm(unknown);
+            await writeFile(plugin, pe(0xaa64));
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('plugin-architecture-invalid');
+        } finally {
+            await rm(payloadRoot, { recursive: true, force: true });
+        }
+    });
     it.each([
         [elf(0x3e), { format: 'elf', architecture: 'x86_64' }],
         [elf(0xb7), { format: 'elf', architecture: 'arm64' }],

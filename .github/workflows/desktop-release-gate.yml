@@ -298,6 +298,11 @@ jobs:
           test -f "$bundle"
           echo "SCREENHELLO_DESKTOP_BINARY=$binary" >> "$GITHUB_ENV"
           echo "SCREENHELLO_DESKTOP_BUNDLE=$bundle" >> "$GITHUB_ENV"
+          # Preserve the exact bytes if package inspection fails on this runner.
+          evidence_dir="artifacts/release/desktop-matrix/${{ matrix.target }}"
+          mkdir -p "$evidence_dir"
+          cp "$binary" "$bundle" "$evidence_dir/"
+          echo 'Package inspection has not passed. This is a diagnostic artifact.' > "$evidence_dir/PACKAGE-NOT-VERIFIED.txt"
 
       - name: Inspect package identity, architecture, and payload
         run: pnpm desktop:inspect
@@ -306,7 +311,9 @@ jobs:
         run: pnpm desktop:sbom
 
       - name: Collect fail-closed platform evidence
-        run: pnpm desktop:evidence
+        run: |
+          pnpm desktop:evidence
+          rm "artifacts/release/desktop-matrix/${{ matrix.target }}/PACKAGE-NOT-VERIFIED.txt"
 
       - name: Upload unsigned test evidence
         if: always()
