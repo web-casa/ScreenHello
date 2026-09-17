@@ -3878,6 +3878,15 @@
     .shoteasy-components {
         scroll-behavior: auto;
     }
+    /* Keep rc-trigger/Portal positioning animations intact. Reduce only our
+       canvas controls; a global duration override breaks popup placement. */
+    .shoteasy-mobile-annotation-trigger.ant-btn,
+    .shoteasy-mobile-zoom-trigger.ant-btn,
+    .shoteasy-bottom-toolbar,
+    .shoteasy-bottom-toolbar-collapsed.ant-btn,
+    .shoteasy-zoom-controls .ant-btn {
+        transition-duration: 0.01ms !important;
+    }
 }
 /* Image presets retain their proportions in the canvas; only thumbnails crop. */
 .se-background-preset-section { padding-top: 16px; }

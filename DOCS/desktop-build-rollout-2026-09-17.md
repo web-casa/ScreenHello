@@ -35,6 +35,10 @@ PR Gate 的矩阵入口读取 base SHA；公开 main 的旧基线还没有相应
 
 同一轮 Intel Mac 也完成编译、运行和 DMG 生成，但在读取包内资源时出现 ENOENT。根因是 `inspectDmgPayload` 在 `try/finally` 中直接返回异步检查 Promise，`finally` 提前卸载了 DMG。已改为等待检查结束再卸载，并增加真实文件读操作与即时卸载的回归：正确包通过、错误架构拒绝、两者都完成清理。临时恢复旧实现后测试会因 ENOENT 失败，确认测试确实覆盖该竞态；恢复修复后，相关 36 项单测和 lint 通过。
 
+全量浏览器 CI 另外报出三引擎同一项 reduced-motion 失败：移动标注按钮仍有 160ms 过渡。此前删除全局动画覆盖是为了修复 rc-trigger 的弹层定位，因此本次只缩短编辑器自有画布工具控件的过渡，不覆盖 Portal 的动画。Chromium / Firefox / WebKit 的菜单、尺寸弹层、移动布局等 36 项回归全部通过。
+
+该 CSS 修复之后再次通过 lint、Web / desktop Web / library 构建，并在新 library 产物上通过全部 18 项 consumer 测试。
+
 `784ea38` 已取得 macOS ARM64、Linux x64/ARM64 的完整 Gate 证据，macOS ARM64 的独立签名、公证 DMG 在 [run 35179560957](https://github.com/web-casa/ScreenHello/actions/runs/35179560957) 成功，SHA-256 为 `536235b9702d7df8440d4f6cbcd5650e4f10cb7ea7314e0e8ac404e328b779aa`。Windows 检查修复需要新候选重跑；不能将旧候选的部分通过合并成六平台全通过。
 
 新增独立原生打包命令、身份和版本校验、MSIX PE/Runtime/解包检查、MAS profile/沙箱/签名检查。MAS feature 禁用共享 `/tmp` 单实例插件，前端兼容 `singleInstance: unavailable`，编译时禁止混入测试驱动。
