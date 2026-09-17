@@ -37,10 +37,14 @@ fn desktop_environment() -> DesktopEnvironment {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = desktop_system::show_main_window(app);
-        }))
+    let builder = tauri::Builder::default();
+    // The plugin binds a shared /tmp socket on macOS. MAS uses the OS app
+    // lifecycle; do not request a sandbox exception for an optional integration.
+    #[cfg(not(feature = "mac-app-store"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        let _ = desktop_system::show_main_window(app);
+    }));
+    let builder = builder
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init());

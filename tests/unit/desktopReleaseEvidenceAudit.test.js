@@ -199,6 +199,13 @@ const audit = (evidenceDirectory, scope = 'full') => execFileAsync(process.execP
 });
 
 describe('desktop release evidence audit', () => {
+    it('accepts public-repository unsigned evidence without authorizing a release', async () => {
+        const { stdout } = await withEvidence((evidence) => {
+            evidence.source.repository = 'web-casa/ScreenHello';
+            evidence.source.repositoryId = 1353846676;
+        }, audit);
+        expect(JSON.parse(stdout)).toMatchObject({ automaticGate: 'passed', releaseReady: false, failures: [] });
+    });
     it('accepts complete automatic evidence while preserving explicit manual gates', async () => {
         const { stdout } = await withEvidence(undefined, audit);
         expect(JSON.parse(stdout)).toMatchObject({
@@ -239,6 +246,8 @@ describe('desktop release evidence audit', () => {
     });
 
     it.each([
+        ['an unrelated repository ID', (evidence) => { evidence.source.repositoryId = 42; }],
+        ['a string repository ID', (evidence) => { evidence.source.repositoryId = '1353846676'; }],
         ['a cross-candidate result', (evidence, target) => {
             if (target.id === 'windows-x64') evidence.candidateSha = 'd'.repeat(40);
         }],

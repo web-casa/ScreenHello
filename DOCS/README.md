@@ -94,3 +94,6 @@
 | 图片安全验证/本地建议 | `src/utils/imageValidation.js`、`src/utils/imageSuggestions.js` |
 | 尺寸预设 | `src/utils/sizeConfig.js` |
 | 背景预设 | `src/utils/backgroundConfig.js` |
+
+- [MAS / Microsoft Store 双架构开发与打包](./desktop-store-packaging.md)：独立渠道入口、凭据要求、原生验收缺口及后续顺序。
+- [六平台构建推进记录](./desktop-build-rollout-2026-09-17.md)：公开候选、实际失败、修复和验证边界。

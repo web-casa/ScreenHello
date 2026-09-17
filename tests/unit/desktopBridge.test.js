@@ -111,6 +111,10 @@ describe('desktop bridge', () => {
 
     it('normalizes the bounded system integration status and hides invalid responses', async () => {
         expect(normalizeDesktopSystemStatus(validSystemStatus)).toEqual(validSystemStatus);
+        expect(normalizeDesktopSystemStatus({ ...validSystemStatus, singleInstance: 'unavailable' }))
+            .toEqual({ ...validSystemStatus, singleInstance: 'unavailable' });
+        expect(() => normalizeDesktopSystemStatus({ ...validSystemStatus, singleInstance: 'broken' }))
+            .toThrow();
         expect(() => normalizeDesktopSystemStatus({ ...validSystemStatus, cwd: '/private/path', tray: 'broken' }))
             .toThrowError('desktop-system-status-invalid');
         expect(() => normalizeDesktopSystemStatus({ ...validSystemStatus, shortcut: 'ready' }))

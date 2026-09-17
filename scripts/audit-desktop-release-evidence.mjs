@@ -3,7 +3,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { candidateTargets } from './audit-desktop-release-contract.mjs';
-import { desktopArtifactProvenanceRepositoryId } from './desktop-artifact-provenance.mjs';
+import { desktopGateRepositoryIds } from './desktop-release-matrix.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../config/desktop-release-matrix.json', import.meta.url), 'utf8'));
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -192,7 +192,7 @@ for (const target of gateTargets) {
     const source = evidence.source;
     if (typeof source?.repository !== 'string'
         || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(source.repository)
-        || source?.repositoryId !== desktopArtifactProvenanceRepositoryId
+        || !desktopGateRepositoryIds.includes(source?.repositoryId)
         || source?.workflow !== 'Desktop Release Gate'
         || !['pull_request', 'workflow_dispatch'].includes(source?.event)
         || !Number.isSafeInteger(source?.runId) || source.runId < 1

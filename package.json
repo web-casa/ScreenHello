@@ -43,6 +43,7 @@
     "desktop:web:dev": "cross-env SCREENHELLO_TARGET=desktop vite",
     "desktop:web:build": "pnpm check:antd-css && cross-env SCREENHELLO_TARGET=desktop vite build",
     "desktop:check": "cargo check --manifest-path src-tauri/Cargo.toml --locked",
+    "desktop:store:package": "node scripts/package-desktop-store.mjs",
     "desktop:test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --locked",
     "desktop:test:runtime": "xvfb-run -a dbus-run-session -- node scripts/test-desktop-runtime.mjs",
     "desktop:test:runtime:embedded": "cross-env SCREENHELLO_DESKTOP_DRIVER_PROVIDER=embedded node scripts/test-desktop-runtime.mjs",

@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 import { candidateTargets } from './audit-desktop-release-contract.mjs';
-import { desktopArtifactProvenanceRepositoryId } from './desktop-artifact-provenance.mjs';
+import { desktopGateRepositoryIds } from './desktop-release-matrix.mjs';
 
 const execFileAsync = promisify(execFile);
 const root = await realpath(process.cwd());
@@ -169,7 +169,7 @@ if (await commandVersion('git', ['status', '--porcelain=v1', '--untracked-files=
 }
 if (process.env.SCREENHELLO_RUNNER_LABEL !== target.runner) throw new Error('desktop-evidence-runner-mismatch');
 if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(process.env.GITHUB_REPOSITORY || '')
-    || process.env.GITHUB_REPOSITORY_ID !== String(desktopArtifactProvenanceRepositoryId)
+    || !desktopGateRepositoryIds.some((id) => process.env.GITHUB_REPOSITORY_ID === String(id))
     || process.env.GITHUB_WORKFLOW !== 'Desktop Release Gate'
     || !['pull_request', 'workflow_dispatch'].includes(process.env.GITHUB_EVENT_NAME)
     || !/^\d+$/u.test(process.env.GITHUB_RUN_ID || '')

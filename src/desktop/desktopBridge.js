@@ -88,7 +88,7 @@ export const normalizeDesktopSystemStatus = (value) => {
         || !SHORTCUT_AVAILABILITY.has(status.shortcut)
         || !['Ctrl+Shift+H', 'Command+Shift+H'].includes(String(status.shortcutAccelerator))
         || !TRAY_AVAILABILITY.has(status.tray)
-        || status.singleInstance !== 'ready') {
+        || !['ready', 'unavailable'].includes(status.singleInstance)) {
         throw invalidSystemStatus();
     }
     return Object.freeze({
@@ -96,7 +96,7 @@ export const normalizeDesktopSystemStatus = (value) => {
         shortcut: status.shortcut,
         shortcutAccelerator: status.shortcutAccelerator,
         tray: status.tray,
-        singleInstance: 'ready',
+        singleInstance: status.singleInstance,
     });
 };
 

@@ -104,7 +104,11 @@ impl DesktopSystemState {
             shortcut: availability.shortcut,
             shortcut_accelerator: shortcut_accelerator(),
             tray: availability.tray,
-            single_instance: "ready",
+            single_instance: if cfg!(feature = "mac-app-store") {
+                "unavailable"
+            } else {
+                "ready"
+            },
         })
     }
 
@@ -362,7 +366,14 @@ mod tests {
         assert_eq!(value.get("schemaVersion").unwrap(), 1);
         assert_eq!(value.get("shortcut").unwrap(), "registered");
         assert_eq!(value.get("tray").unwrap(), "ready");
-        assert_eq!(value.get("singleInstance").unwrap(), "ready");
+        assert_eq!(
+            value.get("singleInstance").unwrap(),
+            if cfg!(feature = "mac-app-store") {
+                "unavailable"
+            } else {
+                "ready"
+            }
+        );
         assert!(value.get("args").is_none());
         assert!(value.get("cwd").is_none());
     }

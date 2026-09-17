@@ -1,4 +1,9 @@
 fn main() {
+    assert!(
+        !(std::env::var_os("CARGO_FEATURE_MAC_APP_STORE").is_some()
+            && std::env::var_os("CARGO_FEATURE_DESKTOP_TEST_DRIVER").is_some()),
+        "mac-app-store must not include the runner-only test driver"
+    );
     println!("cargo:rerun-if-env-changed=SCREENHELLO_TEST_DRIVER_BUILD");
     if std::env::var_os("CARGO_FEATURE_DESKTOP_TEST_DRIVER").is_some() {
         assert_eq!(

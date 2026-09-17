@@ -4,6 +4,10 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { candidateTargets } from './audit-desktop-release-contract.mjs';
 
+// Unsigned test evidence is allowed in the source and public export repositories.
+// Signed candidate/attestation trust remains private-repository-only elsewhere.
+export const desktopGateRepositoryIds = Object.freeze([1353846102, 1353846676]);
+
 const workflowFields = Object.freeze([
     ['target', 'id'],
     ['runner', 'runner'],
