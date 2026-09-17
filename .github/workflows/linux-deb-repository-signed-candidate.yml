@@ -34,7 +34,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       inputs.confirm == 'sign-linux-deb-repository-candidate'
     name: Linux DEB repository preflight
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     outputs:
       package-matrix: ${{ steps.package-matrix.outputs.matrix }}
@@ -241,7 +241,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       inputs.confirm == 'sign-linux-deb-repository-candidate'
     name: Build and sign Linux DEB repository candidate
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     environment: linux-repository-signing
     permissions:

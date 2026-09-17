@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { canonicalizeIcns } from '../../scripts/canonicalize-icns.mjs';
 import { devFaviconPlugin, versionFaviconHtml, readWebIconVersions, versionWebIconHtml, webFaviconPlugin } from '../../config/devFaviconPlugin.mjs';
@@ -24,7 +25,7 @@ describe('ScreenHello identity assets', () => {
     });
 
     it('versions only Web icon hrefs and shares production versions with the PWA config', () => {
-        const publicDirectory = new URL('../../public/', import.meta.url).pathname;
+        const publicDirectory = fileURLToPath(new URL('../../public/', import.meta.url));
         const versions = readWebIconVersions(publicDirectory);
         const html = read('index.html').toString();
         const transformed = versionWebIconHtml(html, versions);

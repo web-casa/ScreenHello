@@ -212,6 +212,18 @@ jobs:
           pnpm audit:github-actions
           pnpm audit:desktop:workflow
 
+      - name: Fetch locked Rust dependencies with bounded network retries
+        env:
+          CARGO_HTTP_TIMEOUT: 120
+        run: |
+          for attempt in 1 2 3; do
+            if cargo fetch --manifest-path src-tauri/Cargo.toml --locked; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep 5
+          done
+
       - name: Verify Rust boundaries
         run: |
           cargo fmt --manifest-path src-tauri/Cargo.toml -- --check

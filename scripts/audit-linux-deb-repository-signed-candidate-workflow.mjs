@@ -13,7 +13,7 @@ export const expectedLinuxDebRepositorySigningCandidate = Object.freeze({
     workflow: '.github/workflows/linux-deb-repository-signed-candidate.yml',
     environment: 'linux-repository-signing',
     targets: ['linux-x64', 'linux-arm64'],
-    runner: 'ubuntu-22.04',
+    runner: 'ubuntu-24.04',
     channel: 'github-actions-linux-deb-repository-signed-candidate',
     suite: 'screenhello-beta',
     component: 'main',
@@ -98,13 +98,13 @@ export const auditLinuxDebRepositorySignedCandidateWorkflow = (workflow, matrix)
                 include: [
                     {
                         target: 'linux-x64',
-                        runner: 'ubuntu-22.04',
+                        runner: 'ubuntu-24.04',
                         'rust-target': 'x86_64-unknown-linux-gnu',
                         'package-architecture': 'amd64',
                     },
                     {
                         target: 'linux-arm64',
-                        runner: 'ubuntu-22.04-arm',
+                        runner: 'ubuntu-24.04-arm',
                         'rust-target': 'aarch64-unknown-linux-gnu',
                         'package-architecture': 'arm64',
                     },
@@ -148,9 +148,9 @@ export const auditLinuxDebRepositorySignedCandidateWorkflow = (workflow, matrix)
         'environment-boundary-invalid',
     );
     expect(
-        preflight.includes('runs-on: ubuntu-22.04')
+        preflight.includes('runs-on: ubuntu-24.04')
             && packageJob.includes('runs-on: ${{ matrix.runner }}')
-            && sign.includes('runs-on: ubuntu-22.04'),
+            && sign.includes('runs-on: ubuntu-24.04'),
         'runner-invalid',
     );
     expect(

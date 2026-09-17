@@ -355,7 +355,9 @@ const publicationHandoffOptions = (
     handoffDirectory,
 });
 
-describe('desktop cross-platform acceptance', () => {
+// These integration fixtures repeatedly verify five on-disk candidate trees.
+// Native Windows/Intel macOS runners need an I/O budget, not the unit-test 5s default.
+describe('desktop cross-platform acceptance', { timeout: 120_000 }, () => {
     it('binds five candidate receipts and six platform targets to the same immutable SHA without becoming release-ready', async () => {
         const fixture = await createBundle();
         try {
@@ -484,7 +486,7 @@ describe('desktop cross-platform acceptance', () => {
         } finally {
             await rm(fixture.root, { recursive: true, force: true });
         }
-    }, 10_000);
+    });
 
     it('separates six direct-download installers from five Linux APT sidecars without authorizing a release', async () => {
         const fixture = await createBundle();
@@ -561,7 +563,7 @@ describe('desktop cross-platform acceptance', () => {
         } finally {
             await rm(fixture.root, { recursive: true, force: true });
         }
-    }, 30_000);
+    });
 
     it('binds the reviewed payloads to a committed public-export snapshot without authorizing a release', async () => {
         const fixture = await createBundle({ withCandidateSource: true });
@@ -671,7 +673,7 @@ describe('desktop cross-platform acceptance', () => {
         } finally {
             await rm(fixture.root, { recursive: true, force: true });
         }
-    }, 45_000);
+    });
 
     it('rejects a candidate version with an invalid numeric prerelease identifier', async () => {
         const fixture = await createBundle({
@@ -707,7 +709,7 @@ describe('desktop cross-platform acceptance', () => {
         } finally {
             await rm(fixture.root, { recursive: true, force: true });
         }
-    }, 45_000);
+    });
 
     it('automatically revalidates an offline receipt with its standard per-target trusted root', async () => {
         const fixture = await createBundle({ offlineTarget: 'macos-arm64' });
@@ -929,7 +931,7 @@ describe('desktop cross-platform acceptance', () => {
         } finally {
             await rm(fixture.root, { recursive: true, force: true });
         }
-    }, 10_000);
+    });
 
     it('never overwrites an existing release payload manifest', async () => {
         const fixture = await createBundle();
@@ -1021,7 +1023,7 @@ describe('desktop cross-platform acceptance', () => {
         } finally {
             await rm(fixture.root, { recursive: true, force: true });
         }
-    }, 10_000);
+    });
 
     if (process.platform !== 'win32') {
         it('rejects a symlinked external local release review directory', async () => {
@@ -1091,7 +1093,7 @@ describe('desktop cross-platform acceptance', () => {
             } finally {
                 await rm(fixture.root, { recursive: true, force: true });
             }
-        }, 10_000);
+        });
     }
 
     it.each([

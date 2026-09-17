@@ -10,11 +10,9 @@
   "supportPolicy": {
     "releaseChannel": "direct-download-beta",
     "linux": {
-      "minimumBuildSystem": "ubuntu-22.04-or-debian-12",
+      "minimumBuildSystem": "ubuntu-24.04",
       "minimumRuntimeSystems": [
-        "ubuntu-22.04",
-        "ubuntu-24.04",
-        "debian-12"
+        "ubuntu-24.04"
       ],
       "x11": "planned-native-validation",
       "wayland": "planned-portal-validation"
@@ -104,7 +102,7 @@
       "linux-x64",
       "linux-arm64"
     ],
-    "runner": "ubuntu-22.04",
+    "runner": "ubuntu-24.04",
     "channel": "github-actions-linux-deb-repository-signed-candidate",
     "suite": "screenhello-beta",
     "component": "main",
@@ -676,7 +674,7 @@
       "id": "linux-x64",
       "developmentStatus": "candidate-gated",
       "evidenceStatus": "not-run",
-      "runner": "ubuntu-22.04",
+      "runner": "ubuntu-24.04",
       "platform": "linux",
       "nodePlatform": "linux",
       "arch": "x64",
@@ -703,7 +701,7 @@
       "id": "linux-arm64",
       "developmentStatus": "candidate-gated",
       "evidenceStatus": "not-run",
-      "runner": "ubuntu-22.04-arm",
+      "runner": "ubuntu-24.04-arm",
       "platform": "linux",
       "nodePlatform": "linux",
       "arch": "arm64",

@@ -17,13 +17,13 @@ describe('Linux DEB repository candidate matrix', () => {
             include: [
                 {
                     target: 'linux-x64',
-                    runner: 'ubuntu-22.04',
+                    runner: 'ubuntu-24.04',
                     'rust-target': 'x86_64-unknown-linux-gnu',
                     'package-architecture': 'amd64',
                 },
                 {
                     target: 'linux-arm64',
-                    runner: 'ubuntu-22.04-arm',
+                    runner: 'ubuntu-24.04-arm',
                     'rust-target': 'aarch64-unknown-linux-gnu',
                     'package-architecture': 'arm64',
                 },

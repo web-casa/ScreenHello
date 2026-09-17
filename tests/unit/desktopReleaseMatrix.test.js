@@ -9,8 +9,8 @@ describe('desktop release workflow matrix', () => {
     it('uses all six native candidates for an explicit full gate', () => {
         expect(desktopWorkflowMatrix(matrix)).toEqual({
             include: [
-                { target: 'linux-x64', runner: 'ubuntu-22.04', platform: 'linux', 'rust-target': 'x86_64-unknown-linux-gnu', bundle: 'deb' },
-                { target: 'linux-arm64', runner: 'ubuntu-22.04-arm', platform: 'linux', 'rust-target': 'aarch64-unknown-linux-gnu', bundle: 'deb' },
+                { target: 'linux-x64', runner: 'ubuntu-24.04', platform: 'linux', 'rust-target': 'x86_64-unknown-linux-gnu', bundle: 'deb' },
+                { target: 'linux-arm64', runner: 'ubuntu-24.04-arm', platform: 'linux', 'rust-target': 'aarch64-unknown-linux-gnu', bundle: 'deb' },
                 { target: 'macos-x64', runner: 'macos-15-intel', platform: 'macos', 'rust-target': 'x86_64-apple-darwin', bundle: 'dmg' },
                 { target: 'macos-arm64', runner: 'macos-14', platform: 'macos', 'rust-target': 'aarch64-apple-darwin', bundle: 'dmg' },
                 { target: 'windows-x64', runner: 'windows-2025', platform: 'windows', 'rust-target': 'x86_64-pc-windows-msvc', bundle: 'nsis' },

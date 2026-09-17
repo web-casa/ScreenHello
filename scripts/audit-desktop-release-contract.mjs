@@ -28,7 +28,7 @@ const expectedTargets = Object.freeze({
     'linux-x64': {
         developmentStatus: 'candidate-gated',
         evidenceStatus: 'not-run',
-        runner: 'ubuntu-22.04',
+        runner: 'ubuntu-24.04',
         platform: 'linux',
         nodePlatform: 'linux',
         arch: 'x64',
@@ -45,7 +45,7 @@ const expectedTargets = Object.freeze({
     'linux-arm64': {
         developmentStatus: 'candidate-gated',
         evidenceStatus: 'not-run',
-        runner: 'ubuntu-22.04-arm',
+        runner: 'ubuntu-24.04-arm',
         platform: 'linux',
         nodePlatform: 'linux',
         arch: 'arm64',
@@ -276,9 +276,9 @@ export const auditDesktopReleaseContract = ({
     }
 
     expect(matrix?.supportPolicy?.releaseChannel === 'direct-download-beta', 'desktop-release-contract-release-channel-invalid');
-    expect(matrix?.supportPolicy?.linux?.minimumBuildSystem === 'ubuntu-22.04-or-debian-12', 'desktop-release-contract-linux-build-baseline-invalid');
+    expect(matrix?.supportPolicy?.linux?.minimumBuildSystem === 'ubuntu-24.04', 'desktop-release-contract-linux-build-baseline-invalid');
     expect(
-        hasExactValues(matrix?.supportPolicy?.linux?.minimumRuntimeSystems, ['ubuntu-22.04', 'ubuntu-24.04', 'debian-12']),
+        hasExactValues(matrix?.supportPolicy?.linux?.minimumRuntimeSystems, ['ubuntu-24.04']),
         'desktop-release-contract-linux-runtime-baseline-invalid',
     );
     expect(matrix?.supportPolicy?.linux?.x11 === 'planned-native-validation', 'desktop-release-contract-linux-x11-status-invalid');
