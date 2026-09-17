@@ -38,7 +38,11 @@ export function probeCompileArguments(arch, output) {
 const sha256 = async (file) => createHash('sha256').update(await readFile(file)).digest('hex');
 function run(command, args, timeout = 120_000) {
     const result = spawnSync(command, args, { encoding: 'utf8', timeout, maxBuffer: 1024 * 1024 });
-    if (result.error || result.status !== 0) throw new Error(`sck-probe-command-failed:${path.basename(command)}`);
+    if (result.error || result.status !== 0) {
+        // Toolchain diagnostics only; capture-process output has a separate strict parser.
+        if (result.stderr) console.error(result.stderr.slice(0, 4000));
+        throw new Error(`sck-probe-command-failed:${path.basename(command)}`);
+    }
     return result.stdout.trim();
 }
 async function main() {
@@ -58,7 +62,7 @@ async function main() {
         for (const arch of ['arm64', 'x86_64']) {
             const binary = path.join(output, `sck-probe-${arch}`);
             run('xcrun', probeCompileArguments(arch, binary));
-            run('lipo', ['-verify_arch', arch, binary]);
+            run('lipo', [binary, '-verify_arch', arch]);
             evidence.builds.push({ arch, status: 'passed', sha256: await sha256(binary) });
         }
         const nativeArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
