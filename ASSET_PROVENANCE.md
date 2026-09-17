@@ -193,3 +193,7 @@ page is not a redistribution license.
 ## 文档操作截图（2026-09-13）
 
 `docs-site/public/guide/{zh-CN,en-US}-{editor,export}.png` 是本仓库当前 Web 编辑器的真实浏览器截图（1440×960），展示内置示例和标准 PNG 导出面板。图片中可见的内置示例及可选设备缩略图沿用其原有来源和许可，不因此获得新的素材授权。文档图注说明非中文页面使用英文界面截图；截图由 `GuideImage.astro` 本地加载，不请求第三方图片服务。
+
+## iPhone Duo 本地素材（2026-09-17）
+
+用户提供的 Good Mockups iPhone Duo PSD 最初提取为四种样式；按用户后续要求，`scripts/extract-iphone-duo.py` 当前仅提取非手持横屏／竖屏两款，手持图片不再引入构建。源摘要固定在脚本中，输出摘要存于 gitignored 的 `local-device-assets/iphone-duo-provenance.json`。当前 `licenseStatus=unverified`，尚无软件再分发授权证据；PSD 与派生 PNG 不进入公开源码。详见 [来源、安装和边界](DOCS/iphone-duo.md)。

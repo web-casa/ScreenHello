@@ -13,8 +13,8 @@ const walk = (directory) => readdirSync(directory).flatMap((name) => {
 
 const files = walk(libDir);
 const basenames = files.map((file) => path.basename(file));
-// Devices.css 机型只服务独立站：library 产物里出现这些位图就说明边界被破坏
-const deviceAssets = basenames.filter((filename) => /^devicescss-.*\.png$/.test(filename));
+// Devices.css and the optional Duo pack must not enter library artifacts.
+const deviceAssets = basenames.filter((filename) => /^(?:devicescss-|iphone-duo-).*\.png$/.test(filename));
 if (deviceAssets.length) fail(`library-device-assets-bundled:${deviceAssets.length}`);
 for (const forbidden of [
     /^sw\.js$/,

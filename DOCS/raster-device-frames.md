@@ -157,3 +157,7 @@ Review 修复了 Store 误依赖 Canvas 配置、旧 generic 新建测试预期�
 Review 修复了机身选框比例、暗色许可链接对比度、位图缩略图越界/对比度、跨域默认图二次解码，以及新增公开清单排序。全量首跑曾有一条 WebKit 裁剪取消失败（219 passed / 20 skipped / 1 failed）；未改裁剪代码，单用例连续 3/3、随后完整复跑通过，保留偶发记录而不声称原因已修复。最终专项日志还出现一次 React 开发期 `Notification`/`Button` 跨组件更新警告，未导致断言失败；本轮未完成独立归因，不声称控制台零警告。
 
 新增 `deviceProjection.test.js`、`deviceLicense.test.js` 及设备几何/历史测试。真实设备 E2E 位于 `raster-device.spec.js`，仅在安装本地素材包时运行，不把缺包跳过写成已通过。未运行真实最低版本浏览器、Apple Safari 或原生桌面；未提交、推送、发布素材或构建产物。
+
+## iPhone Duo 补充
+
+当前工作树仅提供横屏、竖屏两种非手持 iPhone Duo 本地样式，手持款已按用户要求撤下。安装、素材权利状态、保存兼容和验证见 [iPhone Duo 开发记录](./iphone-duo.md)。公开清洁构建缺少本地包时不显示这些卡片。

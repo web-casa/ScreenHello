@@ -30,6 +30,7 @@ export const e2eTestGroups = [
             'preset-backgrounds.spec.js',
             'privacy.spec.js',
             'raster-device.spec.js',
+            'iphone-duo.spec.js',
             'recovery.spec.js',
             'seo.spec.js',
             'theme-readability.spec.js',

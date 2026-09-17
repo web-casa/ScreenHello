@@ -1,5 +1,10 @@
 // Source-language messages are stable lookup keys, never persisted document keys.
 export const englishMessages = Object.freeze({
+  "iPhone Duo · 手持折叠": "iPhone Duo · Handheld folded",
+  "iPhone Duo · 手持展开": "iPhone Duo · Handheld unfolded",
+  "iPhone Duo · 竖屏": "iPhone Duo · Portrait",
+  "iPhone Duo · 横屏": "iPhone Duo · Landscape",
+
   "不保存并退出": "Quit without saving",
   "保存项目并退出": "Save project and quit",
   "退出前可保存项目文件；取消会返回编辑器。": "Save your project before quitting, or cancel to return to the editor.",

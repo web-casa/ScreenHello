@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 const { app: { security: { csp } } } = JSON.parse(readFileSync(new URL('../../src-tauri/tauri.conf.json', import.meta.url)));
@@ -46,6 +46,32 @@ async function opaqueSurface(locator) {
     })).toBe(true);
     await expect.poll(() => locator.evaluate(node => getComputedStyle(node).getPropertyValue('--ant-color-text').trim())).not.toBe('');
 }
+
+test('optional Duo previews load under packaged desktop CSP', async ({ page }) => {
+    const poses = ['portrait', 'landscape'];
+    test.skip(!poses.every(pose => existsSync(new URL(`../../local-device-assets/iphone-duo-${pose}-v1.png`, import.meta.url))), 'Optional local Duo pack is absent.');
+    await withPackagedCsp(page);
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/');
+    await page.getByRole('button', { name: '试用示例', exact: true }).click();
+    await expect(page.locator('.shoteasy-editor-canvas canvas').first()).toBeVisible();
+    const painted = () => page.locator('.shoteasy-editor-canvas canvas').evaluateAll(nodes => nodes.map(node => node.toDataURL()).join('|'));
+    let previous = await painted();
+    await page.locator('.shoteasy-frame-panel').getByRole('button', { name: '更多外框' }).click();
+    const drawer = page.locator('.shoteasy-frame-drawer');
+    await expect(drawer.locator('input[value^="iphone-duo-hand-"]')).toHaveCount(0);
+    for (const pose of poses) {
+        const card = drawer.locator('.shoteasy-frame-option').filter({ has: page.locator(`input[value="iphone-duo-${pose}-v1"]`) });
+        await card.click();
+        await expect(card.locator('input')).toBeChecked();
+        await expect.poll(() => card.locator('img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+        await expect.poll(painted).not.toBe(previous);
+        previous = await painted();
+    }
+    expect(errors).toEqual([]);
+    expect(await page.evaluate(() => window.__styleViolations)).toEqual([]);
+});
 
 for (const mode of ['dark', 'light']) {
     test(`${mode}: production desktop CSP preserves themes, stacking and overlays`, async ({ page }) => {

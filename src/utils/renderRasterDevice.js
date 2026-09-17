@@ -63,11 +63,15 @@ export async function renderRasterDevice(device, source, options = {}, signal) {
     const make = (width, height) => { const result = surface(width, height); canvases.push(result); return result; };
     try {
         const urls = device.maskFromAlpha ? [device.image, source] : [device.image, source, device.mask];
+        if (device.hasForeground && !device.foreground) throw failure();
+        if (device.foreground) urls.push(device.foreground);
         const loaded = await Promise.allSettled(urls.map(url => loadImage(url, signal)));
         for (const result of loaded) if (result.status === 'fulfilled') images.push(result.value);
         check(signal);
         if (loaded.some(result => result.status === 'rejected')) throw failure();
         const [frame, content, suppliedMask] = images;
+        const foreground = device.foreground ? images.at(-1) : null;
+        if (foreground && (foreground.naturalWidth !== device.width || foreground.naturalHeight !== device.height)) throw failure();
         if (frame.naturalWidth !== (device.sourceWidth || device.width)
             || frame.naturalHeight !== (device.sourceHeight || device.height)) throw failure();
         let mask = suppliedMask, corners = device.corners, screenAspect = device.screenAspect;
@@ -127,6 +131,9 @@ export async function renderRasterDevice(device, source, options = {}, signal) {
         } else {
             outputContext.drawImage(frame, 0, 0); outputContext.drawImage(warped, 0, 0);
         }
+        // Hands/cameras must stay above the projected user image, including
+        // partially transparent edge pixels. They share the mask coordinate space.
+        if (foreground) outputContext.drawImage(foreground, 0, 0);
         // No caption, attribution plate, background, or lab padding in product pixels.
         const blob = await new Promise((resolve, reject) => {
             const timer = setTimeout(() => reject(failure()), 10_000);

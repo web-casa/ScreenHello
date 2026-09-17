@@ -1,4 +1,9 @@
 {
+  "iPhone Duo · 手持折叠": "iPhone Duo · Plegado en la mano",
+  "iPhone Duo · 手持展开": "iPhone Duo · Desplegado en la mano",
+  "iPhone Duo · 竖屏": "iPhone Duo · Vertical",
+  "iPhone Duo · 横屏": "iPhone Duo · Horizontal",
+
   "不保存并退出": "Salir sin guardar",
   "保存项目并退出": "Guardar proyecto y salir",
   "退出前可保存项目文件；取消会返回编辑器。": "Guarda el proyecto antes de salir o cancela para volver al editor.",

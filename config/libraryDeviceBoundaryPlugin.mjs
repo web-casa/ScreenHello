@@ -29,9 +29,11 @@ export const libraryDeviceBoundaryPlugin = () => ({
     name: 'screenhello-library-device-boundary',
     enforce: 'pre',
     resolveId(source) {
+        if (/\biphoneDuoAssets(?:\.js)?$/.test(source)) return '\0screenhello-duo-assets-stub';
         return /\bdevicesCssConfig(?:\.js)?$/.test(source) ? STUB_ID : null;
     },
     load(id) {
+        if (id === '\0screenhello-duo-assets-stub') return 'export const IPHONE_DUO_ASSETS = {};';
         return id === STUB_ID ? STUB_CODE : null;
     },
 });

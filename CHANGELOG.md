@@ -8,6 +8,8 @@ ScreenHello 的重要用户可见变化记录在这里。版本采用何种 SemV
 
 ### Added
 
+- iPhone Duo 横屏、竖屏两种非手持样式支持安装可选本地素材包；手持款已撤下，不再显示或打包。素材再分发尚未确认，公开清洁构建默认不显示。
+
 - 纯本地截图美化、项目/预设、多个图片图层、批量导出和 PWA 离线能力。
 - PNG、JPEG、WebP、AVIF 与 1x/2x/3x 导出；不支持 Canvas WebP 的浏览器使用本地 Worker/WASM 兜底。
 - Chrome/Edge 111+、Firefox 128+、Safari 16.4+ 的声明基线，以及当前/最低浏览器发布门禁。

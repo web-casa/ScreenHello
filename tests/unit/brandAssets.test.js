@@ -140,16 +140,21 @@ describe('ScreenHello identity assets', () => {
             const png = PNG.sync.read(bytes);
             expect([png.width, png.height, bytes[25]]).toEqual([size, size, 2]);
             let foreground = 0;
+            let nonOpaque = 0;
+            let outsideSafeCircle = 0;
             for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
                 const offset = (y * size + x) * 4;
-                const pixel = [...png.data.subarray(offset, offset + 4)];
-                const isBackground = pixel[0] === 17 && pixel[1] === 19 && pixel[2] === 24;
-                expect(pixel[3]).toBe(255);
+                const isBackground = png.data[offset] === 17 && png.data[offset + 1] === 19 && png.data[offset + 2] === 24;
+                if (png.data[offset + 3] !== 255) nonOpaque++;
                 if (!isBackground) foreground++;
                 if (Math.hypot(x + 0.5 - size / 2, y + 0.5 - size / 2) > size * 0.4) {
-                    expect(isBackground).toBe(true);
+                    if (!isBackground) outsideSafeCircle++;
                 }
             }
+            // Check every pixel without hundreds of thousands of assertion
+            // objects, which exhausted the default timeout on shared CI CPUs.
+            expect(nonOpaque).toBe(0);
+            expect(outsideSafeCircle).toBe(0);
             expect(foreground).toBeGreaterThan(size * size * 0.1);
         }
     });

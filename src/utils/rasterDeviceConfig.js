@@ -2,6 +2,8 @@
 // pack produces an empty glob in clean/public builds; never fetch a remote CDN.
 // Devices.css 机型（提交进仓库的 MIT 派生素材）与可选本地包合并成同一张设备表。
 import { DEVICESCSS_DEVICES } from './devicesCssConfig';
+import duoGeometry from './iphoneDuoGeometry.json';
+import { IPHONE_DUO_ASSETS } from './iphoneDuoAssets';
 const assets = import.meta.glob([
     '../../local-device-assets/surface-studio.png',
     '../../local-device-assets/surface-studio-screen.png',
@@ -96,13 +98,34 @@ definitions.push({ id: 'pixel-9-pro-original-v1', model: 'pixel-9-pro', title: '
     license: 'https://github.com/sneas/telephone/blob/c1644a3d49dcd50ebf8c76306409c4b1d9b7a2b4/LICENSE',
 });
 
-// 提交进仓库的 Devices.css 机型（MIT）：固定 PNG + 屏幕掩膜，始终可用。
+// Poses are separate cards, not color variants. Source names describe artwork,
+// not official Apple hardware specifications. The pack is local and unverified.
+const duoTitles = {
+    'iphone-duo-hand-folded-v1': 'iPhone Duo · 手持折叠',
+    'iphone-duo-hand-unfolded-v1': 'iPhone Duo · 手持展开',
+    'iphone-duo-portrait-v1': 'iPhone Duo · 竖屏',
+    'iphone-duo-landscape-v1': 'iPhone Duo · 横屏',
+};
+definitions.push(...duoGeometry.map(geometry => ({
+    ...geometry, title: duoTitles[geometry.id], deviceKind: 'phone',
+    // Retain saved IDs without silently replacing their artwork. Withdrawn
+    // handheld variants stay unavailable even if a stale local pack exists.
+    retired: geometry.hasForeground,
+    author: 'Good Mockups', sourceProject: 'Good Mockups', licenseStatus: 'unverified',
+    source: geometry.hasForeground
+        ? 'https://goodmockups.com/free-hand-holding-iphone-duo-mockup-psd-set-folded-unfolded/'
+        : 'https://goodmockups.com/free-iphone-duo-mockup-psd-landscape-portrait/',
+    license: 'https://goodmockups.com/legal-notice/',
+})));
+const localAssets = { ...assets, ...IPHONE_DUO_ASSETS };
 export const RASTER_DEVICES = Object.freeze({
     ...Object.fromEntries(definitions.map(device => {
-        const image = assets[`../../local-device-assets/${device.assetName || device.id}.png`];
-        const mask = assets[`../../local-device-assets/${device.id}-screen.png`];
-        const thumb = assets[`../../local-device-assets/${device.id}-thumb.png`];
-        return [device.id, Object.freeze({ ...device, image, mask, thumb, available: Boolean(image && (mask || device.maskFromAlpha)) })];
+        const image = localAssets[`../../local-device-assets/${device.assetName || device.id}.png`];
+        const mask = localAssets[`../../local-device-assets/${device.id}-screen.png`];
+        const thumb = localAssets[`../../local-device-assets/${device.id}-thumb.png`];
+        const foreground = device.hasForeground ? localAssets[`../../local-device-assets/${device.id}-foreground.png`] : undefined;
+        return [device.id, Object.freeze({ ...device, image, mask, thumb, foreground,
+            available: Boolean(!device.retired && image && (mask || device.maskFromAlpha) && (!device.hasForeground || foreground)) })];
     })),
     ...DEVICESCSS_DEVICES,
 });
