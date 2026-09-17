@@ -219,32 +219,32 @@ const findMacApplication = async (mountpoint, productName) => {
     return path.join(mountpoint, applications[0].name);
 };
 
-const inspectDmgPayload = async ({ bundle, config, root, target }) => withTemporaryDirectory(
+export const inspectDmgPayload = async ({ bundle, config, root, target, runCommand = runText }) => withTemporaryDirectory(
     'screenhello-dmg-',
     async (mountpoint) => {
         // `hdiutil attach` can create the mount before returning a non-zero
         // exit code. Always try to detach this fresh, private mountpoint so a
         // failed inspection cannot leak a mounted image on the runner.
         try {
-            await runText('hdiutil', ['attach', '-nobrowse', '-readonly', '-mountpoint', mountpoint, bundle], root);
+            await runCommand('hdiutil', ['attach', '-nobrowse', '-readonly', '-mountpoint', mountpoint, bundle], root);
             const application = await findMacApplication(mountpoint, config.productName);
             const infoPlist = path.join(application, 'Contents', 'Info.plist');
             const [identity, version, executable] = await Promise.all([
-                runText('plutil', ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlist], root),
-                runText('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', '-o', '-', infoPlist], root),
-                runText('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', infoPlist], root),
+                runCommand('plutil', ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlist], root),
+                runCommand('plutil', ['-extract', 'CFBundleShortVersionString', 'raw', '-o', '-', infoPlist], root),
+                runCommand('plutil', ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', infoPlist], root),
             ]);
             if (identity !== target.packageIdentity || version !== config.version || executable !== 'screenhello-desktop') {
                 throw new Error('desktop-macos-app-contents-invalid');
             }
-            return inspectNativePayload({
+            return await inspectNativePayload({
                 payloadRoot: application,
                 primary: path.join(application, 'Contents', 'MacOS', executable),
                 target,
             });
         } finally {
-            await runText('hdiutil', ['detach', mountpoint], root)
-                .catch(() => runText('hdiutil', ['detach', '-force', mountpoint], root))
+            await runCommand('hdiutil', ['detach', mountpoint], root)
+                .catch(() => runCommand('hdiutil', ['detach', '-force', mountpoint], root))
                 .catch(() => undefined);
         }
     },

@@ -33,6 +33,8 @@ PR Gate 的矩阵入口读取 base SHA；公开 main 的旧基线还没有相应
 
 修复将五个明确插件路径单独检查并记录为 `installerBinaries`；应用 `nativeBinaries` 继续要求目标架构。新增错误应用 DLL、未知插件、错误插件架构和证据篡改回归，34 项相关测试通过。Gate 同时提前留存原始安装件；检查失败时保留 `PACKAGE-NOT-VERIFIED.txt` 标记，只有证据收集成功后才移除。
 
+同一轮 Intel Mac 也完成编译、运行和 DMG 生成，但在读取包内资源时出现 ENOENT。根因是 `inspectDmgPayload` 在 `try/finally` 中直接返回异步检查 Promise，`finally` 提前卸载了 DMG。已改为等待检查结束再卸载，并增加真实文件读操作与即时卸载的回归：正确包通过、错误架构拒绝、两者都完成清理。临时恢复旧实现后测试会因 ENOENT 失败，确认测试确实覆盖该竞态；恢复修复后，相关 36 项单测和 lint 通过。
+
 `784ea38` 已取得 macOS ARM64、Linux x64/ARM64 的完整 Gate 证据，macOS ARM64 的独立签名、公证 DMG 在 [run 35179560957](https://github.com/web-casa/ScreenHello/actions/runs/35179560957) 成功，SHA-256 为 `536235b9702d7df8440d4f6cbcd5650e4f10cb7ea7314e0e8ac404e328b779aa`。Windows 检查修复需要新候选重跑；不能将旧候选的部分通过合并成六平台全通过。
 
 新增独立原生打包命令、身份和版本校验、MSIX PE/Runtime/解包检查、MAS profile/沙箱/签名检查。MAS feature 禁用共享 `/tmp` 单实例插件，前端兼容 `singleInstance: unavailable`，编译时禁止混入测试驱动。

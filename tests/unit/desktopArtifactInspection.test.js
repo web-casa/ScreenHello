@@ -1,8 +1,9 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { desktopPackageChannel, inspectBinaryHeader, inspectNsisExtractedPayload } from '../../scripts/inspect-desktop-artifacts.mjs';
+import { desktopPackageChannel, inspectBinaryHeader, inspectDmgPayload, inspectNsisExtractedPayload } from '../../scripts/inspect-desktop-artifacts.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/desktop-release-matrix.json', import.meta.url), 'utf8'));
 
@@ -38,6 +39,36 @@ const fatMachO = (...cpuTypes) => {
 };
 
 describe('desktop artifact binary inspection', () => {
+    it.each([true, false])('keeps the DMG mounted until asynchronous payload reads settle (valid: %s)', async (valid) => {
+        let application;
+        let detached = false;
+        const target = matrix.targets.find(({ id }) => id === 'macos-x64');
+        const runCommand = async (command, args) => {
+            if (command === 'plutil') return {
+                CFBundleIdentifier: target.packageIdentity,
+                CFBundleShortVersionString: '1.0.4',
+                CFBundleExecutable: 'screenhello-desktop',
+            }[args[1]];
+            if (args[0] === 'attach') {
+                const mountpoint = args[args.indexOf('-mountpoint') + 1];
+                application = path.join(mountpoint, 'ScreenHello.app');
+                await mkdir(path.join(application, 'Contents', 'MacOS'), { recursive: true });
+                await writeFile(path.join(application, 'Contents', 'MacOS', 'screenhello-desktop'), machO(valid ? 0x01000007 : 0x0100000c));
+                return '';
+            }
+            if (args[0] === 'detach') {
+                // A fast unmount makes an un-awaited inspection fail deterministically.
+                rmSync(application, { recursive: true, force: true });
+                detached = true;
+                return '';
+            }
+            throw new Error('unexpected inspection command');
+        };
+        const inspection = inspectDmgPayload({ bundle: '/fixture.dmg', root: '.', config: { productName: 'ScreenHello', version: '1.0.4' }, target, runCommand });
+        if (valid) await expect(inspection).resolves.toMatchObject({ mainBinary: 'Contents/MacOS/screenhello-desktop' });
+        else await expect(inspection).rejects.toThrow('target-mismatch');
+        expect(detached).toBe(true);
+    });
     it('separates known x86 installer plugins from the ARM64 application and rejects wrong-architecture app DLLs', async () => {
         const payloadRoot = await mkdtemp(path.join(tmpdir(), 'screenhello-nsis-test-'));
         const target = matrix.targets.find(({ id }) => id === 'windows-arm64');
