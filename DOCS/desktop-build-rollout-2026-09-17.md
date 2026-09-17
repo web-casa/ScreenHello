@@ -46,3 +46,18 @@ PR Gate 的矩阵入口读取 base SHA；公开 main 的旧基线还没有相应
 本地已执行：lint、typecheck、Web build、desktop Web build；94 个单测文件 / 1,372 项通过（随后增加的公开仓证据测试单独再跑）；默认 Rust 与 MAS feature 各 40 项通过；MAS feature 的 clippy `-D warnings` 通过。构建保留 Vite 大 chunk 提示。缺少身份时打包命令明确以 `store-input-required:SCREENHELLO_MAS_BUNDLE_ID` 退出，没有生成假身份包。
 
 本地是 Linux：这些结果不包含 MAS/macOS 沙箱运行、Windows MSIX 打包、WACK、商店上传、商店审核或用户实际安装。下一步应先取得最新候选六平台结果，再按 Store 文档补身份和原生验收。
+
+## 候选 `4ba1c2f` 的追加验证
+
+完整候选源码为 `4ba1c2fbcd4cb95cc7fecca4f0cdf7003c6c1b40`，[六平台 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35182662700)。macOS ARM64、Linux ARM64、Linux x64 的完整 Gate 通过；Windows 两个目标失败，不能称为六平台全绿：
+
+- ARM64 已生成安装器并通过原生运行检查，但 NSIS 的 `MUI_PAGE_STARTMENU` 宏会间接引入 `StartMenu.dll`，此前五个插件路径未覆盖它。已核对 NSIS `StartMenu.nsh` 的 `StartMenu::Init/Show` 调用，补为六个明确路径，并让证据数量上限复用同一集合大小。下载该失败任务保留的实际安装器，使用修复后的检查器成功验证：主程序 ARM64，五个实际携带的安装器插件均为 x86。原 CI 失败状态不修改，诊断产物仍保留未验证标记。
+- x64 在 `session-create` 阶段报 `NoSuchWindowError`。已核对锁定的 `tauri-plugin-wdio-webdriver 1.3.0` 源码：端口可先于窗口就绪，创建会话内置等待仅 10 秒，超时不创建会话。测试入口只对该错误最多尝试三次；应用退出、其他 session 错误或业务断言不重试。回归覆盖成功、耗尽、官方驱动不重试、进程退出和其他错误。仍需新候选实际重跑。
+
+上述检查器/启动修复的 58 项相关测试通过。`4ba1c2f` 修复前的全量本地测试为 94 文件 / 1,380 项，不能代替后续代码验证。
+
+追加修复后，lint、Web build 和全部 94 文件 / 1,391 项单测通过。Gate 的并发组另加入事件类型，避免同 SHA 的 PR 检查取消手动完整矩阵；保留同类型重复运行的取消机制。
+
+同提交的 [签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35182596967/artifacts/10480583565) 已完成签名、公证、staple 和 Gatekeeper 检查，下载后 SHA-256 核对一致：`613877a3606890b1d05313e334007af41062b86e7962aabde2484981498115c1`。公证 ID `0563d0ea-cd2a-4bfa-a5f9-483c2cd7ffec`，状态 Accepted。真人 GUI 验收仍为未执行。
+
+MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据 [Tauri 上游问题及维护者说明](https://github.com/tauri-apps/tauri-docs/issues/3171)。不增加网络服务端或临时例外权限，10 项 Store 配置测试、lint 和 Web build 通过。该修复已单独导出到公开 `build/store-packaging-20260917` 分支的 `b17d4f7`，不代表 MAS 原生包已生成。

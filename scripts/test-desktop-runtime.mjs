@@ -7,7 +7,7 @@ import process from 'node:process';
 import { spawn } from 'node:child_process';
 import { Builder, By, Capabilities, until } from 'selenium-webdriver';
 import { desktopCodecArtifacts } from './audit-desktop-codecs.mjs';
-import { stopDesktopAutomation } from './desktop-process-tree.mjs';
+import { createDesktopSession, stopDesktopAutomation } from './desktop-process-tree.mjs';
 
 const root = process.cwd();
 const applicationName = process.platform === 'win32' ? 'screenhello-desktop.exe' : 'screenhello-desktop';
@@ -255,10 +255,14 @@ try {
         capabilities.set('tauri:options', { application });
         capabilities.setBrowserName('wry');
     }
-    driver = await new Builder()
-        .withCapabilities(capabilities)
-        .usingServer(`http://127.0.0.1:${port}/`)
-        .build();
+    driver = await createDesktopSession({
+        embedded: useEmbeddedDriver,
+        processHandle: automationProcess,
+        createSession: () => new Builder()
+            .withCapabilities(capabilities)
+            .usingServer(`http://127.0.0.1:${port}/`)
+            .build(),
+    });
 
     stage = 'runtime-ready';
     const status = await driver.wait(until.elementLocated(By.css('[data-testid="desktop-runtime-status"]')), 30_000);

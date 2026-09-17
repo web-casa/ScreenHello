@@ -69,18 +69,18 @@ describe('desktop artifact binary inspection', () => {
         else await expect(inspection).rejects.toThrow('target-mismatch');
         expect(detached).toBe(true);
     });
-    it('separates known x86 installer plugins from the ARM64 application and rejects wrong-architecture app DLLs', async () => {
+    it.each(['nsDialogs.dll', 'nsis_tauri_utils.dll', 'System.dll', 'NSISdl.dll', 'LangDLL.dll', 'StartMenu.dll'])('separates installer plugin %s from ARM64 app DLLs', async (pluginName) => {
         const payloadRoot = await mkdtemp(path.join(tmpdir(), 'screenhello-nsis-test-'));
         const target = matrix.targets.find(({ id }) => id === 'windows-arm64');
         try {
             await mkdir(path.join(payloadRoot, '$PLUGINSDIR'));
             await writeFile(path.join(payloadRoot, 'screenhello-desktop.exe'), pe(0xaa64));
-            const plugin = path.join(payloadRoot, '$PLUGINSDIR', 'nsDialogs.dll');
+            const plugin = path.join(payloadRoot, '$PLUGINSDIR', pluginName);
             await writeFile(plugin, pe(0x14c));
             const result = await inspectNsisExtractedPayload({ payloadRoot, target });
             expect(result.nativeBinaries).toEqual([{ path: 'screenhello-desktop.exe', format: 'pe', architecture: 'arm64' }]);
-            expect(result.installerBinaries).toEqual([{ path: '$PLUGINSDIR/nsDialogs.dll', format: 'pe', architecture: 'x86' }]);
-            const library = path.join(payloadRoot, 'nsDialogs.dll');
+            expect(result.installerBinaries).toEqual([{ path: `$PLUGINSDIR/${pluginName}`, format: 'pe', architecture: 'x86' }]);
+            const library = path.join(payloadRoot, pluginName);
             await writeFile(library, pe(0x14c));
             await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('target-mismatch');
             await rm(library);

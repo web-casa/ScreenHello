@@ -90,9 +90,10 @@ const createEvidence = (target, scope = 'full') => {
                 format: target.binaryFormat,
                 architecture: target.binaryArchitecture,
             }],
-            ...(target.platform === 'windows' ? { installerBinaries: [
-                { path: '$PLUGINSDIR/nsDialogs.dll', format: 'pe', architecture: 'x86' },
-            ] } : {}),
+            ...(target.platform === 'windows' ? { installerBinaries:
+                ['nsDialogs.dll', 'nsis_tauri_utils.dll', 'System.dll', 'NSISdl.dll', 'LangDLL.dll', 'StartMenu.dll']
+                    .map((name) => ({ path: `$PLUGINSDIR/${name}`, format: 'pe', architecture: 'x86' })),
+            } : {}),
         },
         checks: Object.fromEntries(matrix.requiredBuildChecks.map((id) => [id, true])),
     },

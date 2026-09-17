@@ -7,6 +7,21 @@ const hasExited = (processHandle) => (
     processHandle.exitCode !== null || processHandle.signalCode !== null
 );
 
+export const createDesktopSession = async ({ createSession, processHandle, embedded = false }) => {
+    // The embedded driver's session endpoint waits ten seconds for a window
+    // before rejecting, without creating a session (wdio-webdriver 1.3.0).
+    // A listening port can precede a cold WebView2 window on Windows runners.
+    const attemptLimit = embedded ? 3 : 1;
+    for (let attempt = 1; ; attempt += 1) {
+        if (hasExited(processHandle)) throw new Error('desktop-automation-exited-before-session');
+        try {
+            return await createSession();
+        } catch (error) {
+            if (error?.name !== 'NoSuchWindowError' || attempt >= attemptLimit) throw error;
+        }
+    }
+};
+
 export const stopDesktopAutomation = async (processHandle, options = {}) => {
     const processGroupId = processHandle.pid;
     if (!processGroupId) return;

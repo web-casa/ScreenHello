@@ -261,7 +261,9 @@ const findWindowsMainBinary = (files) => {
 const nsisPluginPaths = new Set([
     '$pluginsdir/nsdialogs.dll', '$pluginsdir/nsis_tauri_utils.dll',
     '$pluginsdir/system.dll', '$pluginsdir/nsisdl.dll', '$pluginsdir/langdll.dll',
+    '$pluginsdir/startmenu.dll', // MUI_PAGE_STARTMENU expands to StartMenu::Init/Show.
 ]);
+export const nsisInstallerBinaryLimit = nsisPluginPaths.size;
 export const isNsisInstallerBinaryRecord = (record) => (
     typeof record?.path === 'string'
     && nsisPluginPaths.has(record.path.toLowerCase())
