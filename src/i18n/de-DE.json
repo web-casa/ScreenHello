@@ -762,7 +762,7 @@
   "正在连接桌面能力": "Desktopfunktionen werden verbunden",
   "桌面能力不可用": "Desktopfunktionen nicht verfügbar",
   "快捷键 {0}（{1}）": "Tastenkürzel {0} ({1})",
-  "托盘{0} · 单实例已就绪": "Tray {0} · Einzelinstanz bereit",
+  "托盘{0} · 单实例{1}": "Tray {0} · Einzelinstanz {1}",
   "系统快捷键与托盘状态不可用": "Status von Systemtastenkürzel und Tray nicht verfügbar",
   "本地状态标记已初始化": "Lokale Statusmarkierung initialisiert",
   "本地状态标记已验证": "Lokale Statusmarkierung geprüft",

@@ -762,7 +762,7 @@
   "正在连接桌面能力": "A ligar funcionalidades de ambiente de trabalho",
   "桌面能力不可用": "Funcionalidades de ambiente de trabalho indisponíveis",
   "快捷键 {0}（{1}）": "Atalho {0} ({1})",
-  "托盘{0} · 单实例已就绪": "Bandeja {0} · Instância única pronta",
+  "托盘{0} · 单实例{1}": "Bandeja {0} · Instância única {1}",
   "系统快捷键与托盘状态不可用": "Estado do atalho e da bandeja indisponível",
   "本地状态标记已初始化": "Marcador de estado local inicializado",
   "本地状态标记已验证": "Marcador de estado local verificado",

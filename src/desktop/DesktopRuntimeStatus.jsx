@@ -63,7 +63,7 @@ export default function DesktopRuntimeStatus() {
             `ScreenHello ${result.environment.appVersion}`,
             stateTitle,
             systemReady ? t("快捷键 {0}（{1}）", { 0: systemResult.system.shortcutAccelerator, 1: t(systemResult.system.shortcut === 'registered' ? '已注册' : '不可用') }) : null,
-            systemReady ? t("托盘{0} · 单实例已就绪", { 0: t(systemResult.system.tray === 'ready' ? '已就绪' : '不可用') }) : null,
+            systemReady ? t("托盘{0} · 单实例{1}", { 0: t(systemResult.system.tray === 'ready' ? '已就绪' : '不可用'), 1: t(systemResult.system.singleInstance === 'ready' ? '已就绪' : '不可用') }) : null,
             systemResult.status === 'unavailable' ? t("系统快捷键与托盘状态不可用") : null,
         ].filter(Boolean).join(' · ')
         : label;

@@ -357,7 +357,7 @@ export const englishMessages = Object.freeze({
     '没有可用来源': 'No sources available', '截图范围': 'Capture area', '整个显示器': 'Entire display', '指定区域': 'Custom region',
     '区域 X 坐标': 'Region X coordinate', '区域 Y 坐标': 'Region Y coordinate', '区域宽度': 'Region width', '区域高度': 'Region height',
     '桌面 · {0} {1}': 'Desktop · {0} {1}', '正在连接桌面能力': 'Connecting desktop capabilities', '桌面能力不可用': 'Desktop capabilities unavailable',
-    '快捷键 {0}（{1}）': 'Shortcut {0} ({1})', '托盘{0} · 单实例已就绪': 'Tray {0} · Single instance ready',
+    '快捷键 {0}（{1}）': 'Shortcut {0} ({1})', '托盘{0} · 单实例{1}': 'Tray {0} · Single instance {1}',
     '系统快捷键与托盘状态不可用': 'System shortcut and tray status unavailable',
     '本地状态标记已初始化': 'Local state marker initialized', '本地状态标记已验证': 'Local state marker verified',
     '本地状态标记已迁移': 'Local state marker migrated', '本地状态标记迁移检查不可用': 'Local state marker migration check unavailable',
