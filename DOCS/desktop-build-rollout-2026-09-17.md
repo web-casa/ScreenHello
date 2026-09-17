@@ -85,3 +85,19 @@ MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据
 最终弹层与触屏修复后的 Web、desktop Web、library 构建通过；新 library 的开发和 preview consumer 各 18 项通过。Vite 大 chunk 提示仍存在，没有把它写成已消除。
 
 最终再次运行全量单测，94 文件 / 1,393 项通过；PWA audit、i18n audit 与文档内容一致性检查通过。新公开候选须以它自己的 Actions 结果为准。
+
+## 最终候选 `fb13ab8`
+
+本地提交 `17a3992587710b251979d2edbf9d928f585e33b4` 导出为公开提交 `fb13ab8746182ba379cf41b46b1c321685408e1c`，已推送测试分支。对应 [六目标 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35188890782)、[签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35188882462) 和[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35188885672) 已启动，当前仍在运行；不能预先记作通过。
+
+其中签名 ARM64 DMG 随后成功：[下载 artifact](https://github.com/web-casa/ScreenHello/actions/runs/35188882462/artifacts/10483226549)，SHA-256 `e23c33202744e4b8199d828f9ed83ac79fdad208a38ddb56393d1a4f158fac1c`，下载后核对一致。Apple 公证 `3edaf44e-8f3f-474e-a2c1-9e569ac27212` 为 Accepted，签名记录包含 stapled ticket；`gui-acceptance=not-run` 保持原样。这是 Developer ID 直装候选，不是 MAS 包。
+
+上一轮 `1491ad3` 最终为 macOS 双架构、Linux 双架构通过，Windows 双架构在卸载程序检查失败。新候选不能混用这些旧产物作为完整矩阵的证据。
+
+`fb13ab8` 的 macOS ARM64、Linux x64 和 Windows ARM64 Gate 已通过，Windows 的真实包验证确认卸载程序分类修复有效。Linux ARM64 的原生运行阶段在 `desktop-overlay-layout` 等待 10 秒后失败；原入口没有具体子阶段及失败截图，不能据此断言某个弹层本身有问题，也不能声称六平台通过。本地重新构建原生 test driver 后，首次运行及随后连续 10 次均通过；这不是 Ubuntu runner 的失败已解决证明。
+
+为进一步定位，原生测试入口增加菜单、尺寸、地址编辑、裁剪与导出的子阶段，等待错误包含选择器；失败保存独立 `runtime-failure.json` / `runtime-failure.png`，保留非零退出，不写成功 `runtime.json`。没有修改业务断言或加入自动重试。
+
+诊断入口的 lint 与 41 项相关单测通过，原生 test driver 重新构建通过。常规首次与重复运行共 11 次、限制单核的慢环境运行 10 次全部通过；仍不足以认定原 Ubuntu runner 超时的根因。
+
+在临时脚本副本中将菜单定位器替换成不存在的测试选择器，负向运行按预期退出 1，记录 `desktop-file-menu-layout`、具体选择器及 230,969 字节 PNG；未生成成功 evidence。副本随后删除，真实入口断言未改变。

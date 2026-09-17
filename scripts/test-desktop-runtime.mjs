@@ -61,8 +61,8 @@ const validDesktopState = (value) => (
 const delay = (duration) => new Promise((resolve) => setTimeout(resolve, duration));
 
 const waitForVisible = async (driver, selector, timeoutMs = 10_000) => {
-    const element = await driver.wait(until.elementLocated(By.css(selector)), timeoutMs);
-    await driver.wait(async () => await element.isDisplayed(), timeoutMs);
+    const element = await driver.wait(until.elementLocated(By.css(selector)), timeoutMs, `desktop-element-missing:${selector}`);
+    await driver.wait(async () => await element.isDisplayed(), timeoutMs, `desktop-element-hidden:${selector}`);
     return element;
 };
 
@@ -549,6 +549,7 @@ try {
     if (desktopChrome.privacyFlagged || !desktopChrome.privacyLabel?.endsWith('0 B')) {
         throw new Error(`desktop-privacy-local-ipc-invalid:${JSON.stringify(desktopChrome)}`);
     }
+    stage = 'desktop-file-menu-layout';
     const fileMenu = await driver.findElement(By.xpath("//button[contains(@class,'shoteasy-app-menu__trigger') and normalize-space()='文件']"));
     await fileMenu.click();
     overlayLayouts.menu = await assertViewportOverlay(driver, '.shoteasy-command-menu--file');
@@ -556,12 +557,14 @@ try {
     await fileMenu.click();
 
     const sizeTrigger = await driver.findElement(By.css('button[aria-label="选择画布尺寸"]'));
+    stage = 'desktop-size-popover-layout';
     await sizeTrigger.click();
     overlayLayouts.sizePopover = await assertViewportOverlay(driver, '.shoteasy-size-overlay');
     overlayLayouts.sizeSurface = await assertThemedSurface(driver, '.shoteasy-size-overlay .ant-popover-container');
     await sizeTrigger.click();
 
     const browserFrame = await driver.findElement(By.css('.shoteasy-frame-option input[value="macosBarLight"]'));
+    stage = 'desktop-browser-url-edit';
     await driver.executeScript('arguments[0].click()', browserFrame);
     const browserUrl = await waitForVisible(driver, 'input[aria-label="浏览器地址栏 URL"]');
     await browserUrl.clear();
@@ -571,13 +574,16 @@ try {
     }
 
     const cropButton = await driver.findElement(By.css('button[aria-label="裁剪图片"]'));
+    stage = 'desktop-crop-modal-layout';
     await cropButton.click();
     overlayLayouts.cropModal = await assertViewportOverlay(driver, '.shoteasy-cropper-modal .ant-modal-wrap', { fixed: true });
     const cropClose = await driver.findElement(By.css('.shoteasy-cropper-modal .ant-modal-close'));
+    stage = 'desktop-crop-modal-close';
     await cropClose.click();
     await driver.wait(async () => !(await driver.findElements(By.css('.shoteasy-cropper-modal .ant-modal-wrap'))).length, 10_000);
 
     const exportButton = await driver.findElement(By.css('button[aria-label="导出图片"]'));
+    stage = 'desktop-export-drawer-layout';
     await exportButton.click();
     overlayLayouts.exportDrawer = await assertViewportOverlay(driver, '.shoteasy-export-overlay.ant-drawer', { fixed: true });
     overlayLayouts.exportContent = await assertViewportOverlay(driver, '.shoteasy-export-overlay .ant-drawer-content-wrapper');
@@ -587,6 +593,7 @@ try {
     // a user can close the fully laid-out panel.
     overlayLayouts.exportSurface = await assertThemedSurface(driver, '.shoteasy-export-overlay .ant-drawer-section');
     const exportCancel = await waitForVisible(driver, '[data-testid="export-cancel"]');
+    stage = 'desktop-export-drawer-close';
     await exportCancel.click();
     await driver.wait(async () => !(await driver.findElements(By.css('.shoteasy-export-overlay.ant-drawer'))).length, 10_000);
 
@@ -726,9 +733,28 @@ try {
             captureDialogText: document.querySelector('.shoteasy-capture-dialog')?.textContent?.slice(0, 1000) ?? null,
             captureSourceRadios: document.querySelectorAll('.shoteasy-capture-dialog input[type=radio]').length,
             commandMenuText: document.querySelector('.shoteasy-command-menu--file')?.textContent?.slice(0, 1000) ?? null,
+            overlays: Array.from(document.querySelectorAll('.shoteasy-command-menu, .shoteasy-size-overlay, .shoteasy-cropper-modal, .shoteasy-export-overlay')).slice(0, 12).map((node) => ({
+                className: node.className,
+                display: getComputedStyle(node).display,
+                visibility: getComputedStyle(node).visibility,
+                width: node.getBoundingClientRect().width,
+                height: node.getBoundingClientRect().height,
+            })),
         }`).catch(() => null);
     }
     process.stderr.write(`${JSON.stringify({ stage, pageState })}\n`);
+    // Failed runs must retain useful diagnostics without writing a successful
+    // runtime.json or substituting a failure image for the acceptance screenshot.
+    if (driver && process.env.SCREENHELLO_DESKTOP_SCREENSHOT) {
+        try {
+            const directory = path.dirname(path.resolve(root, process.env.SCREENHELLO_DESKTOP_SCREENSHOT));
+            await mkdir(directory, { recursive: true });
+            await writeFile(path.join(directory, 'runtime-failure.json'), JSON.stringify({ stage, error: error.message, pageState }, null, 2));
+            await writeFile(path.join(directory, 'runtime-failure.png'), await driver.takeScreenshot(), 'base64');
+        } catch (diagnosticError) {
+            process.stderr.write(`desktop-failure-diagnostics-unavailable:${diagnosticError.message}\n`);
+        }
+    }
     if (driverOutput) process.stderr.write(driverOutput);
     throw error;
 } finally {
