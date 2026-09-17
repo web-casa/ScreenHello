@@ -3,8 +3,8 @@ use block2::RcBlock;
 use objc2::{rc::Retained, AnyThread};
 use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_core_graphics::{
-    kCGColorSpaceSRGB, CGBitmapContextCreate, CGBitmapInfo, CGColorSpace, CGContext, CGImage,
-    CGImageAlphaInfo,
+    kCGColorSpaceSRGB, CGBitmapContextCreate, CGColorSpace, CGContext, CGImage, CGImageAlphaInfo,
+    CGImageByteOrderInfo,
 };
 use objc2_foundation::{NSArray, NSError};
 use objc2_screen_capture_kit::{
@@ -41,7 +41,7 @@ fn rgba(image: &CGImage, expected: (u32, u32)) -> Result<RgbaImage, String> {
             8,
             width * 4,
             Some(&color),
-            CGImageAlphaInfo::PremultipliedLast.0 | CGBitmapInfo::ByteOrder32Big.bits(),
+            CGImageAlphaInfo::PremultipliedLast.0 | CGImageByteOrderInfo::Order32Big.0,
         )
     }
     .ok_or("desktop-capture-failed")?;
@@ -225,7 +225,7 @@ mod tests {
                 8,
                 8,
                 Some(&color),
-                CGImageAlphaInfo::PremultipliedLast.0 | CGBitmapInfo::ByteOrder32Big.bits(),
+                CGImageAlphaInfo::PremultipliedLast.0 | CGImageByteOrderInfo::Order32Big.0,
             )
         }
         .unwrap();
