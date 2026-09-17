@@ -89,7 +89,30 @@ describe('desktop artifact binary inspection', () => {
             await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('target-mismatch');
             await rm(unknown);
             await writeFile(plugin, pe(0xaa64));
-            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('plugin-architecture-invalid');
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('installer-architecture-invalid');
+        } finally {
+            await rm(payloadRoot, { recursive: true, force: true });
+        }
+    });
+    it.each([['windows-arm64', 0xaa64], ['windows-x64', 0x8664]])('checks the x86 NSIS uninstaller separately for %s', async (id, machine) => {
+        const payloadRoot = await mkdtemp(path.join(tmpdir(), 'screenhello-uninstaller-test-'));
+        const target = matrix.targets.find((entry) => entry.id === id);
+        try {
+            await writeFile(path.join(payloadRoot, 'screenhello-desktop.exe'), pe(machine));
+            const uninstaller = path.join(payloadRoot, 'uninstall.exe');
+            await writeFile(uninstaller, pe(0x14c));
+            const result = await inspectNsisExtractedPayload({ payloadRoot, target });
+            expect(result.installerBinaries).toEqual([{ path: 'uninstall.exe', format: 'pe', architecture: 'x86' }]);
+            expect(result.nativeBinaries).toHaveLength(1);
+            await mkdir(path.join(payloadRoot, 'other'));
+            const unexpected = path.join(payloadRoot, 'other', 'uninstall.exe');
+            await writeFile(unexpected, pe(0x14c));
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('target-mismatch');
+            await rm(unexpected);
+            await writeFile(uninstaller, pe(machine));
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('installer-architecture-invalid');
+            await writeFile(uninstaller, Buffer.alloc(64));
+            await expect(inspectNsisExtractedPayload({ payloadRoot, target })).rejects.toThrow('installer-header-invalid');
         } finally {
             await rm(payloadRoot, { recursive: true, force: true });
         }

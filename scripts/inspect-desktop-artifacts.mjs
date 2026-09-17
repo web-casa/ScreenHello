@@ -256,17 +256,18 @@ const findWindowsMainBinary = (files) => {
     return matches[0];
 };
 
-// Tauri CLI 2.11.4's NSIS template executes these plugins in its x86
-// installer process. They are not DLLs loaded by the installed application.
-const nsisPluginPaths = new Set([
+// Tauri CLI 2.11.4's NSIS template uses an x86 installer/uninstaller and
+// x86 plugins. These are separate from the installed application process.
+const nsisInstallerPaths = new Set([
     '$pluginsdir/nsdialogs.dll', '$pluginsdir/nsis_tauri_utils.dll',
     '$pluginsdir/system.dll', '$pluginsdir/nsisdl.dll', '$pluginsdir/langdll.dll',
     '$pluginsdir/startmenu.dll', // MUI_PAGE_STARTMENU expands to StartMenu::Init/Show.
+    'uninstall.exe', // WriteUninstaller "$INSTDIR\\uninstall.exe" in the NSIS template.
 ]);
-export const nsisInstallerBinaryLimit = nsisPluginPaths.size;
+export const nsisInstallerBinaryLimit = nsisInstallerPaths.size;
 export const isNsisInstallerBinaryRecord = (record) => (
     typeof record?.path === 'string'
-    && nsisPluginPaths.has(record.path.toLowerCase())
+    && nsisInstallerPaths.has(record.path.toLowerCase())
     && record.format === 'pe' && record.architecture === 'x86'
     && !record.architectures
 );
@@ -277,11 +278,11 @@ export const inspectNsisExtractedPayload = async ({ payloadRoot, target }) => {
     const installerBinaries = [];
     for (const file of files) {
         const relative = relativePayloadPath(payloadRoot, file);
-        if (nsisPluginPaths.has(relative.toLowerCase())) {
+        if (nsisInstallerPaths.has(relative.toLowerCase())) {
             const header = await readNativeHeader(file);
-            if (!header) throw new Error('desktop-nsis-plugin-header-invalid');
+            if (!header) throw new Error('desktop-nsis-installer-header-invalid');
             const record = nativeBinaryRecord(payloadRoot, file, header);
-            if (!isNsisInstallerBinaryRecord(record)) throw new Error('desktop-nsis-plugin-architecture-invalid');
+            if (!isNsisInstallerBinaryRecord(record)) throw new Error('desktop-nsis-installer-architecture-invalid');
             installerBinaries.push(record);
         } else {
             // Unknown plugins and every application DLL retain target checks.

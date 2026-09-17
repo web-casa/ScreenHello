@@ -61,3 +61,27 @@ PR Gate 的矩阵入口读取 base SHA；公开 main 的旧基线还没有相应
 同提交的 [签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35182596967/artifacts/10480583565) 已完成签名、公证、staple 和 Gatekeeper 检查，下载后 SHA-256 核对一致：`613877a3606890b1d05313e334007af41062b86e7962aabde2484981498115c1`。公证 ID `0563d0ea-cd2a-4bfa-a5f9-483c2cd7ffec`，状态 Accepted。真人 GUI 验收仍为未执行。
 
 MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据 [Tauri 上游问题及维护者说明](https://github.com/tauri-apps/tauri-docs/issues/3171)。不增加网络服务端或临时例外权限，10 项 Store 配置测试、lint 和 Web build 通过。该修复已单独导出到公开 `build/store-packaging-20260917` 分支的 `b17d4f7`，不代表 MAS 原生包已生成。
+
+## 候选 `1491ad3` 的完整安装器复核
+
+公开候选 `1491ad33b9115d87cd37b3290983f7de6eb36885` 的 [Gate](https://github.com/web-casa/ScreenHello/actions/runs/35185106268) 中，Windows 双架构均已通过原生运行并生成安装器；包检查又定位到根目录 `uninstall.exe` 被误作应用程序检查。Tauri CLI 2.11.4 的 NSIS 模板明确通过 `WriteUninstaller` 在 `$INSTDIR` 下生成 `uninstall.exe`，其 x86 架构跟随安装器。
+
+本地 7-Zip 25.01 没有从同一安装器展开卸载程序，[官方 7-Zip 26.03](https://www.7-zip.org/download.html) 会展开，造成此前局部复现的覆盖缺口。已用 26.03 对本轮真实 ARM64、x64 安装器完整解包并通过修复后的检查；只增加根目录 `uninstall.exe` 的明确 x86 记录，其他路径同名文件、错误架构和无效头仍拒绝。根目录卸载程序和六个标准插件共用七项允许列表与数量上限。
+
+包内应用与上传的原始可执行文件逐字节复核，仅存在 Tauri 正常的 `__TAURI_BUNDLE_TYPE_VAR_UNK` → `NSS` 标记替换（已核对 tauri-utils 2.9.3 源码）；没有改写原始诊断 artifact 或把失败任务标为通过。43 项相关测试、lint、Web build 通过，另复核了 SBOM 和证据收集的 Windows CLI 启动、路径与元数据边界。
+
+此前 `4ba1c2f` 的完整[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35182599577) 已成功：357 项 E2E、48 项 PWA、15 项 release 检查通过；可选素材/私有文档等缺失条件下的跳过项目没有计入通过数。`1491ad3` 与它的 `src/`、`src-tauri/`、package.json 和锁文件无差异，后续变化限于构建检查脚本、单测、工作流和文档。
+
+### 弹层重复回归与触屏修复
+
+`1491ad3` 的[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35185106987) 仍复现 WebKit 尺寸弹层宽度为零；另一次主题切换首次失败、重试通过。因此，前一提交的一次全绿不足以证明时序问题已消失。本地对两个相关用例各重复十次，尺寸弹层失败 5 次，主题用例通过 10 次；截图中尺寸按钮已展开但面板不可见。
+
+复用现有 `NO_CSS_MOTION`，通过 Dropdown 的 `transitionName` 与 Popover 的 `motion` 关闭这两处 CSS 进入/退出动画，保留组件定位逻辑，不增加全局动画样式覆盖，也没有放宽测试断言。相同 20 次 WebKit 回归全部通过。
+
+随后三引擎完整菜单回归发现触屏模拟鼠标悬停与点击的重复切换：`onMouseEnter` 先打开相邻菜单，紧接的点击将它关闭。改用 `onPointerEnter` 并只处理 `pointerType === 'mouse'`，触屏统一由点击处理。该修复后的 Chromium / Firefox / WebKit 菜单与移动布局共 36 项全部通过。
+
+卸载程序检查修复后的全量单测为 94 文件 / 1,393 项通过。弹层修复后的 lint 与 typecheck 通过；这些自动检查不能替代用户 Mac、Windows 或商店沙箱中的真实 GUI 验收。
+
+最终弹层与触屏修复后的 Web、desktop Web、library 构建通过；新 library 的开发和 preview consumer 各 18 项通过。Vite 大 chunk 提示仍存在，没有把它写成已消除。
+
+最终再次运行全量单测，94 文件 / 1,393 项通过；PWA audit、i18n audit 与文档内容一致性检查通过。新公开候选须以它自己的 Actions 结果为准。

@@ -2,6 +2,7 @@ import useI18n from '../../i18n/useI18n';
 import { useId, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import { Input, Popover, Button } from 'antd';
 import useStores from '@stores/useStores';
 import { cn, getMargin } from '@utils/utils';
@@ -144,6 +145,7 @@ export default observer(function SizeBar() {
             trigger="click"
             arrow={false}
             placement="bottomLeft"
+            motion={NO_CSS_MOTION}
             open={open}
             classNames={{
                 root: cn('shoteasy-components shoteasy-size-overlay', stores.editor.isDark && 'dark-mode'),

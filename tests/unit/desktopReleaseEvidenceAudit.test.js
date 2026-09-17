@@ -92,7 +92,8 @@ const createEvidence = (target, scope = 'full') => {
             }],
             ...(target.platform === 'windows' ? { installerBinaries:
                 ['nsDialogs.dll', 'nsis_tauri_utils.dll', 'System.dll', 'NSISdl.dll', 'LangDLL.dll', 'StartMenu.dll']
-                    .map((name) => ({ path: `$PLUGINSDIR/${name}`, format: 'pe', architecture: 'x86' })),
+                    .map((name) => ({ path: `$PLUGINSDIR/${name}`, format: 'pe', architecture: 'x86' }))
+                    .concat({ path: 'uninstall.exe', format: 'pe', architecture: 'x86' }),
             } : {}),
         },
         checks: Object.fromEntries(matrix.requiredBuildChecks.map((id) => [id, true])),

@@ -282,6 +282,7 @@ export default observer(function AppMenuBar() {
                         destroyOnHidden
                         placement="bottomLeft"
                         trigger={['click']}
+                        transitionName={NO_CSS_MOTION.motionName}
                         rootClassName={`shoteasy-command-menu shoteasy-command-menu--${menuId}`}
                         popupRender={(menuNode) => (
                             <div
@@ -315,8 +316,10 @@ export default observer(function AppMenuBar() {
                             aria-expanded={openMenu === menuId}
                             className="shoteasy-app-menu__trigger"
                             onFocus={() => setActiveIndex(index)}
-                            onMouseEnter={() => {
-                                if (openMenuRef.current && openMenuRef.current !== menuId) showMenu(menuId);
+                            onPointerEnter={(event) => {
+                                // Touch synthesizes mouse enter before click; opening here
+                                // would let that same tap immediately toggle the menu shut.
+                                if (event.pointerType === 'mouse' && openMenuRef.current && openMenuRef.current !== menuId) showMenu(menuId);
                             }}
                             onKeyDown={(event) => handleTriggerKeyDown(event, index, menuId)}
                         >
