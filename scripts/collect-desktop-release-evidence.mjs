@@ -21,7 +21,7 @@ const target = candidateTargets(matrix, scope).find(({ id }) => id === targetId)
 const candidatePattern = /^[0-9a-f]{40}$/u;
 const forbiddenDriverMarkers = ['wdio-webdriver', 'WDIO WebDriver plugin initialized', 'TAURI_WEBDRIVER_PORT', 'SCREENHELLO_RUNNER_ONLY_TEST_BINARY'];
 const codecFormats = ['avif', 'webp', 'png'];
-const captureCapabilityBackends = new Set(['x11', 'wayland-portal', 'macos-core-graphics', 'windows-gdi']);
+const captureCapabilityBackends = new Set(['x11', 'wayland-portal', 'macos-core-graphics', 'macos-screen-capture-kit', 'windows-gdi']);
 const captureCapabilityStatuses = new Set(['ready', 'system-permission-required', 'portal-required', 'no-display']);
 const desktopStateStatuses = new Set(['initialized', 'ready', 'migrated', 'unavailable']);
 const manualCaptureReason = 'Native consent was not exercised; no capture success is claimed.';
@@ -50,7 +50,7 @@ const validCaptureCapability = (value, platform) => (
     && (platform === 'linux'
         ? ['x11', 'wayland-portal'].includes(value.backend)
         : platform === 'macos'
-            ? value.backend === 'macos-core-graphics'
+            ? ['macos-core-graphics', 'macos-screen-capture-kit'].includes(value.backend)
             : platform === 'windows'
                 ? value.backend === 'windows-gdi'
                 : false)

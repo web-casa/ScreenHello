@@ -26,6 +26,7 @@
 
 /**
  * @typedef {Object} BrowserPlatformCapabilities
+ * @property {'browser' | 'desktop'} [kind]
  * @property {BrowserFileCapabilities} file
  * @property {BrowserStorageCapabilities} storage
  * @property {{ supportsWriteImage: () => boolean, writeImage: (blob: Blob) => Promise<void> }} clipboard
@@ -35,6 +36,7 @@
 
 /** @type {BrowserPlatformCapabilities} */
 export const browserPlatform = {
+    kind: 'browser',
     file: {
         createObjectURL(blob) {
             const urlApi = globalThis.URL;

@@ -48,11 +48,11 @@ assert not p.get('ProvisionedDevices') and not p.get('ProvisionsAllDevices'), 'n
         identifier: input.identifier,
         build: { features: ['mac-app-store'] },
         bundle: { active: true, targets: ['app'], category: 'Photography', macOS: {
-            signingIdentity: input.appIdentity, entitlements, hardenedRuntime: true,
+            minimumSystemVersion: '14.0', signingIdentity: input.appIdentity, entitlements, hardenedRuntime: true,
             bundleVersion: input.buildNumber, files: { 'embedded.provisionprofile': profile },
         } },
     }), { flag: 'wx' });
-    const env = { ...process.env };
+    const env = { ...process.env, MACOSX_DEPLOYMENT_TARGET: '14.0' };
     // A MAS package must not enter the Developer ID notarization route.
     for (const key of ['APPLE_ID', 'APPLE_PASSWORD', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_API_ISSUER', 'APPLE_API_KEY', 'APPLE_API_KEY_PATH', 'APPLE_SIGNING_IDENTITY']) delete env[key];
     tauri(['build', '--ci', '--target', input.target, '--bundles', 'app', '--config', config], env);
@@ -69,6 +69,7 @@ expected = plistlib.load(open(sys.argv[1], 'rb'))
 actual = plistlib.load(open(sys.argv[2], 'rb'))
 assert expected == actual, 'signed entitlements mismatch'
 info = plistlib.load(open(sys.argv[3], 'rb'))
+assert info.get('LSMinimumSystemVersion') == '14.0', 'MAS minimum system version mismatch'
 assert info['CFBundleIdentifier'] == sys.argv[4] and info['CFBundleVersion'] == sys.argv[5], 'bundle identity/version mismatch'
 `, entitlements, actual, path.join(app, 'Contents', 'Info.plist'), input.identifier, input.buildNumber]);
     if (await digest(path.join(app, 'Contents', 'embedded.provisionprofile')) !== await digest(profile)) throw new Error('store-embedded-profile-mismatch');

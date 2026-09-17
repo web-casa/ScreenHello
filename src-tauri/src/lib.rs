@@ -1,14 +1,14 @@
 use serde::Serialize;
 use tauri::Manager;
 
-mod desktop_capture;
 mod capture_geometry;
-#[cfg(all(target_os = "macos", feature = "screen-capture-kit"))]
-mod macos_capture;
+mod desktop_capture;
 mod desktop_exit;
 mod desktop_help;
 mod desktop_state;
 mod desktop_system;
+#[cfg(all(target_os = "macos", feature = "screen-capture-kit"))]
+mod macos_capture;
 mod native_files;
 mod native_locale;
 

@@ -1,3 +1,4 @@
+import { EXTERNAL_HELP } from '../utils/helpLinks';
 // @ts-check
 
 import { invoke } from '@tauri-apps/api/core';
@@ -14,7 +15,7 @@ import { createDesktopToken, isDesktopToken } from '../desktop/desktopToken';
 /** @typedef {'monitor' | 'window'} DesktopCaptureSourceKind */
 /** @typedef {{token: string, kind: DesktopCaptureSourceKind, name: string, x: number, y: number, width: number, height: number, scaleFactor: number, primary: boolean}} DesktopCaptureSource */
 /** @typedef {{x: number, y: number, width: number, height: number}} DesktopCaptureRegion */
-/** @typedef {'x11' | 'wayland-portal' | 'macos-core-graphics' | 'windows-gdi'} DesktopCaptureBackend */
+/** @typedef {'x11' | 'wayland-portal' | 'macos-core-graphics' | 'macos-screen-capture-kit' | 'windows-gdi'} DesktopCaptureBackend */
 /** @typedef {'ready' | 'system-permission-required' | 'portal-required' | 'no-display'} DesktopCaptureCapabilityStatus */
 /** @typedef {{schemaVersion: 1, backend: DesktopCaptureBackend, status: DesktopCaptureCapabilityStatus, sourcePicker: boolean}} DesktopCaptureCapability */
 
@@ -45,7 +46,7 @@ const LIMIT_BY_SAVE_KIND = Object.freeze({
     'batch-zip': DESKTOP_MAX_BATCH_BYTES,
 });
 const SAVE_KINDS = new Set(Object.keys(LIMIT_BY_SAVE_KIND));
-const CAPTURE_CAPABILITY_BACKENDS = new Set(['x11', 'wayland-portal', 'macos-core-graphics', 'windows-gdi']);
+const CAPTURE_CAPABILITY_BACKENDS = new Set(['x11', 'wayland-portal', 'macos-core-graphics', 'macos-screen-capture-kit', 'windows-gdi']);
 const CAPTURE_CAPABILITY_STATUSES = new Set(['ready', 'system-permission-required', 'portal-required', 'no-display']);
 
 /** @param {string} code */
@@ -393,6 +394,8 @@ export const createDesktopPlatform = ({
                 });
             } catch (error) {
                 // Only expose a fixed backend code, never native error text or paths.
+                if (error === 'native-file-save-cancelled') throw desktopError('export-cancelled');
+                if (error === 'native-file-directory-invalid') throw desktopError('desktop-file-directory-invalid');
                 throw desktopError(error === 'native-file-exists'
                     ? 'desktop-file-exists'
                     : 'desktop-file-write-failed');
@@ -417,12 +420,24 @@ export const createDesktopPlatform = ({
                 return { status: 'saved', handle };
             } catch (error) {
                 if (ownsHandle && handle) await file.releaseHandle(handle).catch(() => {});
+                if (error?.code === 'export-cancelled') return { status: 'cancelled' };
                 throw error;
             }
         },
     };
 
     const platform = {
+        kind: /** @type {const} */ ('desktop'),
+        help: {
+            async open(topic) {
+                if (!Object.hasOwn(EXTERNAL_HELP, topic)) throw desktopError('desktop-help-topic-invalid');
+                try {
+                    await invokeCommand('desktop_open_help', { topic });
+                } catch {
+                    throw desktopError('desktop-help-open-failed');
+                }
+            },
+        },
         file,
         storage: basePlatform.storage,
         capture: {

@@ -24,7 +24,7 @@ const nativePort = Number.parseInt(process.env.SCREENHELLO_WEBKIT_DRIVER_PORT ||
 const shutdownGraceMs = 5_000;
 const runtimeStartedAt = Date.now();
 const expectedCodecFormats = Object.freeze(desktopCodecArtifacts.map(({ id }) => id));
-const captureCapabilityBackends = new Set(['x11', 'wayland-portal', 'macos-core-graphics', 'windows-gdi']);
+const captureCapabilityBackends = new Set(['x11', 'wayland-portal', 'macos-core-graphics', 'macos-screen-capture-kit', 'windows-gdi']);
 const captureCapabilityStatuses = new Set(['ready', 'system-permission-required', 'portal-required', 'no-display']);
 const desktopStateStatuses = new Set(['initialized', 'ready', 'migrated', 'unavailable']);
 const expectedPlatform = process.env.SCREENHELLO_EXPECTED_DESKTOP_PLATFORM
@@ -43,7 +43,7 @@ const validCaptureCapability = (value) => (
     && (expectedPlatform === 'linux'
         ? ['x11', 'wayland-portal'].includes(value.backend)
         : expectedPlatform === 'macos'
-            ? value.backend === 'macos-core-graphics'
+            ? ['macos-core-graphics', 'macos-screen-capture-kit'].includes(value.backend)
             : expectedPlatform === 'windows'
                 ? value.backend === 'windows-gdi'
                 : false)

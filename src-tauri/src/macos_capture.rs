@@ -3,13 +3,20 @@ use block2::RcBlock;
 use objc2::{rc::Retained, AnyThread};
 use objc2_core_foundation::{CGPoint, CGRect, CGSize};
 use objc2_core_graphics::{
-    CGBitmapContextCreate, CGBitmapInfo, CGColorSpace, CGContext, CGImage, CGImageAlphaInfo,
+    kCGColorSpaceSRGB, CGBitmapContextCreate, CGBitmapInfo, CGColorSpace, CGContext, CGImage,
+    CGImageAlphaInfo,
 };
 use objc2_foundation::{NSArray, NSError};
 use objc2_screen_capture_kit::{
     SCContentFilter, SCScreenshotManager, SCShareableContent, SCStreamConfiguration,
 };
-use std::{sync::mpsc, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    time::Duration,
+};
 use xcap::image::RgbaImage;
 
 const PIXEL_BUDGET: u64 = 7_680 * 4_320;
@@ -23,7 +30,8 @@ fn rgba(image: &CGImage, expected: (u32, u32)) -> Result<RgbaImage, String> {
         return Err("desktop-capture-failed".into());
     }
     let mut bytes = vec![0u8; width * height * 4];
-    let color = CGColorSpace::new_device_rgb().ok_or("desktop-capture-failed")?;
+    let color = CGColorSpace::with_name(Some(unsafe { kCGColorSpaceSRGB }))
+        .ok_or("desktop-capture-failed")?;
     // SAFETY: Vec has exactly width * height * 4 bytes and outlives the context.
     let context = unsafe {
         CGBitmapContextCreate(
@@ -71,8 +79,13 @@ pub(crate) fn capture(
         return Err("desktop-capture-unavailable".into());
     }
     let (sender, receiver) = mpsc::channel();
+    let active = Arc::new(AtomicBool::new(true));
+    let pending = active.clone();
     let content_callback = RcBlock::new(
         move |content: *mut SCShareableContent, error: *mut NSError| {
+            if !pending.load(Ordering::Acquire) {
+                return;
+            }
             if !error.is_null() || content.is_null() {
                 let _ = sender.send(Err("desktop-capture-source-unavailable".into()));
                 return;
@@ -87,8 +100,15 @@ pub(crate) fn capture(
                     return;
                 }
             };
+            if !pending.load(Ordering::Acquire) {
+                return;
+            }
             let completion_sender = sender.clone();
+            let completing = pending.clone();
             let callback = RcBlock::new(move |image: *mut CGImage, error: *mut NSError| {
+                if !completing.load(Ordering::Acquire) {
+                    return;
+                }
                 let result = if !error.is_null() || image.is_null() {
                     Err("desktop-capture-failed".into())
                 } else {
@@ -111,9 +131,9 @@ pub(crate) fn capture(
     }
     // Called from the existing blocking capture worker, never from the UI thread.
     // A late callback cannot deliver to the editor after this receiver is dropped.
-    receiver
-        .recv_timeout(Duration::from_secs(15))
-        .map_err(|_| "desktop-capture-failed".to_owned())?
+    let result = receiver.recv_timeout(Duration::from_secs(15));
+    active.store(false, Ordering::Release);
+    result.map_err(|_| "desktop-capture-failed".to_owned())?
 }
 
 type Prepared = (
@@ -150,6 +170,13 @@ unsafe fn prepare(
         )
     };
     let rect = filter.contentRect();
+    if !rect.size.width.is_finite()
+        || !rect.size.height.is_finite()
+        || rect.size.width <= 0.0
+        || rect.size.height <= 0.0
+    {
+        return Err("desktop-capture-source-unavailable".into());
+    }
     let scale = filter.pointPixelScale() as f64;
     let config = SCStreamConfiguration::new();
     config.setShowsCursor(false);
@@ -176,4 +203,37 @@ unsafe fn prepare(
     config.setWidth(dimensions.0 as usize);
     config.setHeight(dimensions.1 as usize);
     Ok((filter, config, dimensions))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use objc2_core_graphics::CGBitmapContextCreateImage;
+
+    #[test]
+    fn bitmap_conversion_preserves_rows_channels_and_straight_alpha() {
+        // Synthetic pixels only: this test never lists or captures any screen.
+        let mut data = [
+            255u8, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 64, 0, 0, 128,
+        ];
+        let color = CGColorSpace::with_name(Some(unsafe { kCGColorSpaceSRGB })).unwrap();
+        let context = unsafe {
+            CGBitmapContextCreate(
+                data.as_mut_ptr().cast(),
+                2,
+                2,
+                8,
+                8,
+                Some(&color),
+                CGImageAlphaInfo::PremultipliedLast.0 | CGBitmapInfo::ByteOrder32Big.bits(),
+            )
+        }
+        .unwrap();
+        let image = CGBitmapContextCreateImage(Some(&context)).unwrap();
+        let output = rgba(&image, (2, 2)).unwrap();
+        assert_eq!(&output.as_raw()[..12], &data[..12]);
+        assert_eq!(&output.as_raw()[12..], &[128, 0, 0, 128]);
+        assert!(rgba(&image, (1, 4)).is_err());
+        drop(context);
+    }
 }
