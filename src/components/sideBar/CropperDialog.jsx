@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Modal } from 'antd';
@@ -7,6 +8,7 @@ import useStores from '@stores/useStores';
 import { getDefaultFrameSize } from '@utils/utils';
 
 export default observer(function CropperDialog({ onClose }) {
+    const t = useI18n();
     const stores = useStores();
     const cropperRef = useRef(null);
     const handleReady = (event) => event.currentTarget.cropper.zoomTo(0.5);
@@ -31,12 +33,14 @@ export default observer(function CropperDialog({ onClose }) {
 
     return (
         <Modal
-            title="裁剪"
+            rootClassName="shoteasy-cropper-modal"
+            zIndex={1100}
+            title={t("裁剪")}
             open
             onOk={handleOk}
             onCancel={onClose}
-            okText="确定"
-            cancelText="取消"
+            okText={t("确定")}
+            cancelText={t("取消")}
             destroyOnHidden
         >
             <Cropper

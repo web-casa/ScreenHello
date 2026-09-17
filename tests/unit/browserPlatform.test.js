@@ -90,6 +90,7 @@ describe('browser platform capabilities', () => {
 
         expect(browserPlatform.file.supportsFileSystemAccess()).toBe(false);
         await expect(browserPlatform.file.openWithPicker()).resolves.toEqual({ status: 'unsupported' });
+        await expect(browserPlatform.file.openImages()).resolves.toEqual({ status: 'unsupported' });
         await expect(browserPlatform.file.chooseSaveHandle()).resolves.toEqual({ status: 'unsupported' });
         await expect(browserPlatform.file.saveWithPicker(new Blob(['archive']))).resolves.toEqual({ status: 'unsupported' });
         await expect(browserPlatform.storage.estimate()).resolves.toEqual({
@@ -99,6 +100,7 @@ describe('browser platform capabilities', () => {
         });
         await expect(browserPlatform.storage.isPersisted()).resolves.toBeNull();
         await expect(browserPlatform.storage.requestPersistence()).resolves.toBeNull();
+        expect(browserPlatform.clipboard.supportsWriteImage()).toBe(false);
     });
 
     it('reads and requests the browser persistence state independently', async () => {

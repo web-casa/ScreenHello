@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { RASTER_DEVICES, getDeviceVariants, getRasterDevice } from '../../src/utils/rasterDeviceConfig';
 
 let FRAME_DEFINITIONS;
 let VECTOR_DEVICE_INFO;
@@ -6,6 +8,8 @@ let createFrameDecorations;
 let getFrameDefinition;
 let getFrameMetrics;
 let isDeviceFrame;
+let getFrameGroups;
+let getQuickFrameGroups;
 
 beforeAll(async () => {
     // Unit scope is pure geometry. Real Leafer rendering/export is covered by E2E;
@@ -23,6 +27,8 @@ beforeAll(async () => {
         getFrameDefinition,
         getFrameMetrics,
         isDeviceFrame,
+        getFrameGroups,
+        getQuickFrameGroups,
     } = await import('../../src/utils/frameConfig.js'));
 });
 
@@ -39,14 +45,77 @@ const LAYOUTS = [
     { width: 2400, height: 180 },
 ];
 
+const TINTABLE_BROWSER_ICON_FILES = [
+    'toggle.svg',
+    'Toolbar Item-defender.svg',
+    'dowload.svg',
+    'Toolbar-target.svg',
+    '+.svg',
+    'Toolbar Item-copy.svg',
+];
+
+describe('browser icon tint inputs', () => {
+    it('keeps the neutral tint placeholder only in fill or stroke attributes', () => {
+        for (const file of TINTABLE_BROWSER_ICON_FILES) {
+            const source = readFileSync(new URL(`../../src/assets/icon/${file}`, import.meta.url), 'utf8');
+            const withoutPaintAttributes = source.replace(/\b(?:fill|stroke)=(["'])#737373\1/g, '');
+            expect(source).toMatch(/\b(?:fill|stroke)=(["'])#737373\1/);
+            expect(withoutPaintAttributes).not.toContain('#737373');
+        }
+    });
+});
+
 describe('generic vector device frames', () => {
-    it('registers four stable, unbranded, code-native definitions', () => {
+    it('provides bounded browser/device quick choices without mutating the full model lists', () => {
+        const groups = getFrameGroups();
+        const before = groups.map(group => group.items.map(item => item.id));
+        const quick = getQuickFrameGroups('none', groups);
+        expect(quick.browser.map(item => item.id)).toEqual(['none', 'macosBarLight', 'macosBarDark', 'windowsBarLight']);
+        expect(quick.device.length).toBeLessThanOrEqual(4);
+        expect(quick.device.every(item => item.available && !item.hidden && item.kind === 'raster-device')).toBe(true);
+        expect(new Set(quick.device.map(item => item.model || item.id)).size).toBe(quick.device.length);
+        for (const selected of ['arc', 'windowsBarDark', ...Object.keys(RASTER_DEVICES)]) {
+            const result = getQuickFrameGroups(selected, groups);
+            const definition = getFrameDefinition(selected);
+            if (!definition.hidden) expect([...result.browser, ...result.device].map(item => item.id)).toContain(selected);
+            else expect([...result.browser, ...result.device].map(item => item.id)).not.toContain(selected);
+            expect(result.browser[0].id).toBe('none');
+            expect(result.device.length).toBeLessThanOrEqual(4);
+        }
+        expect(groups.map(group => group.items.map(item => item.id))).toEqual(before);
+    });
+
+    it('does not invent device choices in empty or partial packs, even for a saved selection', () => {
+        for (const selected of ['macbook-air-m2-midnight-v1', 'genericPhone', '__proto__']) {
+            expect(getQuickFrameGroups(selected, []).device).toEqual([]);
+        }
+        const partial = getFrameGroups().map(group => ({...group, items: group.items.filter(item => item.id === 'surface-studio')}));
+        expect(getQuickFrameGroups('macbook-air-m2-silver-v1', partial).device.map(item => item.id))
+            .toEqual(RASTER_DEVICES['surface-studio'].available ? ['surface-studio'] : []);
+    });
+
+    it('keeps optional raster device geometry stable even without the external pack', () => {
+        for (const id of ['surface-studio', 'surface-pro-8', 'macbook-pro-bitmap', 'macbook-air-bitmap', 'imac-bitmap', 'ipad-bitmap', 'iphone-bitmap']) {
+            const definition = getFrameDefinition(id);
+            expect(definition.kind).toBe('raster-device');
+            expect(isDeviceFrame(id)).toBe(true);
+            expect(definition.hidden).toBe(!definition.available || Boolean(definition.replacedBy && Object.values(RASTER_DEVICES).some(candidate => candidate.model === definition.replacedBy && candidate.available)));
+            for (const { width, height } of LAYOUTS) {
+                const metrics = getFrameMetrics(id, width, height);
+                expect(metrics.deviceWidth / metrics.deviceHeight).toBeCloseTo(definition.width / definition.height);
+                expect(metrics.deviceWidth).toBeLessThanOrEqual(width + 0.001);
+                expect(metrics.deviceHeight).toBeLessThanOrEqual(height + 0.001);
+            }
+        }
+    });
+    it('keeps four stable vector definitions for old projects, not new choices', () => {
+        // 自绘矢量设备只服务旧项目；新建设备列表只提供位图机型（可选本地包 + 提交进仓库的 Devices.css）。
         expect(FRAME_DEFINITIONS.filter(({ kind, hidden }) => kind === 'vector-device' && !hidden).map(({ id }) => id))
-            .toEqual(VECTOR_DEVICE_IDS);
+            .toEqual([]);
 
         for (const id of VECTOR_DEVICE_IDS) {
             const definition = getFrameDefinition(id);
-            expect(definition).toMatchObject({ id, group: 'device', kind: 'vector-device' });
+            expect(definition).toMatchObject({ id, group: 'simple-device', kind: 'vector-device' });
             expect(definition).not.toHaveProperty('image');
             expect(VECTOR_DEVICE_INFO[id]).toEqual(expect.objectContaining({
                 width: expect.any(Number),
@@ -72,6 +141,28 @@ describe('generic vector device frames', () => {
         });
         expect(VECTOR_DEVICE_INFO.iphonepro).toBe(VECTOR_DEVICE_INFO.genericPhone);
         expect(isDeviceFrame('none')).toBe(false);
+    });
+
+    it('shortens the red label without changing the saved variant or source color', () => {
+        expect(getRasterDevice('imac-24-red-v1')).toMatchObject({
+            id: 'imac-24-red-v1', color: 'red', colorTitle: '红色', swatch: '#ecc3bf',
+        });
+    });
+
+    it('groups available device variants by model and never accepts prototype names', () => {
+        const devices = getFrameGroups().find(group => group.id === 'device').items;
+        const models = devices.map(item => item.model || item.id);
+        expect(new Set(models).size).toBe(models.length);
+        expect(getFrameGroups().find(group => group.id === 'simple-device').items).toEqual([]);
+        for (const key of ['__proto__', 'constructor', 'toString', 'not-a-device']) {
+            expect(getRasterDevice(key)).toBeNull(); expect(isDeviceFrame(key)).toBe(false);
+            expect(getFrameDefinition(key).id).toBe('none');
+        }
+        for (const item of Object.values(RASTER_DEVICES).filter(item => item.model)) {
+            expect(isDeviceFrame(item.id)).toBe(true);
+            expect(getDeviceVariants(item.id).every(variant => variant.model === item.model && variant.available)).toBe(true);
+            expect(Math.max(item.width, item.height)).toBeLessThanOrEqual(1440);
+        }
     });
 
     it.each(VECTOR_DEVICE_IDS)('%s keeps its screen and vector nodes inside extreme layout bounds', (id) => {
@@ -115,4 +206,5 @@ describe('generic vector device frames', () => {
             }
         }
     });
+
 });

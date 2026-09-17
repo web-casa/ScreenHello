@@ -1,0 +1,40 @@
+{
+  "title": "소개",
+  "pages": [
+    "index~소개",
+    "guide~사용 가이드",
+    "beautify~스크린샷 꾸미기",
+    "frames~프레임",
+    "compression~압축",
+    "privacy~개인정보"
+  ],
+  "name": "한국어",
+  "ui": {
+    "Search": "문서 검색",
+    "Close Search": "검색 닫기",
+    "No results found": "검색 결과가 없습니다. 다른 검색어를 입력하세요.",
+    "Choose a language": "언어 선택",
+    "Toggle Theme": "테마 전환",
+    "Light": "밝게",
+    "Dark": "어둡게",
+    "System": "시스템",
+    "Open Sidebar": "사이드바 열기",
+    "Close Sidebar": "사이드바 닫기",
+    "Collapse Sidebar": "사이드바 접기",
+    "Hide Sidebar": "사이드바 숨기기",
+    "Show Sidebar": "사이드바 표시",
+    "Next Page": "다음 문서",
+    "Previous Page": "이전 문서",
+    "On this page": "이 페이지의 목차",
+    "No Headings": "제목 없음",
+    "Toggle Menu": "메뉴 전환",
+    "searchHint": "한국어 가이드에서 PNG, 프로젝트 등의 내용을 검색하세요.",
+    "guideCaption": "편집기의 기본 예제: 왼쪽은 캔버스 설정, 오른쪽은 스타일 설정입니다. 영어 화면을 사용한 예시입니다.",
+    "exportCaption": "내보내기 패널에서 형식과 배율을 선택하고 최종 크기를 확인한 후 다운로드하세요. 영어 화면을 사용한 예시입니다."
+  },
+  "editorLanguage": "ko",
+  "open": "편집기 열기",
+  "skip": "본문으로 이동",
+  "languages": "언어",
+  "updated": "내용 확인 날짜"
+}

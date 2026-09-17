@@ -1,0 +1,40 @@
+{
+  "title": "Overview",
+  "pages": [
+    "index~Overview",
+    "guide~Guide",
+    "beautify~Beautify",
+    "frames~Frames",
+    "compression~Compression",
+    "privacy~Privacy"
+  ],
+  "name": "English",
+  "ui": {
+    "Search": "Search",
+    "Close Search": "Close search",
+    "No results found": "No results found. Try another keyword.",
+    "Choose a language": "Choose a language",
+    "Toggle Theme": "Toggle theme",
+    "Light": "Light",
+    "Dark": "Dark",
+    "System": "System",
+    "Open Sidebar": "Open sidebar",
+    "Close Sidebar": "Close sidebar",
+    "Collapse Sidebar": "Collapse sidebar",
+    "Hide Sidebar": "Hide sidebar",
+    "Show Sidebar": "Show sidebar",
+    "Next Page": "Next page",
+    "Previous Page": "Previous page",
+    "On this page": "On this page",
+    "No Headings": "No headings",
+    "Toggle Menu": "Toggle menu",
+    "searchHint": "Search this language’s guides, for example PNG or project.",
+    "guideCaption": "The editor with the built-in example. Canvas settings are on the left; appearance controls are on the right.",
+    "exportCaption": "The export panel: choose a format and scale, check the final size, then download."
+  },
+  "editorLanguage": "en",
+  "open": "Open editor",
+  "skip": "Skip to content",
+  "languages": "Language",
+  "updated": "Content reviewed"
+}

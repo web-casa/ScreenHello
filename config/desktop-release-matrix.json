@@ -1,0 +1,866 @@
+{
+  "schemaVersion": 24,
+  "application": {
+    "productName": "ScreenHello",
+    "identifier": "com.webcasa.screenhello",
+    "versionSource": "package.json",
+    "baseConfig": "src-tauri/tauri.conf.json",
+    "candidateConfig": "src-tauri/tauri.phase9.conf.json"
+  },
+  "supportPolicy": {
+    "releaseChannel": "direct-download-beta",
+    "linux": {
+      "minimumBuildSystem": "ubuntu-24.04",
+      "minimumRuntimeSystems": [
+        "ubuntu-24.04"
+      ],
+      "x11": "planned-native-validation",
+      "wayland": "planned-portal-validation"
+    },
+    "updater": "deferred",
+    "storeChannels": "deferred"
+  },
+  "lifecyclePolicy": {
+    "markerSchemaVersion": 1,
+    "unknownMarkerPolicy": "preserve-and-report-unavailable",
+    "nativeUninstallPolicy": "no-app-data-cleanup-hook",
+    "windowsNsis": "current-user-no-downgrade",
+    "manualCheck": "install-upgrade-uninstall-local-data"
+  },
+  "candidateGate": {
+    "channel": "github-actions-unsigned-test",
+    "signing": "unsigned-test-only",
+    "prTargetIds": [
+      "linux-x64",
+      "macos-arm64",
+      "windows-x64"
+    ],
+    "targetIds": [
+      "linux-x64",
+      "linux-arm64",
+      "macos-x64",
+      "macos-arm64",
+      "windows-x64",
+      "windows-arm64"
+    ]
+  },
+  "macosSigningCandidate": {
+    "status": "workflow-ready-not-run",
+    "workflow": ".github/workflows/macos-signed-candidate.yml",
+    "environment": "macos-signing",
+    "target": "macos-arm64",
+    "runner": "macos-14",
+    "channel": "github-actions-macos-signed-candidate",
+    "signing": "developer-id-application",
+    "notarization": "apple-id-app-specific-password",
+    "publicRelease": false,
+    "artifactRetentionDays": 14
+  },
+  "macosIntelSigningCandidate": {
+    "status": "workflow-ready-not-run",
+    "workflow": ".github/workflows/macos-intel-signed-candidate.yml",
+    "environment": "macos-signing",
+    "target": "macos-x64",
+    "runner": "macos-15-intel",
+    "channel": "github-actions-macos-intel-signed-candidate",
+    "signing": "developer-id-application",
+    "notarization": "apple-id-app-specific-password",
+    "publicRelease": false,
+    "artifactRetentionDays": 14
+  },
+  "windowsSigningCandidate": {
+    "status": "workflow-ready-not-run",
+    "workflow": ".github/workflows/windows-signed-candidate.yml",
+    "environment": "windows-signing",
+    "target": "windows-x64",
+    "runner": "windows-2025",
+    "channel": "github-actions-windows-signed-candidate",
+    "signing": "authenticode-sha256",
+    "timestamp": "rfc3161-sha256",
+    "config": "src-tauri/tauri.windows-signed-candidate.conf.json",
+    "publicRelease": false,
+    "artifactRetentionDays": 14
+  },
+  "windowsArm64SigningCandidate": {
+    "status": "workflow-ready-not-run",
+    "workflow": ".github/workflows/windows-arm64-signed-candidate.yml",
+    "environment": "windows-signing",
+    "target": "windows-arm64",
+    "runner": "windows-11-arm",
+    "channel": "github-actions-windows-arm64-signed-candidate",
+    "signing": "authenticode-sha256",
+    "timestamp": "rfc3161-sha256",
+    "config": "src-tauri/tauri.windows-arm64-signed-candidate.conf.json",
+    "publicRelease": false,
+    "artifactRetentionDays": 14
+  },
+  "linuxDebRepositorySigningCandidate": {
+    "status": "workflow-ready-not-run",
+    "workflow": ".github/workflows/linux-deb-repository-signed-candidate.yml",
+    "environment": "linux-repository-signing",
+    "targets": [
+      "linux-x64",
+      "linux-arm64"
+    ],
+    "runner": "ubuntu-24.04",
+    "channel": "github-actions-linux-deb-repository-signed-candidate",
+    "suite": "screenhello-beta",
+    "component": "main",
+    "signing": "openpgp-release-and-inrelease",
+    "keyring": "openpgp-binary-keyring",
+    "publicRelease": false,
+    "artifactRetentionDays": 14
+  },
+  "linuxDebRepositoryKeyLifecycleCandidate": {
+    "status": "workflow-ready-not-run",
+    "workflow": ".github/workflows/linux-deb-repository-signed-candidate.yml",
+    "environment": "linux-repository-signing",
+    "channel": "github-actions-linux-deb-repository-signed-candidate",
+    "distribution": "internal-candidate-artifact-only-no-public-endpoint",
+    "keyring": {
+      "binaryFormat": "openpgp-gpg",
+      "armorFormat": "openpgp-asc",
+      "exportOptions": "export-minimal",
+      "clientInstallPath": "/etc/apt/keyrings/screenhello-archive-keyring.gpg",
+      "clientArmorPath": "/etc/apt/keyrings/screenhello-archive-keyring.asc"
+    },
+    "rotation": {
+      "mode": "optional-next-public-key-overlap",
+      "nextPublicKeyVariable": "LINUX_REPOSITORY_SIGNING_NEXT_PUBLIC_KEY",
+      "nextFingerprintVariable": "LINUX_REPOSITORY_SIGNING_NEXT_FINGERPRINT",
+      "minimumOverlapDays": 30,
+      "minimumRemainingDaysWhenExpiring": 30,
+      "retirement": "manual-after-supported-client-rollout"
+    },
+    "revocation": {
+      "mode": "offline-revocation-certificate-and-out-of-band-bootstrap",
+      "repositoryResponse": "disable-publication-and-endpoint-before-recovery",
+      "candidateArtifact": "no-revocation-certificate",
+      "publicRelease": false
+    },
+    "artifactRetentionDays": 14
+  },
+  "desktopArtifactProvenanceCandidate": {
+    "status": "workflow-ready-not-run",
+    "action": {
+      "reference": "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6",
+      "version": "v4.2.2",
+      "predicate": "slsa-build-provenance",
+      "permissions": [
+        "contents: read",
+        "id-token: write",
+        "attestations: write",
+        "artifact-metadata: write"
+      ],
+      "privateRepositoryAvailability": "github-enterprise-cloud-plan-pending-verification"
+    },
+    "distribution": "internal-candidate-artifact-only-no-public-release",
+    "verification": "gh-attestation-verify-after-remote-run",
+    "subjects": [
+      {
+        "target": "macos-arm64",
+        "workflow": ".github/workflows/macos-signed-candidate.yml",
+        "job": "sign",
+        "environment": "macos-signing",
+        "candidateDirectory": "artifacts/macos-signed-candidate",
+        "subjectPaths": [
+          "artifacts/macos-signed-candidate/*.dmg"
+        ],
+        "subjectCount": 1
+      },
+      {
+        "target": "macos-x64",
+        "workflow": ".github/workflows/macos-intel-signed-candidate.yml",
+        "job": "sign",
+        "environment": "macos-signing",
+        "candidateDirectory": "artifacts/macos-intel-signed-candidate",
+        "subjectPaths": [
+          "artifacts/macos-intel-signed-candidate/*.dmg"
+        ],
+        "subjectCount": 1
+      },
+      {
+        "target": "windows-x64",
+        "workflow": ".github/workflows/windows-signed-candidate.yml",
+        "job": "sign",
+        "environment": "windows-signing",
+        "candidateDirectory": "artifacts/windows-signed-candidate",
+        "subjectPaths": [
+          "artifacts/windows-signed-candidate/*-setup.exe"
+        ],
+        "subjectCount": 1
+      },
+      {
+        "target": "windows-arm64",
+        "workflow": ".github/workflows/windows-arm64-signed-candidate.yml",
+        "job": "sign",
+        "environment": "windows-signing",
+        "candidateDirectory": "artifacts/windows-arm64-signed-candidate",
+        "subjectPaths": [
+          "artifacts/windows-arm64-signed-candidate/*-setup.exe"
+        ],
+        "subjectCount": 1
+      },
+      {
+        "target": "linux-deb-repository",
+        "workflow": ".github/workflows/linux-deb-repository-signed-candidate.yml",
+        "job": "sign",
+        "environment": "linux-repository-signing",
+        "candidateDirectory": "artifacts/linux-deb-repository-signed-candidate",
+        "subjectPaths": [
+          "artifacts/linux-deb-repository-signed-candidate/repository/pool/main/s/screen-hello/*.deb",
+          "artifacts/linux-deb-repository-signed-candidate/repository/dists/screenhello-beta/Release",
+          "artifacts/linux-deb-repository-signed-candidate/repository/dists/screenhello-beta/InRelease",
+          "artifacts/linux-deb-repository-signed-candidate/repository/dists/screenhello-beta/Release.gpg",
+          "artifacts/linux-deb-repository-signed-candidate/client-trust/screenhello-archive-keyring.gpg",
+          "artifacts/linux-deb-repository-signed-candidate/client-trust/screenhello-archive-keyring.asc"
+        ],
+        "subjectCount": 7
+      }
+    ],
+    "artifactRetentionDays": 14,
+    "publicRelease": false
+  },
+  "desktopArtifactProvenanceVerification": {
+    "status": "local-precheck-gh-cli-receipt-and-local-revalidation-ready-not-run",
+    "repository": "attestation-url-derived",
+    "signerRepository": "attestation-url-derived",
+    "repositoryId": 1353846102,
+    "sourceRef": "refs/heads/main",
+    "predicateType": "https://slsa.dev/provenance/v1",
+    "candidateArtifact": {
+      "verificationPlan": "provenance-verification-plan.json",
+      "checksum": "required",
+      "workflowGhExecution": "forbidden",
+      "finalLocalRecheck": "required-after-gh-cli-before-receipt"
+    },
+    "ghCli": {
+      "command": "attestation verify",
+      "bundle": "required",
+      "outputFormat": "json",
+      "denySelfHostedRunners": true,
+      "noPublicGood": true,
+      "offlineTrustedRoot": "fresh-gh-attestation-trusted-root-not-in-candidate"
+    },
+    "localReceipt": {
+      "schemaVersion": 2,
+      "filename": "provenance-verification-receipt.json",
+      "writeLocation": "outside-candidate-directory",
+      "atomicCreate": "outside-candidate-directory-no-overwrite",
+      "revalidation": "local-candidate-and-offline-trusted-root-rehash-required",
+      "status": "created-only-after-gh-attestation-verify-and-final-local-recheck-success"
+    },
+    "publicRelease": false
+  },
+  "desktopPlatformAcceptance": {
+    "status": "candidate-receipt-bound-manual-platform-acceptance-ready-not-run",
+    "candidateReceipt": {
+      "filename": "provenance-verification-receipt.json",
+      "revalidation": "required-before-plan-and-record-verification"
+    },
+    "plan": {
+      "schemaVersion": 1,
+      "filename": "platform-acceptance-plan.json",
+      "writeLocation": "outside-candidate-directory",
+      "atomicCreate": "outside-candidate-directory-no-overwrite"
+    },
+    "record": {
+      "schemaVersion": 1,
+      "filename": "platform-acceptance-record.json",
+      "writeLocation": "outside-candidate-directory",
+      "evidenceDirectory": "outside-candidate-directory",
+      "evidence": "regular-file-sha256-and-media-type-required-for-passed-check",
+      "statuses": [
+        "passed",
+        "failed",
+        "not-run"
+      ],
+      "result": "does-not-change-release-ready"
+    },
+    "publicRelease": false
+  },
+  "desktopCrossPlatformAcceptance": {
+    "status": "cross-candidate-platform-acceptance-plan-and-local-review-ready-not-run",
+    "bundle": {
+      "candidateDirectory": "candidates",
+      "reviewDirectory": "reviews",
+      "candidateReceiptFilename": "provenance-verification-receipt.json",
+      "acceptancePlanFilename": "platform-acceptance-plan.json",
+      "acceptanceRecordFilename": "platform-acceptance-record.json",
+      "evidenceDirectory": "evidence",
+      "offlineTrustedRootFilename": "trusted-root.jsonl"
+    },
+    "plan": {
+      "schemaVersion": 1,
+      "filename": "cross-platform-acceptance-plan.json",
+      "writeLocation": "bundle-root-outside-candidate-directories",
+      "atomicCreate": "bundle-root-no-overwrite"
+    },
+    "coverage": {
+      "candidateTargets": [
+        "macos-arm64",
+        "macos-x64",
+        "windows-x64",
+        "windows-arm64",
+        "linux-deb-repository"
+      ],
+      "platformTargets": [
+        "macos-arm64",
+        "macos-x64",
+        "windows-x64",
+        "windows-arm64",
+        "linux-x64",
+        "linux-arm64"
+      ],
+      "candidateSha": "exact-same-immutable-sha-required"
+    },
+    "record": {
+      "revalidation": "phase16-record-and-evidence-sha256-revalidation-required",
+      "result": "does-not-change-release-ready"
+    },
+    "publicRelease": false
+  },
+  "desktopReleaseReview": {
+    "status": "cross-platform-acceptance-bound-local-release-review-ready-not-run",
+    "input": {
+      "crossPlatformAcceptancePlan": "cross-platform-acceptance-plan.json",
+      "revalidation": "phase17-cross-platform-plan-and-record-evidence-sha256-revalidation-required"
+    },
+    "review": {
+      "schemaVersion": 1,
+      "filename": "desktop-release-review.json",
+      "writeLocation": "outside-cross-platform-bundle",
+      "atomicCreate": "outside-cross-platform-bundle-no-overwrite",
+      "prerequisite": "all-platform-acceptance-checks-passed"
+    },
+    "decision": {
+      "releaseReady": false,
+      "authorization": "explicit-user-authorization-required-before-public-release-or-deployment",
+      "remainingConfiguration": [
+        "protected-public-release-workflow-not-configured",
+        "updater-trust-root-endpoints-and-key-rotation-not-configured",
+        "store-channels-deferred"
+      ]
+    },
+    "publicRelease": false
+  },
+  "desktopReleasePayloadManifest": {
+    "status": "release-review-bound-candidate-payload-manifest-ready-not-run",
+    "input": {
+      "releaseReview": "desktop-release-review.json",
+      "revalidation": "phase18-release-review-and-attested-subject-sha256-revalidation-required"
+    },
+    "manifest": {
+      "schemaVersion": 1,
+      "filename": "desktop-release-payload-manifest.json",
+      "writeLocation": "outside-cross-platform-bundle-and-release-review-directory",
+      "atomicCreate": "outside-cross-platform-bundle-and-release-review-directory-no-overwrite",
+      "prerequisite": "verified-release-review-with-all-attested-subjects"
+    },
+    "payload": {
+      "source": "phase13-attested-candidate-subjects",
+      "candidateTargets": [
+        "macos-arm64",
+        "macos-x64",
+        "windows-x64",
+        "windows-arm64",
+        "linux-deb-repository"
+      ],
+      "subjectCount": 11
+    },
+    "decision": {
+      "releaseReady": false,
+      "authorization": "explicit-user-authorization-required-before-public-release-or-deployment",
+      "remainingConfiguration": [
+        "protected-public-release-workflow-not-configured",
+        "updater-trust-root-endpoints-and-key-rotation-not-configured",
+        "store-channels-deferred"
+      ]
+    },
+    "publicRelease": false
+  },
+  "desktopReleasePublicationPlan": {
+    "status": "direct-download-promotion-plan-ready-not-run",
+    "input": {
+      "payloadManifest": "desktop-release-payload-manifest.json",
+      "revalidation": "phase19-payload-manifest-and-direct-download-subject-sha256-revalidation-required"
+    },
+    "plan": {
+      "schemaVersion": 1,
+      "filename": "desktop-release-publication-plan.json",
+      "writeLocation": "outside-cross-platform-bundle-release-review-and-payload-manifest",
+      "atomicCreate": "outside-cross-platform-bundle-release-review-and-payload-manifest-no-overwrite",
+      "prerequisite": "verified-payload-manifest-with-all-attested-subjects"
+    },
+    "publicTarget": {
+      "repository": "web-casa/ScreenHello",
+      "repositoryId": 1353846676,
+      "releaseAssets": "direct-download-installers-only",
+      "protectedPromotionWorkflow": "not-configured",
+      "protectedEnvironment": "not-configured",
+      "publisherIdentity": "not-configured"
+    },
+    "directDownload": {
+      "source": "phase19-attested-payload-manifest",
+      "assets": [
+        {
+          "target": "macos-arm64",
+          "sourcePath": "*.dmg",
+          "releaseName": "ScreenHello-macos-arm64.dmg"
+        },
+        {
+          "target": "macos-x64",
+          "sourcePath": "*.dmg",
+          "releaseName": "ScreenHello-macos-x64.dmg"
+        },
+        {
+          "target": "windows-x64",
+          "sourcePath": "*-setup.exe",
+          "releaseName": "ScreenHello-windows-x64-setup.exe"
+        },
+        {
+          "target": "windows-arm64",
+          "sourcePath": "*-setup.exe",
+          "releaseName": "ScreenHello-windows-arm64-setup.exe"
+        },
+        {
+          "target": "linux-deb-repository",
+          "sourcePath": "repository/pool/main/s/screen-hello/*_amd64.deb",
+          "releaseName": "ScreenHello-linux-amd64.deb"
+        },
+        {
+          "target": "linux-deb-repository",
+          "sourcePath": "repository/pool/main/s/screen-hello/*_arm64.deb",
+          "releaseName": "ScreenHello-linux-arm64.deb"
+        }
+      ],
+      "tag": {
+        "prefix": "v",
+        "source": "candidate-commit-package-json",
+        "status": "deferred-to-protected-publisher"
+      }
+    },
+    "linuxRepository": {
+      "sourceTarget": "linux-deb-repository",
+      "sidecars": [
+        {
+          "sourcePath": "repository/dists/screenhello-beta/Release",
+          "releaseName": "screenhello-beta-Release"
+        },
+        {
+          "sourcePath": "repository/dists/screenhello-beta/InRelease",
+          "releaseName": "screenhello-beta-InRelease"
+        },
+        {
+          "sourcePath": "repository/dists/screenhello-beta/Release.gpg",
+          "releaseName": "screenhello-beta-Release.gpg"
+        },
+        {
+          "sourcePath": "client-trust/screenhello-archive-keyring.gpg",
+          "releaseName": "screenhello-archive-keyring.gpg"
+        },
+        {
+          "sourcePath": "client-trust/screenhello-archive-keyring.asc",
+          "releaseName": "screenhello-archive-keyring.asc"
+        }
+      ],
+      "publication": "separate-static-https-apt-dists-and-pool-layout-required",
+      "githubReleaseAssets": "forbidden",
+      "endpoint": "not-configured",
+      "publicKeyDistribution": "not-configured",
+      "rotationAndRevocationDrill": "not-configured"
+    },
+    "decision": {
+      "releaseReady": false,
+      "authorization": "explicit-user-authorization-required-before-public-release-or-deployment",
+      "remainingConfiguration": [
+        "protected-public-release-workflow-not-configured",
+        "public-direct-download-promotion-environment-and-publisher-identity-not-configured",
+        "linux-apt-public-endpoint-key-distribution-and-rotation-drill-not-configured",
+        "updater-trust-root-endpoints-and-key-rotation-not-configured",
+        "store-channels-deferred"
+      ]
+    },
+    "publicRelease": false
+  },
+  "desktopReleasePublicationHandoff": {
+    "status": "candidate-public-export-and-direct-download-handoff-ready-not-run",
+    "input": {
+      "publicationPlan": "desktop-release-publication-plan.json",
+      "candidateSource": "immutable-git-commit-package-json-and-reviewed-public-export-snapshot-required",
+      "revalidation": "phase23-publication-plan-direct-download-subject-and-public-export-sha256-revalidation-required"
+    },
+    "handoff": {
+      "schemaVersion": 1,
+      "filename": "desktop-public-release-handoff.json",
+      "writeLocation": "outside-cross-platform-bundle-release-review-payload-manifest-publication-plan-and-candidate-git-directory",
+      "atomicCreate": "outside-all-authenticated-inputs-no-overwrite",
+      "prerequisite": "verified-publication-plan-and-candidate-commit-public-export-snapshot"
+    },
+    "publicTarget": {
+      "repository": "web-casa/ScreenHello",
+      "repositoryId": 1353846676,
+      "branch": "main",
+      "sourceCommit": "candidate-public-export-snapshot-match-required",
+      "protectedPromotionWorkflow": "not-configured",
+      "protectedEnvironment": "not-configured",
+      "publisherCredential": {
+        "sourceRead": "github-app-installation-token-actions-read-required",
+        "targetWrite": "public-repository-github-token-contents-write-required",
+        "status": "not-configured"
+      }
+    },
+    "directDownload": {
+      "release": {
+        "tag": "v-plus-candidate-package-json-version",
+        "prerelease": true,
+        "makeLatest": false,
+        "releaseBody": "sha256-per-asset-required"
+      }
+    },
+    "linuxRepository": {
+      "githubReleaseAssets": "forbidden",
+      "publication": "separate-static-https-apt-dists-and-pool-layout-required",
+      "endpoint": "not-configured",
+      "publicKeyDistribution": "not-configured",
+      "rotationAndRevocationDrill": "not-configured"
+    },
+    "decision": {
+      "releaseReady": false,
+      "authorization": "explicit-user-authorization-required-before-public-release-or-deployment",
+      "remainingConfiguration": [
+        "protected-public-release-workflow-not-configured",
+        "public-direct-download-promotion-environment-and-publisher-identity-not-configured",
+        "public-source-commit-must-match-candidate-export-snapshot",
+        "linux-apt-public-endpoint-key-distribution-and-rotation-drill-not-configured",
+        "updater-trust-root-endpoints-and-key-rotation-not-configured",
+        "store-channels-deferred"
+      ]
+    },
+    "publicRelease": false
+  },
+  "desktopReleaseGitHubReadiness": {
+    "status": "enterprise-cloud-private-candidate-repository-github-readiness-audit-ready-not-run",
+    "repositoryId": 1353846102,
+    "branch": "main",
+    "workflowPermissions": "read",
+    "enterpriseCloud": {
+      "organizationPlan": "enterprise",
+      "privateCandidateCapabilities": [
+        "private-branch-protection",
+        "private-environment-required-reviewers",
+        "private-artifact-attestations"
+      ]
+    },
+    "actionPolicy": {
+      "allowedActions": "selected",
+      "shaPinningRequired": true,
+      "githubOwnedAllowed": true,
+      "verifiedAllowed": false,
+      "patternsAllowed": []
+    },
+    "environments": [
+      {
+        "name": "macos-signing",
+        "organizationSecrets": [
+          "APPLE_APP_SPECIFIC_PASSWORD",
+          "APPLE_ID",
+          "APPLE_TEAM_ID",
+          "MACOS_CERTIFICATE_P12_BASE64"
+        ]
+      },
+      {
+        "name": "windows-signing",
+        "organizationSecrets": [
+          "WINDOWS_CERTIFICATE",
+          "WINDOWS_CERTIFICATE_PASSWORD"
+        ]
+      },
+      {
+        "name": "linux-repository-signing",
+        "organizationSecrets": [
+          "LINUX_REPOSITORY_SIGNING_PASSPHRASE",
+          "LINUX_REPOSITORY_SIGNING_PRIVATE_KEY"
+        ]
+      }
+    ],
+    "environmentProtection": {
+      "requiredReviewers": "at-least-one",
+      "preventSelfReview": true,
+      "deploymentBranchPolicy": "protected-branches"
+    },
+    "decision": {
+      "releaseReady": false,
+      "authorization": "explicit-user-authorization-required-before-public-release-or-deployment",
+      "remainingConfiguration": [
+        "github-enterprise-cloud-private-candidate-entitlement-not-configured",
+        "protected-public-release-workflow-not-configured",
+        "updater-trust-root-endpoints-and-key-rotation-not-configured",
+        "store-channels-deferred"
+      ]
+    },
+    "publicRelease": false
+  },
+  "releaseTrustPolicy": {
+    "status": "macos-windows-linux-deb-provenance-platform-acceptance-release-review-payload-manifest-publication-plan-public-export-handoff-and-github-readiness-candidate-workflows-ready",
+    "candidateIsolation": "unsigned-test-only-no-secrets",
+    "macos": {
+      "status": "arm64-and-x64-workflows-ready-not-run",
+      "protection": "environment-and-org-secret-scope-pending-verification",
+      "directDownload": "developer-id-application-and-notarization-required",
+      "identity": "developer-id-application"
+    },
+    "windows": {
+      "status": "x64-and-arm64-workflows-ready-not-run",
+      "protection": "environment-and-org-secret-scope-pending-verification",
+      "directDownload": "authenticode-sha256-and-rfc3161-timestamp-required",
+      "signingMechanism": "pfx-current-user-store",
+      "timestamp": "rfc3161-sha256"
+    },
+    "linux": {
+      "status": "amd64-and-arm64-repository-and-key-lifecycle-workflow-ready-not-run",
+      "currentBundle": "deb",
+      "repositorySigning": "openpgp-release-and-inrelease",
+      "protection": "environment-and-secret-scope-pending-verification",
+      "keyDistribution": "internal-client-trust-bundle-candidate-no-public-endpoint",
+      "keyRotation": "optional-next-public-key-overlap-workflow-ready-not-run",
+      "revocation": "offline-certificate-and-out-of-band-bootstrap-policy-ready-not-run"
+    },
+    "updater": {
+      "status": "disabled",
+      "plugin": "not-installed",
+      "trustRoot": "not-configured",
+      "endpoints": "not-configured",
+      "keyRotation": "not-configured"
+    },
+    "provenance": {
+      "status": "protected-signed-candidate-attestation-and-local-receipt-revalidation-ready-not-run",
+      "githubAttestation": "actions-attest-v4-minimum-permissions-ready-not-run",
+      "localVerification": "gh-cli-strict-identity-atomic-receipt-and-local-revalidation-ready-not-run",
+      "privateRepositoryAvailability": "github-enterprise-cloud-required-for-private-artifact-attestations",
+      "publicRelease": false
+    },
+    "platformAcceptance": {
+      "status": "per-target-candidate-receipt-bound-manual-evidence-and-cross-candidate-review-ready-not-run",
+      "localVerification": "plan-record-evidence-and-cross-candidate-sha256-revalidation-required",
+      "crossCandidateReview": "same-immutable-candidate-sha-required",
+      "publicRelease": false
+    },
+    "releaseReview": {
+      "status": "cross-platform-acceptance-bound-external-dossier-ready-not-run",
+      "localVerification": "cross-platform-plan-and-record-evidence-sha256-revalidation-required",
+      "publicRelease": false
+    },
+    "releasePayloadManifest": {
+      "status": "release-review-bound-attested-candidate-payload-inventory-ready-not-run",
+      "localVerification": "release-review-and-attested-subject-sha256-revalidation-required",
+      "publicRelease": false
+    },
+    "publicReleasePromotion": {
+      "status": "candidate-public-export-and-direct-download-handoff-ready-not-run",
+      "localVerification": "publication-plan-candidate-package-json-and-public-export-snapshot-sha256-revalidation-required",
+      "publicTarget": "github-release-direct-download-target-identity-verified-public-source-commit-and-publisher-not-configured",
+      "linuxAptRepository": "separate-static-https-layout-endpoint-required",
+      "publicRelease": false
+    },
+    "githubReadiness": {
+      "status": "enterprise-cloud-private-candidate-repository-identity-and-remote-configuration-audit-ready-not-run",
+      "localVerification": "read-only-gh-api-private-repository-organization-plan-branch-environment-secret-scope-and-action-policy-required",
+      "publicRelease": false
+    }
+  },
+  "targets": [
+    {
+      "id": "linux-x64",
+      "developmentStatus": "candidate-gated",
+      "evidenceStatus": "not-run",
+      "runner": "ubuntu-24.04",
+      "platform": "linux",
+      "nodePlatform": "linux",
+      "arch": "x64",
+      "rustTarget": "x86_64-unknown-linux-gnu",
+      "bundleKind": "deb",
+      "releaseBundleKind": "deb",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "elf",
+      "binaryArchitecture": "x86_64",
+      "packageIdentity": "screen-hello",
+      "packageIdentitySource": "deb-control",
+      "packageArchitecture": "amd64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "wayland-portal",
+        "remote-desktop",
+        "no-display",
+        "install-upgrade-uninstall-local-data"
+      ]
+    },
+    {
+      "id": "linux-arm64",
+      "developmentStatus": "candidate-gated",
+      "evidenceStatus": "not-run",
+      "runner": "ubuntu-24.04-arm",
+      "platform": "linux",
+      "nodePlatform": "linux",
+      "arch": "arm64",
+      "rustTarget": "aarch64-unknown-linux-gnu",
+      "bundleKind": "deb",
+      "releaseBundleKind": "deb",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "elf",
+      "binaryArchitecture": "arm64",
+      "packageIdentity": "screen-hello",
+      "packageIdentitySource": "deb-control",
+      "packageArchitecture": "arm64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "wayland-portal",
+        "remote-desktop",
+        "no-display",
+        "install-upgrade-uninstall-local-data"
+      ]
+    },
+    {
+      "id": "macos-x64",
+      "developmentStatus": "candidate-gated",
+      "evidenceStatus": "not-run",
+      "runner": "macos-15-intel",
+      "platform": "macos",
+      "nodePlatform": "darwin",
+      "arch": "x64",
+      "rustTarget": "x86_64-apple-darwin",
+      "bundleKind": "dmg",
+      "releaseBundleKind": "dmg",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "mach-o",
+      "binaryArchitecture": "x86_64",
+      "packageIdentity": "com.webcasa.screenhello",
+      "packageIdentitySource": "info-plist",
+      "packageArchitecture": "x86_64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "screen-recording-permission-prompt",
+        "remote-desktop",
+        "no-display",
+        "install-upgrade-uninstall-local-data"
+      ]
+    },
+    {
+      "id": "macos-arm64",
+      "developmentStatus": "candidate-gated",
+      "evidenceStatus": "not-run",
+      "runner": "macos-14",
+      "platform": "macos",
+      "nodePlatform": "darwin",
+      "arch": "arm64",
+      "rustTarget": "aarch64-apple-darwin",
+      "bundleKind": "dmg",
+      "releaseBundleKind": "dmg",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "mach-o",
+      "binaryArchitecture": "arm64",
+      "packageIdentity": "com.webcasa.screenhello",
+      "packageIdentitySource": "info-plist",
+      "packageArchitecture": "arm64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "screen-recording-permission-prompt",
+        "remote-desktop",
+        "no-display",
+        "install-upgrade-uninstall-local-data"
+      ]
+    },
+    {
+      "id": "windows-x64",
+      "developmentStatus": "candidate-gated",
+      "evidenceStatus": "not-run",
+      "runner": "windows-2025",
+      "platform": "windows",
+      "nodePlatform": "win32",
+      "arch": "x64",
+      "rustTarget": "x86_64-pc-windows-msvc",
+      "bundleKind": "nsis",
+      "releaseBundleKind": "nsis",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "pe",
+      "binaryArchitecture": "x86_64",
+      "packageIdentity": "com.webcasa.screenhello",
+      "packageIdentitySource": "tauri-config",
+      "packageArchitecture": "x64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "screen-capture-permission-policy",
+        "remote-desktop",
+        "no-display",
+        "install-upgrade-uninstall-local-data"
+      ]
+    },
+    {
+      "id": "windows-arm64",
+      "developmentStatus": "candidate-gated",
+      "evidenceStatus": "not-run",
+      "runner": "windows-11-arm",
+      "platform": "windows",
+      "nodePlatform": "win32",
+      "arch": "arm64",
+      "rustTarget": "aarch64-pc-windows-msvc",
+      "bundleKind": "nsis",
+      "releaseBundleKind": "nsis",
+      "channel": "github-actions-unsigned-test",
+      "binaryFormat": "pe",
+      "binaryArchitecture": "arm64",
+      "packageIdentity": "com.webcasa.screenhello",
+      "packageIdentitySource": "tauri-config",
+      "packageArchitecture": "arm64",
+      "manualChecks": [
+        "native-picker-visual",
+        "tray-visual",
+        "multi-monitor-dpi-negative-coordinates",
+        "screen-capture-permission-policy",
+        "remote-desktop",
+        "no-display",
+        "install-upgrade-uninstall-local-data"
+      ]
+    }
+  ],
+  "requiredRuntimeChecks": [
+    "webviewBoot",
+    "environmentIpc",
+    "stateMigration",
+    "codecs",
+    "capture",
+    "captureCapability",
+    "editorImport",
+    "clipboard",
+    "shortcut",
+    "tray",
+    "singleInstance"
+  ],
+  "requiredBuildChecks": [
+    "lockedInstall",
+    "dependencyAudit",
+    "licenseAudit",
+    "rustTests",
+    "desktopAudit",
+    "workflowAudit",
+    "trustPolicy",
+    "testDriverFeatureBuild",
+    "productionRebuild",
+    "testDriverExcluded",
+    "bundleBuilt",
+    "codecAssets",
+    "artifactInspection",
+    "sbomGenerated",
+    "checksumsGenerated"
+  ]
+}

@@ -1,4 +1,4 @@
-import { getBackgroundDefinition, normalizeBackgroundKey } from '@utils/backgroundConfig';
+import { getBackgroundDefinition, isImageBackgroundKey, normalizeBackgroundKey } from '@utils/backgroundConfig';
 
 const BACKGROUND_MODES = ['cover', 'fit', 'stretch'];
 const BACKGROUND_ALIGNS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
@@ -243,9 +243,9 @@ export function normalizeOption(raw) {
         ? (rawBackground.presetKey || rawBackground.key || rawBackground.id)
         : rawBackground;
     out.background = normalizeBackgroundKey(rawBackgroundKey);
-    // 只有用户上传的图片背景拥有二进制资源。历史 gh_img_* 现在迁移为代码渐变，
+    // 上传与新图片预设拥有二进制资源。历史 gh_img_* 仍迁移为代码渐变，
     // 必须同时丢弃旧 assetId，避免草稿/归档继续要求已移除的第三方文件。
-    out.backgroundAssetId = out.background === 'upload_image'
+    out.backgroundAssetId = isImageBackgroundKey(out.background)
         ? (raw.backgroundAssetId ?? rawBackground?.assetId ?? null)
         : null;
     const rawBackgroundMode = raw.backgroundMode ?? rawBackground?.mode ?? raw.frameConf?.background?.mode;
@@ -290,7 +290,7 @@ export function normalizeOption(raw) {
     const rawFill = raw.frameConf?.background ?? (rawBackground && typeof rawBackground === 'object' ? rawBackground.fill : undefined);
     if (definition?.type === 'none') {
         out.frameConf.background = null;
-    } else if (definition?.type === 'upload-image') {
+    } else if (isImageBackgroundKey(out.background)) {
         // 上传背景只能由已登记的本地 AssetStore Blob 恢复，不能信任项目 JSON 中的 URL。
         out.frameConf.background = {
             type: 'image',

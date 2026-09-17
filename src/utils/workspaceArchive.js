@@ -1,4 +1,6 @@
 import { strFromU8, strToU8, unzip, zip } from 'fflate';
+import { isImageBackgroundKey } from './backgroundConfig';
+import { exportSettingsWarnings } from './exportSettings';
 import { MAX_PROJECT_IMAGES, validateDocument } from '@utils/projectDocument';
 import {
     createStylePreset,
@@ -165,7 +167,7 @@ export async function createProjectArchive({ name, document, images, image, back
     if (doc.option.frameConf?.background?.type === 'image') {
         doc.option.frameConf.background = { ...doc.option.frameConf.background, url: null };
     }
-    if (doc.option.background === 'upload_image' && !assets.background) {
+    if (isImageBackgroundKey(doc.option.background) && !assets.background) {
         throw archiveError('background-asset-missing');
     }
     const manifest = {
@@ -192,7 +194,7 @@ export async function createPresetArchive({ preset, background = null } = {}) {
         entries.push(backgroundEntry);
         assets.background = backgroundEntry.descriptor;
     }
-    if (validation.preset.option.background === 'upload_image' && !assets.background) {
+    if (isImageBackgroundKey(validation.preset.option.background) && !assets.background) {
         throw archiveError('background-asset-missing');
     }
     const manifest = {
@@ -300,6 +302,7 @@ export async function readWorkspaceArchive(blob, { expectedKind } = {}) {
         if (!validation.ok || !images.length || validation.doc.images.length !== images.length) {
             throw archiveError('project-document-invalid');
         }
+        if (isImageBackgroundKey(validation.doc.option.background) && !background) throw archiveError('background-asset-missing');
         const sharedAssets = new Map();
         validation.doc.images.forEach((layer, index) => {
             const descriptor = imageDescriptors[index];
@@ -324,6 +327,7 @@ export async function readWorkspaceArchive(blob, { expectedKind } = {}) {
             name: normalizeWorkspaceName(manifest.name, '未命名项目'),
             document,
             exportSettings: normalizeExportSettings(manifest.exportSettings),
+            exportSettingsWarnings: exportSettingsWarnings(manifest.exportSettings),
             image: images[0].file,
             images,
             background,
@@ -331,13 +335,14 @@ export async function readWorkspaceArchive(blob, { expectedKind } = {}) {
     }
     const validation = validateStylePreset(manifest.preset);
     if (!validation.ok) throw archiveError('preset-invalid');
-    if (validation.preset.option.background === 'upload_image' && !background) {
+    if (isImageBackgroundKey(validation.preset.option.background) && !background) {
         throw archiveError('background-asset-missing');
     }
     return {
         kind: 'preset',
         name: validation.preset.name,
         preset: validation.preset,
+        exportSettingsWarnings: validation.exportSettingsWarnings,
         background,
     };
 }

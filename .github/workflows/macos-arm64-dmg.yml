@@ -1,0 +1,210 @@
+name: macOS ARM64 DMG
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [build/macos-arm64-dmg-20260916]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-macos-arm64-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository_id == '1353846676' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build/macos-arm64-dmg-20260916')
+    runs-on: macos-15
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-pnpm
+      - name: Verify signing credentials are available
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in CERTIFICATE APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Required signing secret is unavailable: $name"
+              exit 1
+            fi
+          done
+      - name: Install locked dependencies and native toolchain
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          rustup target add aarch64-apple-darwin
+          pnpm install --frozen-lockfile --strict-peer-dependencies
+      - name: Verify production desktop overlays under effective CSP
+        run: |
+          pnpm desktop:web:build
+          pnpm exec playwright install webkit
+          pnpm desktop:test:ui --project webkit
+      - name: Check source and native tests
+        run: |
+          set -euo pipefail
+          pnpm check:antd-css
+          pnpm lint
+          pnpm typecheck
+          pnpm test:unit
+          cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ""
+        run: |
+          set -euo pipefail
+          umask 077
+          keychain="$RUNNER_TEMP/screenhello-signing.keychain-db"
+          certificate="$RUNNER_TEMP/screenhello-signing.p12"
+          original_default="$RUNNER_TEMP/screenhello-signing-default-keychain.txt"
+          original_list="$RUNNER_TEMP/screenhello-signing-keychain-list.txt"
+          keychain_password="$(openssl rand -base64 48)"
+          ready=false
+          cleanup() {
+            rm -f "$certificate"
+            if [ "${ready:-false}" != true ]; then
+              if [ -f "$original_default" ]; then
+                default_keychain="$(cat "$original_default")"
+                if [ -n "$default_keychain" ]; then security default-keychain -s "$default_keychain" || true; fi
+              fi
+              if [ -f "$original_list" ]; then
+                keychains=()
+                while IFS= read -r entry; do
+                  if [ -n "$entry" ]; then keychains+=("$entry"); fi
+                done < "$original_list"
+                if [ "${#keychains[@]}" -gt 0 ]; then security list-keychains -d user -s "${keychains[@]}" || true; fi
+              fi
+              security delete-keychain "$keychain" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+          security default-keychain -d user | sed -E 's/^[[:space:]]*"//; s/"[[:space:]]*$//' > "$original_default"
+          security list-keychains -d user | sed -E 's/^[[:space:]]*"//; s/"[[:space:]]*$//' > "$original_list"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 -D > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          keychains=()
+          while IFS= read -r entry; do
+            if [ -n "$entry" ]; then keychains+=("$entry"); fi
+          done < "$original_list"
+          security list-keychains -d user -s "$keychain" "${keychains[@]}"
+          security default-keychain -s "$keychain"
+          security import "$certificate" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk -F '"' '/Developer ID Application:/ { print $2; exit }')"
+          case "$identity" in
+            *$'\n'*|*$'\r'*) echo 'The imported identity contains invalid control characters.' >&2; exit 1 ;;
+            'Developer ID Application:'*) ;;
+            *) echo 'A Developer ID Application identity was not imported.' >&2; exit 1 ;;
+          esac
+          {
+            printf '%s\n' "APPLE_SIGNING_IDENTITY=$identity"
+            printf '%s\n' "SCREENHELLO_SIGNING_KEYCHAIN=$keychain"
+            printf '%s\n' "SCREENHELLO_SIGNING_DEFAULT_KEYCHAIN=$original_default"
+            printf '%s\n' "SCREENHELLO_SIGNING_KEYCHAIN_LIST=$original_list"
+          } >> "$GITHUB_ENV"
+          ready=true
+
+      - name: Build signed and notarized ARM64 DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm exec tauri build --ci --target aarch64-apple-darwin --bundles dmg --config src-tauri/tauri.phase9.conf.json -- --locked
+      - name: Verify final package and write checksums
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/macos-arm64
+          bundles=(src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg)
+          test "${#bundles[@]}" -eq 1
+          test -f "${bundles[0]}"
+          dmg="${bundles[0]}"
+          mountpoint="$(mktemp -d "$RUNNER_TEMP/screenhello-dmg.XXXXXX")"
+          trap 'hdiutil detach "$mountpoint" >/dev/null 2>&1 || true; rmdir "$mountpoint" || true' EXIT
+          hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$dmg"
+          app="$mountpoint/ScreenHello.app"
+          binary="$app/Contents/MacOS/screenhello-desktop"
+          test "$(lipo -archs "$binary")" = arm64
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv --verbose=4 "$app" 2> artifacts/macos-arm64/signature.txt
+          grep -q '^Authority=Developer ID Application:' artifacts/macos-arm64/signature.txt
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          # Tauri notarizes/staples the app; submit the final DMG separately.
+          hdiutil detach "$mountpoint"
+          rmdir "$mountpoint"
+          trap - EXIT
+          xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --output-format json > artifacts/macos-arm64/dmg-notarization.json
+          node -e 'const r=JSON.parse(require("fs").readFileSync("artifacts/macos-arm64/dmg-notarization.json")); if(r.status!=="Accepted") process.exit(1)'
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          cp "$dmg" artifacts/macos-arm64/
+          printf 'source=%s\nrun=https://github.com/%s/actions/runs/%s\narchitecture=arm64\ngui-acceptance=not-run\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > artifacts/macos-arm64/build-info.txt
+          (cd artifacts/macos-arm64 && shasum -a 256 ./*.dmg > SHA256SUMS.txt)
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Remove the temporary signing keychain
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f "${SCREENHELLO_SIGNING_DEFAULT_KEYCHAIN:-}" ]; then
+            original_default="$(cat "$SCREENHELLO_SIGNING_DEFAULT_KEYCHAIN")"
+            if [ -n "$original_default" ]; then
+              security default-keychain -s "$original_default" || true
+            fi
+          fi
+          if [ -f "${SCREENHELLO_SIGNING_KEYCHAIN_LIST:-}" ]; then
+            keychains=()
+            while IFS= read -r entry; do
+              if [ -n "$entry" ]; then keychains+=("$entry"); fi
+            done < "$SCREENHELLO_SIGNING_KEYCHAIN_LIST"
+            if [ "${#keychains[@]}" -gt 0 ]; then
+              security list-keychains -d user -s "${keychains[@]}" || true
+            fi
+          fi
+          if [ -n "${SCREENHELLO_SIGNING_KEYCHAIN:-}" ]; then
+            security delete-keychain "$SCREENHELLO_SIGNING_KEYCHAIN"
+            if [ -e "$SCREENHELLO_SIGNING_KEYCHAIN" ]; then
+              echo 'The temporary signing keychain still exists after cleanup.' >&2
+              exit 1
+            fi
+          fi
+          rm -f \
+            "${SCREENHELLO_SIGNING_DEFAULT_KEYCHAIN:-}" \
+            "${SCREENHELLO_SIGNING_KEYCHAIN_LIST:-}"
+
+      - name: Upload UI diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-ui-failure-${{ github.sha }}
+          path: artifacts/desktop-ui/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload verified DMG
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ScreenHello-macos-arm64-${{ github.sha }}
+          path: artifacts/macos-arm64/
+          if-no-files-found: error
+          retention-days: 30

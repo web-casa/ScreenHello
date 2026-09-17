@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { Builder, Browser, By, Key, until } from 'selenium-webdriver';
+import { Builder, Browser, By, until } from 'selenium-webdriver';
 import { Options as SafariOptions, ServiceBuilder as SafariServiceBuilder } from 'selenium-webdriver/safari.js';
 import { browserVersionIsAccepted } from '../../scripts/browser-version-policy.mjs';
 import { createSessionWithRetry } from '../../scripts/webdriver-session-retry.mjs';
 import { createPngFixture } from '../fixtures/createPngFixture.js';
+import { readMobileAnnotation } from './mobileAnnotation.mjs';
+import { activateEditorWindow } from './foreground.mjs';
+import { firefoxDownloadOptions } from './firefoxDownloadOptions.mjs';
+import { checkCompressionDownloads } from './compression-downloads.mjs';
+import { decodeAvifFile } from './avif-file-decoder.mjs';
+import { installCancelObserver } from './cancel-observer.mjs';
+import { checkCancelRecovery } from './cancel-recovery.mjs';
+import { checkTargetBatchRecovery } from './batch-recovery.mjs';
+import { installBatchZipObserver } from './batch-zip-observer.mjs';
+import { installContinuousDownloadObserver } from './continuous-download-observer.mjs';
+import { checkTargetContinuousAvif } from './continuous-avif.mjs';
 
 const matrix = JSON.parse(await readFile(new URL('../../config/browser-release-matrix.json', import.meta.url), 'utf8'));
 const targetId = process.env.SCREENHELLO_BROWSER_TARGET;
@@ -14,6 +25,12 @@ const baseURL = process.env.SCREENHELLO_RELEASE_BASE_URL || 'http://host.docker.
 const outputPath = resolve(process.env.SCREENHELLO_BROWSER_EVIDENCE
     || `artifacts/release/browser-matrix/${targetId || 'unknown'}.json`);
 const target = matrix.targets.find(({ id }) => id === targetId);
+const compressionChecks = process.env.SCREENHELLO_COMPRESSION_CHECKS === 'true';
+const recoveryChecks = process.env.SCREENHELLO_RECOVERY_CHECKS === 'true';
+const batchChecks = process.env.SCREENHELLO_BATCH_CHECKS === 'true';
+const continuousChecks = process.env.SCREENHELLO_CONTINUOUS_CHECKS === 'true';
+assert.ok(!continuousChecks || compressionChecks, 'continuous checks require compression checks and the registered PC fixture');
+assert.ok(!recoveryChecks || compressionChecks, 'recovery checks require compression checks and the registered PC fixture');
 
 assert.ok(target, `SCREENHELLO_BROWSER_TARGET must be one of: ${matrix.targets.map(({ id }) => id).join(', ')}`);
 assert.ok(remoteUrl || target.localDriver, 'SELENIUM_REMOTE_URL is required unless the target uses a local driver');
@@ -57,6 +74,12 @@ const redact = (value) => {
     return result;
 };
 
+const describeError = (error) => {
+    const message = typeof error?.message === 'string' ? error.message.trim() : '';
+    const name = typeof error?.name === 'string' ? error.name.trim() : '';
+    return message || name || String(error);
+};
+
 const browserMap = {
     chrome: Browser.CHROME,
     edge: Browser.EDGE,
@@ -64,7 +87,7 @@ const browserMap = {
     safari: Browser.SAFARI,
 };
 const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     target: target.id,
     testedAt: new Date().toISOString(),
     source: redact(process.env.SCREENHELLO_BROWSER_SOURCE || 'selenium-remote'),
@@ -98,19 +121,307 @@ const waitForEnabled = async (selector) => {
     return element;
 };
 
+const completeDownloadDecode = async record => {
+    const encoded = record.nativeAvifBytes;
+    delete record.nativeAvifBytes;
+    await driver.executeScript(id => {
+        const item = window.__screenhelloReleaseDownloads.find(value => value.blobId === id);
+        if (item) delete item.nativeAvifBytes;
+    }, record.blobId);
+    if (record.decodeError && record.type === 'image/avif' && target.id === 'edge-111' && encoded) {
+        // Edge 111 predates native AVIF support (Edge 121). Preserve that fact;
+        // validate the exported FILE with pinned dav1d/WASM, not a browser flag.
+        record.decoded = await decodeAvifFile(encoded);
+        assert.ok(record.decoded.width * record.decoded.height <= 1_048_576);
+    }
+    return record;
+};
+
+const clickMenuItem = async (menuLabel, itemLabel) => {
+    const opened = await driver.executeScript((label) => {
+        const trigger = [...document.querySelectorAll('[role="menubar"] [role="menuitem"]')]
+            .find((element) => element.textContent?.trim() === label);
+        trigger?.click();
+        return Boolean(trigger);
+    }, menuLabel);
+    assert.equal(opened, true, `${target.id}: missing ${menuLabel} menu`);
+    await driver.wait(async () => driver.executeScript((label) => (
+        [...document.querySelectorAll('.shoteasy-command-menu [role="menuitem"]')]
+            .some((element) => element.offsetParent && element.textContent?.includes(label))
+    ), itemLabel), 10_000, `${target.id}: missing ${itemLabel} menu item`);
+    const clicked = await driver.executeScript((label) => {
+        const item = [...document.querySelectorAll('.shoteasy-command-menu [role="menuitem"]')]
+            .find((element) => element.offsetParent && element.textContent?.includes(label));
+        item?.click();
+        return Boolean(item);
+    }, itemLabel);
+    assert.equal(clicked, true, `${target.id}: could not click ${itemLabel}`);
+};
+
 const selectFormat = async (format) => {
-    const trigger = await waitForEnabled('[aria-label^="导出格式与倍率"]');
+    const trigger = await waitForEnabled('[aria-label="导出图片"]');
     await trigger.click();
     const selected = await driver.executeScript((value) => {
-        const segmented = document.querySelector('.shoteasy-export-popover .ant-segmented');
+        const segmented = document.querySelector('.shoteasy-export-drawer .ant-segmented');
         const option = [...(segmented?.querySelectorAll('label') || [])]
             .find((label) => label.textContent?.trim() === value);
         option?.click();
         return Boolean(option);
-    }, format);
+    }, format.toUpperCase());
     assert.equal(selected, true, `${target.id}: missing ${format} format option`);
-    await driver.wait(async () => (await trigger.getAttribute('aria-label'))?.includes(format.toUpperCase()), 10_000);
-    await driver.findElement(By.css('body')).sendKeys(Key.ESCAPE);
+};
+
+const waitForVisibleSelector = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
+    const element = document.querySelector(value);
+    if (!element) return false;
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+}, selector), 20_000, `${target.id}: ${message}`);
+
+const waitForHiddenSelector = async (selector, message) => driver.wait(async () => driver.executeScript((value) => {
+    const element = document.querySelector(value);
+    if (!element) return true;
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0;
+}, selector), 20_000, `${target.id}: ${message}`);
+
+const waitForRemovedSelector = async (selector, message) => driver.wait(
+    async () => driver.executeScript((value) => !document.querySelector(value), selector),
+    20_000,
+    `${target.id}: ${message}`,
+);
+
+const waitForFocusedSelector = async (selector, message) => driver.wait(
+    async () => driver.executeScript((value) => document.activeElement === document.querySelector(value), selector),
+    20_000,
+    `${target.id}: ${message}`,
+);
+
+const waitForStablePopup = async (selector, message) => {
+    let consecutiveStableSamples = 0;
+    let lastState;
+    try {
+        await driver.wait(async () => {
+            lastState = await driver.executeScript((value) => {
+                const element = document.querySelector(value);
+                if (!element) return { stable: false, reason: 'missing' };
+                const style = getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                const animations = typeof element.getAnimations === 'function'
+                    ? element.getAnimations({ subtree: true })
+                    : [];
+                const animationStates = animations.map(({ playState }) => playState);
+                const hasActiveAnimation = animationStates.some((playState) => (
+                    playState === 'running' || playState === 'pending'
+                ));
+                const stable = style.display !== 'none'
+                    && style.visibility !== 'hidden'
+                    && Number.parseFloat(style.opacity) >= 0.999
+                    && rect.width > 0
+                    && rect.height > 0
+                    && !hasActiveAnimation;
+                return {
+                    animationStates,
+                    display: style.display,
+                    height: Math.round(rect.height),
+                    opacity: style.opacity,
+                    stable,
+                    transform: style.transform,
+                    visibility: style.visibility,
+                    width: Math.round(rect.width),
+                };
+            }, selector);
+            consecutiveStableSamples = lastState.stable ? consecutiveStableSamples + 1 : 0;
+            return consecutiveStableSamples >= 2;
+        }, 20_000, `${target.id}: ${message}`, 200);
+    } catch (error) {
+        throw new Error(
+            `${target.id}: ${message}; last popup state: ${JSON.stringify(lastState)}; ${describeError(error)}`,
+        );
+    }
+};
+
+const checkMobileWeb = async () => {
+    const requestedWindow = await driver.manage().window().setRect({ width: 430, height: 900 });
+    await driver.wait(async () => driver.executeScript(() => innerWidth <= 640), 20_000,
+        `${target.id}: browser did not enter the mobile CSS viewport`);
+    await waitForVisibleSelector('.shoteasy-mobile-menu-trigger', 'mobile menu trigger was not visible');
+
+    const shell = await driver.executeScript((windowRect) => {
+        const visible = (element) => {
+            if (!element) return false;
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        };
+        const selectors = [
+            '.shoteasy-mobile-menu-trigger',
+            '.shoteasy-project-status',
+            '[aria-label="导出图片"]',
+            '.shoteasy-theme-trigger',
+            '.shoteasy-language-trigger',
+            '.shoteasy-mobile-annotation-trigger',
+            '.shoteasy-mobile-zoom-trigger',
+        ];
+        const targets = selectors.map((selector) => document.querySelector(selector));
+        const targetSizes = targets.map((element) => {
+            const rect = element?.getBoundingClientRect();
+            return rect ? Math.min(rect.width, rect.height) : 0;
+        });
+        const topbar = document.querySelector('.shoteasy-topbar');
+        const viewportWidth = document.documentElement.clientWidth;
+        const horizontalMetrics = {
+            document: {
+                clientWidth: viewportWidth,
+                scrollWidth: document.documentElement.scrollWidth,
+            },
+            topbar: {
+                clientWidth: topbar?.clientWidth || 0,
+                scrollWidth: topbar?.scrollWidth || 0,
+            },
+            overflowingElements: [...document.body.querySelectorAll('*')].map((element) => {
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return {
+                    className: typeof element.className === 'string' ? element.className : '',
+                    display: style.display,
+                    position: style.position,
+                    rect: {
+                        left: Math.round(rect.left),
+                        right: Math.round(rect.right),
+                        width: Math.round(rect.width),
+                    },
+                    tagName: element.tagName.toLowerCase(),
+                };
+            }).filter(({ display, position, rect }) => (
+                display !== 'none'
+                && position !== 'fixed'
+                && rect.width > 0
+                && (rect.left < -1 || rect.right > viewportWidth + 1)
+            )).slice(0, 20),
+        };
+        return {
+            viewport: { width: innerWidth, height: innerHeight },
+            requestedWindow: windowRect,
+            allTargetsVisible: targets.every(visible),
+            minimumTargetSize: Math.round(Math.min(...targetSizes)),
+            desktopMenuHidden: !visible(document.querySelector('.shoteasy-app-menu')),
+            topbarButtonCount: [...(topbar?.querySelectorAll('button') || [])].filter(visible).length,
+            horizontalMetrics,
+            noHorizontalOverflow: (
+                horizontalMetrics.document.scrollWidth <= horizontalMetrics.document.clientWidth
+                && horizontalMetrics.topbar.scrollWidth <= horizontalMetrics.topbar.clientWidth
+            ),
+        };
+    }, requestedWindow);
+    assert.equal(shell.allTargetsVisible, true, `${target.id}: a mobile primary action was not visible`);
+    assert.equal(shell.desktopMenuHidden, true, `${target.id}: desktop menu remained visible on mobile`);
+    assert.equal(shell.topbarButtonCount, 5, `${target.id}: mobile topbar must expose menu, project, export, theme and language buttons`);
+    assert.ok(shell.minimumTargetSize >= 44, `${target.id}: mobile target was smaller than 44px`);
+    assert.equal(shell.noHorizontalOverflow, true,
+        `${target.id}: mobile shell overflowed horizontally: ${JSON.stringify(shell.horizontalMetrics)}`);
+
+    await (await waitForEnabled('.shoteasy-mobile-menu-trigger')).click();
+    await waitForVisibleSelector('.shoteasy-mobile-menu-drawer [role="dialog"]', 'mobile application menu did not open');
+    await waitForStablePopup('.shoteasy-mobile-menu-drawer .ant-drawer-content-wrapper',
+        'mobile application menu did not finish opening');
+    const menu = await driver.executeScript(() => {
+        const drawer = document.querySelector('.shoteasy-mobile-menu-drawer [role="dialog"]');
+        const tabs = [...(drawer?.querySelectorAll('[role="tab"]') || [])].map((tab) => tab.textContent?.trim());
+        const controls = [...(drawer?.querySelectorAll('[role="tab"], [role="menuitem"], .ant-drawer-close') || [])]
+            .filter((element) => element.offsetParent);
+        const targetSizes = controls.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+                name: element.getAttribute('aria-label') || element.textContent?.trim(),
+                role: element.getAttribute('role') || element.tagName.toLowerCase(),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+            };
+        });
+        const hasNewProject = [...(drawer?.querySelectorAll('[role="menuitem"]') || [])]
+            .some((item) => item.textContent?.includes('新建项目'));
+        return {
+            tabs,
+            hasNewProject,
+            minimumTargetSize: Math.min(...targetSizes.map(({ width, height }) => Math.min(width, height))),
+            undersizedTargets: targetSizes.filter(({ width, height }) => width < 44 || height < 44),
+            noHorizontalOverflow: drawer.scrollWidth <= drawer.clientWidth,
+        };
+    });
+    assert.deepEqual(menu.tabs, ['文件', '编辑', '视图', '帮助'], `${target.id}: mobile menu sections changed`);
+    assert.equal(menu.hasNewProject, true, `${target.id}: mobile file menu was not reachable`);
+    assert.deepEqual(menu.undersizedTargets, [],
+        `${target.id}: mobile menu targets were smaller than 44px: ${JSON.stringify(menu.undersizedTargets)}`);
+    assert.equal(menu.noHorizontalOverflow, true, `${target.id}: mobile menu overflowed horizontally`);
+    await (await waitForEnabled('.shoteasy-mobile-menu-drawer .ant-drawer-close')).click();
+    await waitForHiddenSelector('.shoteasy-mobile-menu-drawer [role="dialog"]', 'mobile application menu did not close');
+    await waitForRemovedSelector('.shoteasy-mobile-menu-drawer', 'mobile application menu was not unmounted');
+    await waitForFocusedSelector('.shoteasy-mobile-menu-trigger', 'mobile application menu trigger did not regain focus');
+
+    await (await waitForEnabled('.shoteasy-mobile-annotation-trigger')).click();
+    await waitForVisibleSelector('.shoteasy-mobile-annotation-drawer [role="dialog"]', 'mobile annotation sheet did not open');
+    await waitForStablePopup('.shoteasy-mobile-annotation-drawer .ant-drawer-content-wrapper',
+        'mobile annotation sheet did not finish opening');
+    const annotation = await driver.executeScript(readMobileAnnotation);
+    assert.deepEqual(annotation.labels, ['矩形', '实心矩形', '圆形', '直线', '箭头', '画笔'],
+        `${target.id}: mobile primary annotation tools changed`);
+    assert.ok(annotation.minimumTargetSize >= 44, `${target.id}: annotation target was smaller than 44px`);
+    assert.equal(annotation.noHorizontalOverflow, true, `${target.id}: annotation sheet overflowed horizontally`);
+    await (await waitForEnabled('.shoteasy-mobile-annotation-drawer .ant-drawer-close')).click();
+    await waitForHiddenSelector('.shoteasy-mobile-annotation-drawer [role="dialog"]', 'mobile annotation sheet did not close');
+    await waitForRemovedSelector('.shoteasy-mobile-annotation-drawer', 'mobile annotation sheet was not unmounted');
+    await waitForFocusedSelector('.shoteasy-mobile-annotation-trigger', 'mobile annotation trigger did not regain focus');
+
+    await (await waitForEnabled('.shoteasy-mobile-zoom-trigger')).click();
+    await waitForVisibleSelector('.shoteasy-mobile-zoom-menu [role="menu"]', 'mobile zoom menu did not open');
+    await waitForStablePopup('.shoteasy-mobile-zoom-menu', 'mobile zoom menu did not finish opening');
+    const zoom = await driver.executeScript(() => {
+        const menuElement = document.querySelector('.shoteasy-mobile-zoom-menu [role="menu"]');
+        const items = [...document.querySelectorAll('.shoteasy-mobile-zoom-menu [role="menuitem"]')]
+            .filter((item) => item.offsetParent);
+        const targetSizes = items.map((item) => {
+            const rect = item.getBoundingClientRect();
+            return {
+                name: item.textContent?.trim(),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+            };
+        });
+        return {
+            labels: items.map((item) => item.textContent?.trim()),
+            minimumTargetSize: Math.min(...targetSizes.map(({ width, height }) => Math.min(width, height))),
+            undersizedTargets: targetSizes.filter(({ width, height }) => width < 44 || height < 44),
+            noHorizontalOverflow: menuElement.scrollWidth <= menuElement.clientWidth,
+        };
+    });
+    assert.deepEqual(zoom.labels, ['放大', '缩小', '100%', '适应画布'], `${target.id}: mobile zoom commands changed`);
+    assert.deepEqual(zoom.undersizedTargets, [],
+        `${target.id}: mobile zoom targets were smaller than 44px: ${JSON.stringify(zoom.undersizedTargets)}`);
+    assert.equal(zoom.noHorizontalOverflow, true, `${target.id}: mobile zoom menu overflowed horizontally`);
+    await (await waitForEnabled('.shoteasy-mobile-zoom-menu [role="menuitem"]')).click();
+    await waitForRemovedSelector('.shoteasy-mobile-zoom-menu', 'mobile zoom menu was not unmounted');
+    await waitForFocusedSelector('.shoteasy-mobile-zoom-trigger', 'mobile zoom trigger did not regain focus');
+
+    const minimumTargetSize = Math.min(
+        shell.minimumTargetSize,
+        menu.minimumTargetSize,
+        annotation.minimumTargetSize,
+        zoom.minimumTargetSize
+    );
+
+    return {
+        viewport: shell.viewport,
+        topbarActions: ['menu', 'project-status', 'export'],
+        appearanceActions: ['theme', 'language'],
+        menuSections: ['file', 'edit', 'view', 'help'],
+        annotationSheet: true,
+        zoomMenu: true,
+        minimumTargetSize,
+        noHorizontalOverflow: true,
+    };
 };
 
 const validSignature = (format, hex) => {
@@ -139,6 +450,7 @@ try {
         );
         if (remoteUrl || localDriverUrl) builder = builder.usingServer(remoteUrl || localDriverUrl);
         if (target.browser === 'safari') builder = builder.setSafariOptions(new SafariOptions().enableLogging());
+        if (target.browser === 'firefox') builder = builder.setFirefoxOptions(firefoxDownloadOptions());
         for (const [key, value] of Object.entries(providerCapabilities)) builder.setCapability(key, value);
         return builder.build();
     };
@@ -156,12 +468,12 @@ try {
             maxAttempts,
             retryDelayMs: target.sessionRetryDelayMs || 0,
             shouldRetry: (error) => /session timed out while connecting to a Safari instance/i
-                .test(error instanceof Error ? error.message : String(error)),
+                .test(describeError(error)),
             onAttemptFailed: ({ attempt, error, willRetry }) => {
                 report.sessionCreation.attempts = attempt;
                 sessionErrors.push({
                     attempt,
-                    error: redact(error instanceof Error ? error.message : error),
+                    error: redact(describeError(error)),
                     willRetry,
                 });
             },
@@ -181,6 +493,9 @@ try {
         platformName: String(capabilities.get('platformName') || ''),
     };
     report.observed = observed;
+    if (target.browser === 'firefox') {
+        report.downloadProfile = 'temporary-save-to-disk-no-auto-panel-or-file-preview';
+    }
     assert.equal(
         target.acceptedBrowserNames.map((name) => name.toLowerCase()).includes(observed.browserName.toLowerCase()),
         true,
@@ -193,6 +508,7 @@ try {
     );
 
     await driver.get(baseURL);
+    const editorWindow = await driver.getWindowHandle();
     await driver.wait(until.elementLocated(By.css('.shoteasy-upload-card input[type="file"]')), 30_000);
     const loadedOrigin = await driver.executeScript(() => location.origin);
     assert.equal(loadedOrigin, new URL(baseURL).origin, `${target.id}: redirected to an unexpected origin`);
@@ -229,10 +545,46 @@ try {
         }
     });
 
-    await driver.executeScript(() => {
+    await driver.executeScript((decodeDownloads) => {
         window.__screenhelloReleaseErrors = [];
         window.__screenhelloReleaseDownloads = [];
+        // Test-only, bounded metadata: never retain image pixels or worker messages.
+        const trace = window.__screenhelloReleaseTrace = [];
+        const record = (event, detail = {}) => {
+            if (trace.length >= 80) return;
+            trace.push({ event, ...detail, ms: Math.round(performance.now()),
+                visibility: document.visibilityState, focused: document.hasFocus() });
+        };
+        window.__screenhelloReleaseMark = record;
+        const abort = AbortController.prototype.abort;
+        AbortController.prototype.abort = function releaseAbort(reason) {
+            if (typeof reason?.code === 'string' && /^(export|avif|compression)-/.test(reason.code)) {
+                record('abort', { code: reason.code });
+            }
+            return abort.call(this, reason);
+        };
+        window.Worker = new Proxy(window.Worker, {
+            construct(Target, args, NewTarget) {
+                record('worker-created', { name: String(args[1]?.name || '') });
+                return Reflect.construct(Target, args, NewTarget);
+            },
+        });
+        addEventListener('visibilitychange', () => record('visibilitychange'));
         const blobs = new Map();
+        const blobIds = new WeakMap();
+        let blobSequence = 0;
+        const blobId = blob => {
+            if (!blobIds.has(blob)) blobIds.set(blob, ++blobSequence);
+            return blobIds.get(blob);
+        };
+        const decodeBitmap = window.createImageBitmap;
+        window.__screenhelloPreviewBlobIds = [];
+        if (decodeDownloads) window.createImageBitmap = function releaseDecode(...args) {
+            if (args[0] instanceof Blob && window.__screenhelloPreviewBlobIds.length < 64) {
+                window.__screenhelloPreviewBlobIds.push(blobId(args[0]));
+            }
+            return Reflect.apply(decodeBitmap, this, args);
+        };
         const createObjectURL = URL.createObjectURL.bind(URL);
         const revokeObjectURL = URL.revokeObjectURL.bind(URL);
         const anchorClick = HTMLAnchorElement.prototype.click;
@@ -249,16 +601,44 @@ try {
             const blob = blobs.get(this.href);
             if (this.download && blob) {
                 const name = this.download;
-                void blob.slice(0, 16).arrayBuffer().then((buffer) => {
+                const continuous = window.__screenhelloContinuousDownloads?.active === true;
+                void blob.slice(0, 16).arrayBuffer().then(async (buffer) => {
                     const hex = [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-                    window.__screenhelloReleaseDownloads.push({ name, type: blob.type, size: blob.size, hex });
+                    const result = { name, type: blob.type, size: blob.size, hex, blobId: blobId(blob) };
+                    if (decodeDownloads && !continuous && blob.type !== 'application/zip') {
+                        let bitmap;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = canvas.height = 1;
+                        try {
+                            bitmap = await decodeBitmap.call(window, blob);
+                            const context = canvas.getContext('2d', { willReadFrequently: true });
+                            context.drawImage(bitmap, 0, 0);
+                            result.decoded = { width: bitmap.width, height: bitmap.height,
+                                corner: [...context.getImageData(0, 0, 1, 1).data] };
+                        } catch (error) {
+                            result.decodeError = String(error?.message || error);
+                            if (blob.type === 'image/avif' && blob.size <= 131_072) {
+                                const bytes = new Uint8Array(await blob.arrayBuffer());
+                                const chunks = [];
+                                for (let offset = 0; offset < bytes.length; offset += 8192) {
+                                    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));
+                                }
+                                result.nativeAvifBytes = btoa(chunks.join(''));
+                            }
+                        }
+                        finally { bitmap?.close(); canvas.width = canvas.height = 0; }
+                    }
+                    window.__screenhelloReleaseDownloads.push(result);
                 });
             }
             return anchorClick.call(this);
         };
         addEventListener('error', (event) => window.__screenhelloReleaseErrors.push(String(event.error?.message || event.message)));
         addEventListener('unhandledrejection', (event) => window.__screenhelloReleaseErrors.push(String(event.reason?.message || event.reason)));
-    });
+    }, compressionChecks);
+    if (recoveryChecks || batchChecks || continuousChecks) await driver.executeScript(installCancelObserver, { batch: batchChecks });
+    if (batchChecks) await driver.executeScript(installBatchZipObserver);
+    if (continuousChecks) await driver.executeScript(installContinuousDownloadObserver);
 
     const pngBase64 = createPngFixture(64, 48).toString('base64');
     const injected = await driver.executeScript((base64) => {
@@ -273,20 +653,27 @@ try {
         return true;
     }, pngBase64);
     assert.equal(injected, true, `${target.id}: fixture input was not available`);
-    await waitForEnabled('[aria-label="下载图片"]');
+    await waitForEnabled('[aria-label="导出图片"]');
 
     const noBackground = await driver.wait(until.elementLocated(By.css('.shoteasy-inspector [title="无背景"]')), 20_000);
     await noBackground.click();
-    const undo = await waitForEnabled('[aria-label="撤销"]');
-    await undo.click();
-    const redo = await waitForEnabled('[aria-label="重做"]');
-    await redo.click();
+    await clickMenuItem('编辑', '撤销');
+    await clickMenuItem('编辑', '重做');
 
     const downloads = [];
+    report.foregroundExports = [];
     for (const format of ['png', 'jpg', 'webp', 'avif']) {
+        const windowCount = (await driver.getAllWindowHandles()).length;
+        const foreground = await activateEditorWindow(driver, editorWindow);
+        report.foregroundExports.push({ format, windowCount, ...foreground });
         await selectFormat(format);
+        const visibleBeforeClick = await driver.executeScript((value) => {
+            window.__screenhelloReleaseMark('export-click', { format: value });
+            return document.visibilityState === 'visible' && document.hasFocus();
+        }, format);
+        assert.equal(visibleBeforeClick, true, `${target.id}: ${format} export requires a foreground editor`);
         const previousCount = downloads.length;
-        await (await waitForEnabled('[aria-label="下载图片"]')).click();
+        await (await waitForEnabled('[data-testid="export-download"]')).click();
         await driver.wait(async () => {
             const recordsJson = await driver.executeScript(() => JSON.stringify(window.__screenhelloReleaseDownloads || []));
             const records = JSON.parse(recordsJson);
@@ -295,16 +682,33 @@ try {
             return downloads.length > previousCount;
         }, 120_000, `${target.id}: ${format} export did not complete`);
         const record = downloads.at(-1);
+        if (compressionChecks) await completeDownloadDecode(record);
         assert.equal(record.type, format === 'jpg' ? 'image/jpeg' : `image/${format}`);
         assert.ok(record.size > 0, `${target.id}: empty ${format} export`);
         assert.equal(validSignature(format, record.hex), true, `${target.id}: invalid ${format} signature`);
+        await waitForHiddenSelector('.shoteasy-export-drawer [role="dialog"]',
+            `${format} export panel did not close after download`);
+        await waitForRemovedSelector('.shoteasy-export-drawer',
+            `${format} export drawer was not unmounted after closing`);
     }
+
+    if (batchChecks) await checkTargetBatchRecovery({ driver, editorWindow, clickMenuItem, waitForEnabled, waitForRemovedSelector,
+        report, target, checkpoint: writeReport, evidenceDirectory: dirname(outputPath) });
+    if (compressionChecks) await checkCompressionDownloads({ driver, editorWindow, selectFormat, waitForEnabled, completeDownloadDecode,
+        clickMenuItem, waitForRemovedSelector, report, checkpoint: writeReport });
+    if (recoveryChecks) await checkCancelRecovery({ driver, editorWindow, selectFormat, waitForEnabled, completeDownloadDecode,
+        waitForRemovedSelector, report, checkpoint: writeReport });
+    if (continuousChecks) await checkTargetContinuousAvif({ driver, editorWindow, selectFormat, waitForEnabled, waitForRemovedSelector,
+        report, target, checkpoint: writeReport, evidenceDirectory: dirname(outputPath) });
+    await activateEditorWindow(driver, editorWindow);
+    const mobileWeb = await checkMobileWeb();
 
     const browserState = await driver.executeScript(() => ({
         errors: window.__screenhelloReleaseErrors,
         resourceUrls: performance.getEntriesByType('resource').map(({ name }) => name),
         secureContext: window.isSecureContext,
         serviceWorker: 'serviceWorker' in navigator,
+        exportTrace: window.__screenhelloReleaseTrace,
     }));
     assert.deepEqual(browserState.errors, [], `${target.id}: uncaught browser error`);
     assert.equal(browserState.resourceUrls.every((url) => {
@@ -314,26 +718,39 @@ try {
     assert.equal(browserState.resourceUrls.some((url) => decodeURIComponent(url).includes('screenhello-private-minimum-browser')), false);
 
     report.status = 'passed';
+    report.exportTrace = browserState.exportTrace;
     report.checks = {
         coreEditUndoRedo: true,
         imageExports: downloads.map(({ name, type, size }) => ({ name, type, size })),
         localResourceRequests: true,
+        mobileWeb,
         secureContext: browserState.secureContext,
         serviceWorkerApi: browserState.serviceWorker,
     };
 } catch (error) {
-    report.error = redact(error instanceof Error ? error.message : error);
+    report.error = redact(describeError(error));
     if (driver) {
         try {
             report.diagnostics = await driver.executeScript(() => ({
+                activeElement: document.activeElement?.outerHTML?.slice(0, 500) || '',
                 bodyText: document.body?.innerText?.slice(0, 1_000) || '',
                 location: location.href,
                 readyState: document.readyState,
                 rootHtml: document.querySelector('#root')?.innerHTML?.slice(0, 2_000) || '',
                 title: document.title,
+                exportTrace: window.__screenhelloReleaseTrace || [],
+                cancellation: window.__screenhelloCancelObserver || null,
+                completedDownloads: (window.__screenhelloReleaseDownloads || []).map(record => {
+                    const safe = { ...record }; delete safe.nativeAvifBytes; return safe;
+                }),
+                visibility: document.visibilityState,
+                focused: document.hasFocus(),
+                codecResources: performance.getEntriesByType('resource')
+                    .filter(({ name }) => /avif|wasm|Encoder/.test(name))
+                    .map(({ name, duration }) => ({ path: new URL(name).pathname, duration })),
             }));
         } catch (diagnosticError) {
-            report.diagnosticError = redact(diagnosticError instanceof Error ? diagnosticError.message : diagnosticError);
+            report.diagnosticError = redact(describeError(diagnosticError));
         }
         try {
             report.browserLogs = (await driver.manage().logs().get('browser')).slice(-20).map((entry) => ({
@@ -342,7 +759,7 @@ try {
                 timestamp: entry.timestamp,
             }));
         } catch (logError) {
-            report.browserLogError = redact(logError instanceof Error ? logError.message : logError);
+            report.browserLogError = redact(describeError(logError));
         }
     }
     process.exitCode = 1;
@@ -351,14 +768,14 @@ try {
         try {
             await driver.quit();
         } catch (cleanupError) {
-            report.driverCleanupError = redact(cleanupError instanceof Error ? cleanupError.message : cleanupError);
+            report.driverCleanupError = redact(describeError(cleanupError));
         }
     }
     if (localDriverService) {
         try {
             await localDriverService.kill();
         } catch (cleanupError) {
-            report.serviceCleanupError = redact(cleanupError instanceof Error ? cleanupError.message : cleanupError);
+            report.serviceCleanupError = redact(describeError(cleanupError));
         }
     }
     await writeReport();

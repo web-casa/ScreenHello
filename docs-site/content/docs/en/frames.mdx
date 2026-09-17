@@ -1,0 +1,39 @@
+---
+title: "Browser frames and optional device mockups"
+seoTitle: "Browser and device frames for screenshots"
+description: "Frame a screenshot with a configurable browser window in ScreenHello. Learn how device availability, colours, image fitting and artwork licences work."
+reviewed: "2026-09-13"
+---
+import BeforeAfter from '../../../src/components/BeforeAfter.astro';
+
+## A browser frame, without fetching a website
+
+Choose a browser frame from the left panel, enter the address shown in the title bar and adjust the toolbar size. The displayed address is decoration: ScreenHello does not visit the URL or capture that website automatically.
+
+### Browser chrome or device frame
+
+Browser chrome draws a title bar around the canvas and needs no extra assets. Raster device frames reproduce a specific screen and keep the source aspect ratio.
+
+> Raster device frames come from an optional local pack. When the pack is not installed the picker says so instead of showing an empty list, and every other feature keeps working.
+
+## Devices depend on installed artwork
+
+The frame picker shows only artwork available in the current build. Some local installations include MacBook Air M2, iMac 24-inch, Surface Pro, Surface Studio or Pixel 9 Pro variants. These are not guaranteed in the public distribution; available colour choices also depend on the installed pack.
+
+
+## Preserve proportions and respect licences
+
+Use contain to keep the entire screenshot, cover to fill the display with cropping, or stretch when distortion is acceptable. Optional artwork has its own licence; the application's code licence does not automatically cover it. A saved project stores a device identifier, not the optional device pack. Missing artwork must be installed or replaced before a complete export.
+
+
+<BeforeAfter
+  before="/site/before.svg"
+  after="/site/after.svg"
+  beforeAlt="Original"
+  afterAlt="With a browser frame"
+  caption="Illustrative sample: the same local image, with background, padding and a browser frame."
+/>
+
+## Keep exploring
+
+[Screenshot beautification: backgrounds, padding and shadows](../beautify/) · [How to use ScreenHello: import, beautify and export](../guide/)

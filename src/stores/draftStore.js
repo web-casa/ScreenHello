@@ -36,22 +36,23 @@ const bytesToBlob = (bytes, type) => {
 };
 
 export class DraftStore {
-    constructor({ databaseName = DEFAULT_DB_NAME } = {}) {
+    constructor({ databaseName = DEFAULT_DB_NAME, storage = browserPlatform.storage } = {}) {
         this.databaseName = databaseName;
+        this.storage = storage;
         this._dbPromise = null;
         this._unavailable = false; // 一旦确认不可用，避免重复尝试打开
     }
 
     /** IndexedDB 是否可用（供 draftService 降级判断）。 */
     isAvailable() {
-        return !this._unavailable && Boolean(browserPlatform.storage.getIndexedDB());
+        return !this._unavailable && Boolean(this.storage.getIndexedDB());
     }
 
     _open() {
         if (this._unavailable) return Promise.reject(new Error('idb-unavailable'));
         if (this._dbPromise) return this._dbPromise;
         this._dbPromise = new Promise((resolve, reject) => {
-            const indexedDB = browserPlatform.storage.getIndexedDB();
+            const indexedDB = this.storage.getIndexedDB();
             if (!indexedDB) {
                 this._unavailable = true;
                 reject(new Error('idb-unavailable'));
@@ -128,7 +129,8 @@ export class DraftStore {
                 doc,
                 kind: metadata.kind || 'draft',
                 name: metadata.name || null,
-                updatedAt: Date.now(),
+                // 撤销删除会用原记录的 updatedAt 写回，避免恢复后跳到列表最前
+                updatedAt: Number(metadata.updatedAt) || Date.now(),
             }))
         );
     }
@@ -171,7 +173,8 @@ export class DraftStore {
             type: payload.type || (payload.blob && payload.blob.type) || 'application/octet-stream',
             name: payload.name || 'asset',
             purpose: payload.purpose || 'background',
-            createdAt: Date.now()
+            // 撤销删除会用原记录的 createdAt 写回，避免恢复出来的资源看起来是“刚创建”的
+            createdAt: Number(payload.createdAt) || Date.now()
         })));
     }
 
@@ -206,6 +209,32 @@ export class DraftStore {
         }));
     }
 
+    /**
+     * 列出归属某 key 的全部资源，读取时恢复 Blob。
+     * 与 deleteAssetsByKey 对称：删除前用它取会话内撤销快照，assets 仓库没有 key 索引，只能游标扫描。
+     */
+    async listAssetsByKey(key) {
+        return this._transaction(ASSETS, 'readonly', (store) => new Promise((resolve, reject) => {
+            const assets = [];
+            const cursorReq = store.openCursor();
+            cursorReq.onsuccess = () => {
+                const cursor = cursorReq.result;
+                if (!cursor) return resolve(assets);
+                const record = cursor.value;
+                if (record && record.key === key) {
+                    const blob = record.blob instanceof Blob ? record.blob : bytesToBlob(record.bytes, record.type);
+                    if (blob) {
+                        const { bytes, ...metadata } = record;
+                        void bytes;
+                        assets.push({ ...metadata, blob });
+                    }
+                }
+                cursor.continue();
+            };
+            cursorReq.onerror = () => reject(cursorReq.error || new Error('idb-cursor-failed'));
+        }));
+    }
+
     async savePreset(record) {
         const { backgroundBlob, ...metadata } = record;
         const backgroundBytes = backgroundBlob ? await blobToBytes(backgroundBlob) : null;
@@ -213,7 +242,8 @@ export class DraftStore {
             ...metadata,
             backgroundBytes,
             backgroundBlobType: backgroundBlob?.type || record.backgroundType || null,
-            updatedAt: Date.now(),
+            // 撤销删除时保留原时间戳，恢复后仍在原来的位置
+            updatedAt: Number(record.updatedAt) || Date.now(),
             createdAt: record.createdAt || Date.now(),
         })));
     }
@@ -251,7 +281,8 @@ export class DraftStore {
             ...metadata,
             bytes,
             blobType: blob.type || 'application/octet-stream',
-            updatedAt: Date.now(),
+            // 撤销删除时保留原时间戳，恢复后仍按原来的顺序参与裁剪
+            updatedAt: Number(metadata.updatedAt) || Date.now(),
         })));
         // Keep local recents bounded. A pruning failure must not turn an
         // already-saved project into an apparent save failure.

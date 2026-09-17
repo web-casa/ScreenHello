@@ -1,5 +1,6 @@
 packages:
   - .
+  - docs-site
 
 overrides:
   mage-icons-react>react: 19.2.8
