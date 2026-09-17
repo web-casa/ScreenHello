@@ -119,3 +119,18 @@ MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据
 修复后的本地原生程序重新编译通过，Linux ARM64 运行入口通过（约 11.9 秒），包含导出抽屉布局、背景主题、剪贴板、截图流程与单实例检查。该记录仍是 Debian 本地结果，不能替代 Ubuntu runner 的新验证。
 
 已明确失败且应用源码即将被替换，因此取消 `6642b3e` 剩余 Gate / 浏览器 CI 任务，保留 Linux ARM64 失败日志、JSON 和截图。取消不是通过；修复需用新候选完整运行验证。
+
+## 抽屉修复候选 `d6b354b`
+
+本地提交 `824c038a99c1a7283403877f1930b774138c894f` 导出为 `d6b354b0781b72729475e0e382ea8558be4b7060`，已推送公开测试分支。新的[六目标 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35193597248)、[签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35193586729) 与[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35193590580) 已启动，结果待取得后补充。
+
+额外三引擎移动端嵌套外框抽屉 3 项通过。签名 ARM64 DMG 已成功：[下载](https://github.com/web-casa/ScreenHello/actions/runs/35193586729/artifacts/10485441335)，下载后 SHA-256 验证通过：`97eaab47a6716744564ed26c41fcb7f139c858ea0482b6d4c56b788f789f46a4`。Apple 公证 `24e8bbb8-00a0-4448-9ed2-98674e93cdb9` 为 Accepted，包含 stapled ticket；真人 GUI 验收仍为未执行。测试应先退出旧进程，再替换安装，避免单实例机制唤起旧版。
+
+
+该候选最终为 macOS / Windows 双架构、Linux x64 通过，Linux ARM64 在 `clipboard-write` 失败。新的现场证明导出面板检查已通过；复制按钮已恢复可用，但只记录到“正在复制”，不能据此证明复制成功。检查测试发现使用 Ant Design 旧版 `.ant-message-notice-content`，且 MutationObserver 未监听 `characterData`；靠 `body.innerText` 回退会受到提示进入动画可见性的影响。
+
+改为序列化独立的消息观察函数，读取当前 `.ant-message-notice` 的 `textContent` 并监听文本更新，保留原来 30 秒期限与必须收到“复制成功”的断言。三引擎新增真实 Ant Design 同 key 更新及纯文本节点更新回归，全部通过。本地原生 Linux ARM64 运行通过（约 13.2 秒）；Ubuntu runner 尚需重新验证。
+
+该候选浏览器 CI 为 354 通过、81 条件跳过、3 失败：同一动画测试在三个引擎仍断言 CSS duration 小于 0.001 秒。组件 motion 关闭后，未触发的样式声明仍可为 0.3 秒，这个断言已不对应行为。改为从页面初始化开始捕获真正的 animationstart / transitionrun，检查内容与遮罩可见且没有活动动画，保留三轮关闭/重开/焦点、不影响其他弹层与不触发编码的断言。更新后连同观察器共 6 项三引擎回归通过，没有恢复曾导致原生抽屉隐藏的微时长 CSS。
+
+本轮检查入口修正后的 lint、Web 构建、26 项原生 driver / 公开导出契约单测通过。新增 helper 已纳入公开导出白名单和 Gate 路径触发范围。

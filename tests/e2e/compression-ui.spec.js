@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { installDesktopMessageObserver } from '../../scripts/desktop-message-observer.mjs';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { createPngFixture } from '../fixtures/createPngFixture.js';
@@ -113,18 +114,26 @@ async function preview(page) {
     await expect(page.getByTestId('export-download')).toBeEnabled();
 }
 
-test('MP export overlay uses bounded motion without changing other overlays or close/reopen focus', async ({ page }) => {
+test('MP export overlay disables motion without changing other overlays or close/reopen focus', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.addInitScript(() => {
+        window.__exportMotionEvents = [];
+        for (const type of ['animationstart', 'transitionrun']) {
+            document.addEventListener(type, event => {
+                if (event.target.matches('.shoteasy-export-overlay .ant-drawer-content-wrapper, .shoteasy-export-overlay .ant-drawer-mask')) {
+                    window.__exportMotionEvents.push(type);
+                }
+            }, true);
+        }
+    });
     await openEditor(page);
     for (let index = 0; index < 3; index++) {
         const overlay = page.locator('.shoteasy-export-overlay');
         await expect(overlay).toBeVisible();
         for (const selector of ['.ant-drawer-content-wrapper', '.ant-drawer-mask']) {
-            const durations = await overlay.locator(selector).evaluate(element => {
-                const style = getComputedStyle(element);
-                return [style.animationDuration, style.transitionDuration].flatMap(value => value.split(',').map(Number.parseFloat));
-            });
-            expect(durations.every(seconds => seconds <= 0.001)).toBe(true);
+            const surface = overlay.locator(selector);
+            await expect(surface).toBeVisible();
+            expect(await surface.evaluate(element => element.getAnimations().length)).toBe(0);
         }
         await page.keyboard.press('Escape');
         await expect(overlay).toHaveCount(0);
@@ -141,6 +150,7 @@ test('MP export overlay uses bounded motion without changing other overlays or c
         try { return getComputedStyle(mask).transitionDuration; }
         finally { root.remove(); }
     });
+    expect(await page.evaluate(() => window.__exportMotionEvents)).toEqual([]);
     expect(otherDuration).toBe('1s');
     expect(await page.evaluate(() => window.__c2.encodes)).toBe(0);
 });
@@ -365,4 +375,24 @@ test('C2 seven locales, light/dark, narrow viewport and keyboard controls remain
     await expect(page.getByTestId('preview-reference')).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
     await expect(page.locator('.shoteasy-export-drawer')).toHaveCount(0);
+});
+
+test('desktop clipboard observer retains same-key Ant Design message updates', async ({ page }) => {
+    await openEditor(page, 64);
+    await page.evaluate(installDesktopMessageObserver);
+    await page.evaluate(() => window.__shoteasyStores.editor.message.open({ key: 'clipboard-observer', type: 'loading', content: '正在复制…', duration: 0 }));
+    await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessages)).toContain('正在复制…');
+    await page.evaluate(() => window.__shoteasyStores.editor.message.open({ key: 'clipboard-observer', type: 'success', content: '复制成功', duration: 0 }));
+    await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessages)).toContain('复制成功');
+    // React can update a text node without adding/removing any child nodes.
+    await page.evaluate(() => {
+        const notice = document.createElement('div');
+        notice.className = 'ant-message-notice';
+        notice.id = 'clipboard-observer-probe';
+        notice.append(document.createTextNode('等待'));
+        document.body.append(notice);
+    });
+    await page.evaluate(() => document.getElementById('clipboard-observer-probe').firstChild.data = '复制失败');
+    await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessages)).toContain('复制失败');
+    await page.evaluate(() => window.__screenhelloDesktopMessageObserver.disconnect());
 });

@@ -136,6 +136,7 @@
       "scripts/desktop-artifact-provenance-verification.mjs",
       "scripts/desktop-artifact-provenance.mjs",
       "scripts/desktop-cross-platform-acceptance.mjs",
+      "scripts/desktop-message-observer.mjs",
       "scripts/desktop-platform-acceptance.mjs",
       "scripts/desktop-process-tree.mjs",
       "scripts/desktop-release-github-readiness.mjs",

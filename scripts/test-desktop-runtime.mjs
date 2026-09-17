@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawn } from 'node:child_process';
 import { Builder, By, Capabilities, until } from 'selenium-webdriver';
+import { installDesktopMessageObserver } from './desktop-message-observer.mjs';
 import { desktopCodecArtifacts } from './audit-desktop-codecs.mjs';
 import { createDesktopSession, stopDesktopAutomation } from './desktop-process-tree.mjs';
 
@@ -598,27 +599,7 @@ try {
     await driver.wait(async () => !(await driver.findElements(By.css('.shoteasy-export-overlay.ant-drawer'))).length, 10_000);
 
     stage = 'clipboard-write';
-    await driver.executeScript(`
-        window.__screenhelloDesktopMessages = [];
-        window.__screenhelloDesktopMessageObserver?.disconnect();
-        const recordMessages = () => {
-            for (const element of document.querySelectorAll('.ant-message-notice-content')) {
-                const text = element.textContent || '';
-                if (text && !window.__screenhelloDesktopMessages.includes(text)) {
-                    window.__screenhelloDesktopMessages.push(text);
-                }
-            }
-            const bodyText = document.body.innerText || '';
-            for (const expected of ['正在复制', '复制成功', '复制失败']) {
-                if (bodyText.includes(expected) && !window.__screenhelloDesktopMessages.includes(expected)) {
-                    window.__screenhelloDesktopMessages.push(expected);
-                }
-            }
-        };
-        window.__screenhelloDesktopMessageObserver = new MutationObserver(recordMessages);
-        window.__screenhelloDesktopMessageObserver.observe(document.body, { childList: true, subtree: true });
-        recordMessages();
-    `);
+    await driver.executeScript(`(${installDesktopMessageObserver.toString()})()`);
     const copy = await driver.findElement(By.css('button[aria-label="复制图片"]'));
     await copy.click();
     const clipboardMessage = await driver.wait(async () => {
@@ -725,7 +706,7 @@ try {
     let pageState = null;
     if (driver) {
         pageState = await driver.executeScript(`return {
-            messages: Array.from(document.querySelectorAll('.ant-message-notice-content')).map((element) => element.textContent),
+            messages: Array.from(document.querySelectorAll('.ant-message-notice')).map((element) => element.textContent),
             observedMessages: window.__screenhelloDesktopMessages || [],
             copyDisabled: document.querySelector('button[aria-label="复制图片"]')?.disabled ?? null,
             imageLayers: document.querySelectorAll('[data-layer-name]').length,
