@@ -47,7 +47,8 @@ describe('desktop Store packaging contracts', () => {
         const plist = masEntitlements(input);
         expect(plist).toContain('com.apple.security.app-sandbox');
         expect(plist).toContain('ABCDE12345.com.example.screenhello');
-        expect(plist).not.toContain('network');
+        expect(plist).toContain('<key>com.apple.security.network.client</key><true/>');
+        expect(plist).not.toContain('com.apple.security.network.server');
         expect(plist).not.toContain('temporary-exception');
         expect(() => masEntitlements({ ...input, team: 'OTHER12345' })).toThrow('team-mismatch');
         expect(() => storeInputs('mas', 'arm64', { ...apple, SCREENHELLO_MAS_APP_IDENTITY: 'Developer ID Application: Example (ABCDE12345)' })).toThrow();

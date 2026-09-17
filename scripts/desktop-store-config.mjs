@@ -52,6 +52,9 @@ export function masEntitlements(input) {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>com.apple.security.app-sandbox</key><true/>
+  <!-- WKWebView's sandboxed process needs this even for bundled content.
+       See tauri-apps/tauri-docs#3171; this does not start a network server. -->
+  <key>com.apple.security.network.client</key><true/>
   <key>com.apple.security.files.user-selected.read-write</key><true/>
   <key>com.apple.application-identifier</key><string>${xml(input.team)}.${xml(input.identifier)}</string>
   <key>com.apple.developer.team-identifier</key><string>${xml(input.team)}</string>
