@@ -157,3 +157,32 @@ MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据
 运行证据新增 `graphicsMode`，明确记录当前测试环境。新的六平台候选仍需远端完整验证；本地对照通过不能替代 runner 的结果。
 
 补充对照：使用未加入新诊断代码的公开候选原检查脚本，在同一单核 Ubuntu 容器仅禁用合成后也完整通过（约 7.2 秒）。修复后的 lint、Web 构建、65 项相关单测、三引擎消息观察器回归、桌面 PoC 与 workflow audit 通过；临时诊断容器已清理。
+
+## 无显示器合成修复候选 `e66d2c0`
+
+本地提交 `d5ddd139899660a7611e07b5e77d094d8e1d9dc6` 导出为公开 `e66d2c0550f3e89ba5a3687538adb862d65b8d07`（822 个白名单文件）。对应[六目标完整 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35203415782)、[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35203410531)、[签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35203406849)。PR #10 的自动 Gate 仍受旧 main 缺少矩阵脚本影响；没有切换为执行 PR 自带脚本来绕过可信来源规则，使用候选上的手动完整 Gate 验证。
+
+签名 ARM64 DMG 已成功：[下载 artifact](https://github.com/web-casa/ScreenHello/actions/runs/35203406849/artifacts/10488259955)。下载后 SHA-256 核对通过：`b024e854e584378089306ab3d8fd9005795da951015c303c02473bfe342cb5fd`。最终 DMG 公证 `c0042576-6ec4-47b1-8a5f-f0747a74c78e` 为 Accepted，签名记录包含 stapled ticket；GUI 人工验收未执行。它是 Developer ID 直装候选，不是 MAS 包。
+
+远端 Linux ARM64 原生运行及正式 DEB 检查通过，`runtime.json` 记录 `graphicsMode: compositing-disabled`、耗时 6,829 ms；下载后的 DEB、主程序、运行截图/JSON、检查报告与两份 SBOM 共 7 个 SHA-256 全部一致。这验证了本轮 Xvfb 修复在 Ubuntu runner 的有效性，不代表生产 GPU/Wayland 场景已人工验收。macOS ARM64 同样完整通过，7 个下载文件哈希一致，运行模式为 `default`。
+
+该候选浏览器 CI 完整通过：81 文件 / 1,283 单测通过、5 条件跳过；360 E2E 通过、81 条件跳过；48 PWA 通过、4 条件跳过；15 release 检查通过；consumer 开发和 preview 各 13 通过、5 可选素材跳过。日志已下载核对；没有把公开导出未包含的可选 Duo 素材测试计为通过。
+
+### 最终六目标结果与下载
+
+六个原生目标及汇总任务全部通过。下载同一 `e66d2c0` 候选的六份产物后，42 个文件哈希全部一致；本地再次运行完整证据审计，`automaticGate: passed`、`failures: []`。原始下载和复核结果保存在本地 `artifacts/desktop-downloads-e66d2c0/`。
+
+以下为 Gate 的未签名测试包；Apple Silicon 用户优先使用上文独立的签名、公证 DMG。Windows 安装包是 NSIS EXE，不是 MSIX；Linux DEB 以 Ubuntu 24.04 runner 为构建/验收基线。
+
+| 目标 | 下载 artifact 内的文件 | SHA-256 |
+| --- | --- | --- |
+| macos-arm64 | [ScreenHello_1.0.4_aarch64.dmg](https://github.com/web-casa/ScreenHello/actions/runs/35203415782/artifacts/10488869905) | `17266f7e50faa9d508be4dc2c5f7df510f59dfa443547fc9f53b1e6b5f57bb0d` |
+| macos-x64 | [ScreenHello_1.0.4_x64.dmg](https://github.com/web-casa/ScreenHello/actions/runs/35203415782/artifacts/10490409424) | `ba48cbf42b399d8e97b0d7afceb17673df5e47803eb4b6aab86206c09b3c258b` |
+| windows-arm64 | [ScreenHello_1.0.4_arm64-setup.exe](https://github.com/web-casa/ScreenHello/actions/runs/35203415782/artifacts/10489733283) | `9cacab1482a3453ccf4e06bf5984538064b7d1f0e471616bb56e8cf2d25192d5` |
+| windows-x64 | [ScreenHello_1.0.4_x64-setup.exe](https://github.com/web-casa/ScreenHello/actions/runs/35203415782/artifacts/10490356110) | `c3e33e164e3679d5a48c1ed296053321c4bede85d4ae5c5345be483f376406e7` |
+| linux-arm64 | [ScreenHello_1.0.4_arm64.deb](https://github.com/web-casa/ScreenHello/actions/runs/35203415782/artifacts/10489198794) | `bb30e8e4279237831e803ca656294df7865e74a575b87fe10ebf44f3849751c5` |
+| linux-x64 | [ScreenHello_1.0.4_amd64.deb](https://github.com/web-casa/ScreenHello/actions/runs/35203415782/artifacts/10489084756) | `f333793a81686aa033681a17a8132e29d022649c122cb1c0a986258cb27361c3` |
+
+自动化结果不替代真人 GUI、系统权限弹窗、多显示器、Wayland、干净安装/升级/卸载及本地数据保留验收，完整审计仍如实返回 `releaseReady: false`。未创建正式 Release、移动版本 tag、合并 main 或上传商店。可选第三方 Duo 位图仍未进入公开导出，公开包不包含这些素材。
+
+MAS universal（ARM64 + x86_64）和 MSIX 双架构打包入口已公开，但缺少真实 Store 身份/MAS 签名材料，且原生商店打包、沙箱/侧载验收与审核未执行。后续按 [Store 打包文档](./desktop-store-packaging.md) 补齐；现有 Developer ID DMG 公证不能作为 MAS 验收。

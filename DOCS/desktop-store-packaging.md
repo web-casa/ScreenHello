@@ -6,7 +6,7 @@
 
 | 渠道 | 架构 / 文件 | 当前实现 | 尚缺的证据 |
 | --- | --- | --- | --- |
-| GitHub 测试直装 | macOS ARM64/x64 DMG、Windows ARM64/x64 NSIS、Linux ARM64/x64 DEB | 六目标原生 Actions Gate；macOS ARM64 另有签名、公证构建 | 本轮六平台运行结果、真实安装/GUI/升级验收 |
+| GitHub 测试直装 | macOS ARM64/x64 DMG、Windows ARM64/x64 NSIS、Linux ARM64/x64 DEB | 候选 `e66d2c0` 六目标原生 Gate 和浏览器 CI 通过；macOS ARM64 另有签名、公证 DMG | 真实安装/GUI/升级验收 |
 | Mac App Store | 优先 universal PKG，同时包含 ARM64 与 x86_64；支持单架构诊断构建 | `mac-app-store` feature、独立沙箱权限、profile/架构/签名检查与 `productbuild` 打包入口 | 真实应用身份、MAS 证书/profile、macOS 原生打包、沙箱功能验收、上传和审核 |
 | Microsoft Store | ARM64 与 x64 两个 MSIX，同一应用身份 | 独立身份/版本校验、随包固定 WebView2、MakeAppx 打包/解包与内容核对入口 | Partner Center 身份/版本、两架构固定 Runtime、原生打包、侧载/升级/WACK、上传和审核 |
 
@@ -86,7 +86,7 @@ MakeAppx `pack` 保留默认校验，不使用 `/nv`；随后 `unpack` 核对 ma
 
 ## 后续实施顺序
 
-1. 收敛当前六目标直装构建问题并取得可下载测试件；记录精确提交和验收限制。
+1. 已取得候选 `e66d2c0` 六目标可下载测试件、42 项文件哈希和完整自动审计通过，见 [本轮开发记录](./desktop-build-rollout-2026-09-17.md#最终六目标结果与下载)；继续人工安装、GUI 和升级验收。
 2. 补齐两个商店应用身份、版本和签名材料；在原生 runner 跑本文件的打包命令，修复真实打包失败。
 3. MAS 沙箱文件/截图后端适配及双架构 GUI 回归；MSIX 双架构清洁侧载、升级和 WACK。
 4. 把已验证的命令接入独立、手动触发的 Store CI，固定 Runtime 来源、工具链、证书清理和产物证据。
