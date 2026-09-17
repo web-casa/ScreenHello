@@ -23,6 +23,9 @@ test('25 real backgrounds load only on selection and undo keeps their pixels ava
         const key = await button.getAttribute('data-background-key');
         await button.click();
         await expect(button).toHaveAttribute('aria-pressed', 'true');
+        // An entering inline drawer must not make scrollIntoView pan the whole
+        // inspector horizontally and move the click away from the chosen image.
+        expect(await page.locator('.shoteasy-right-inspector').evaluate(node => node.scrollLeft)).toBe(0);
         await expect.poll(() => page.evaluate(() => window.__shoteasyStores.option.background)).toBe(key);
         expect(await button.locator('img').evaluate(img => img.complete && img.naturalWidth === 240 && img.naturalHeight === 160)).toBe(true);
         expect(await page.evaluate(async () => {

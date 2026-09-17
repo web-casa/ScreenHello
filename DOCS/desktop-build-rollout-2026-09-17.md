@@ -86,7 +86,7 @@ MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据
 
 最终再次运行全量单测，94 文件 / 1,393 项通过；PWA audit、i18n audit 与文档内容一致性检查通过。新公开候选须以它自己的 Actions 结果为准。
 
-## 最终候选 `fb13ab8`
+## 候选 `fb13ab8`
 
 本地提交 `17a3992587710b251979d2edbf9d928f585e33b4` 导出为公开提交 `fb13ab8746182ba379cf41b46b1c321685408e1c`，已推送测试分支。对应 [六目标 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35188890782)、[签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35188882462) 和[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35188885672) 已启动，当前仍在运行；不能预先记作通过。
 
@@ -101,3 +101,21 @@ MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据
 诊断入口的 lint 与 41 项相关单测通过，原生 test driver 重新构建通过。常规首次与重复运行共 11 次、限制单核的慢环境运行 10 次全部通过；仍不足以认定原 Ubuntu runner 超时的根因。
 
 在临时脚本副本中将菜单定位器替换成不存在的测试选择器，负向运行按预期退出 1，记录 `desktop-file-menu-layout`、具体选择器及 230,969 字节 PNG；未生成成功 evidence。副本随后删除，真实入口断言未改变。
+
+## 诊断候选 `6642b3e`
+
+本地提交 `c2c5ab253cfb070750b5f08c15689b3e9724664d` 导出为 `6642b3e113f587e3ff0adb91ccff43504196bed9`。[六目标 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35191033676)、[签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35191021197) 和[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35191023723) 已启动。它只增加上述诊断和文档，应用源码、依赖和原生后端与 `fb13ab8` 相同；不能据此将未结束的新运行写成成功。
+
+该候选再次在 Ubuntu ARM64 复现失败，新增证据将范围缩小到 `desktop-export-drawer-layout`：`.shoteasy-export-overlay` 外壳可见且尺寸为 1280×800，但 `.ant-drawer-content-wrapper` 等待 10 秒仍不可见，失败截图确实没有导出面板。此前的 21 次 Debian 本地通过未覆盖这个环境差异。
+
+检查发现导出抽屉仍残留独立 CSS，把内容与遮罩动画/过渡强制压为 `0.01ms`；它没有通过组件状态机关闭 motion。本轮删除该覆盖，改为 `ExportPanel` 的 `motion` / `maskMotion` 复用 `NO_CSS_MOTION`。修复后的 Ubuntu ARM64 结果需要另一个候选验证，不能提前断言已解决。
+
+`fb13ab8` 的浏览器 CI 另有 356 项通过、1 项 WebKit 背景选择失败、81 项条件跳过。下载的 retry trace 显示：首次背景点击时内嵌抽屉仍带 `ant-drawer-panel-motion-right-appear-active`，右侧检查器 `scrollLeft=218`，未请求任何背景原图，因此失败发生在点击而非图片加载阶段。背景抽屉及同样使用 `getContainer={false}` 的外框抽屉改用组件 motion 配置；背景回归新增检查器横向滚动为零的断言。
+
+本地首次三引擎背景回归有 Firefox `Target crashed`；系统内核同时记录全局 OOM 杀死浏览器内容进程。清理本轮闲置临时工作树、使用磁盘临时目录并串行复测后，Firefox 五项背景测试分别通过（四项在一轮、一项单独补跑）。原崩溃保留为环境失败记录，不计作通过。
+
+抽屉修复后的验证：36 项三引擎菜单/导出/移动布局、12 项外框入口/抽屉回归通过；WebKit 的完整 25 背景选择流程重复 10 次全部通过，横向滚动断言正常。lint、typecheck、Web / desktop Web / library 构建通过，consumer 的开发/preview 各 18 项通过，94 文件 / 1,393 项单测通过；PWA 54 项预缓存、3,287,520 字节预算及文档一致性检查通过。
+
+修复后的本地原生程序重新编译通过，Linux ARM64 运行入口通过（约 11.9 秒），包含导出抽屉布局、背景主题、剪贴板、截图流程与单实例检查。该记录仍是 Debian 本地结果，不能替代 Ubuntu runner 的新验证。
+
+已明确失败且应用源码即将被替换，因此取消 `6642b3e` 剩余 Gate / 浏览器 CI 任务，保留 Linux ARM64 失败日志、JSON 和截图。取消不是通过；修复需用新候选完整运行验证。

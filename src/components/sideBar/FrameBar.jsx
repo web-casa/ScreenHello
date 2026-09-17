@@ -2,6 +2,7 @@ import useI18n from '../../i18n/useI18n';
 import { useId, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import { Button, Drawer, Input, Segmented, Slider } from 'antd';
 import useStores from '@stores/useStores';
 import { cn } from '@utils/utils';
@@ -229,6 +230,7 @@ export default observer(function FrameBar() {
                 focusable={{ trap: true, focusTriggerAfterClose: false }}
                 open={showMore}
                 getContainer={false}
+                motion={NO_CSS_MOTION}
                 size="100%"
                 rootClassName="shoteasy-frame-drawer-shell"
                 className="[&_.ant-drawer-body]:p-0"

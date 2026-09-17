@@ -3,6 +3,7 @@ import { Button, Drawer, Segmented, Slider } from 'antd';
 import { useId } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import ColorPicker from '@components/ColorPicker';
 import useStores from '@stores/useStores';
 import colorSvg from '@assets/color.svg?no-inline';
@@ -45,6 +46,7 @@ export default observer(function DrawerBar({ showMore, onChange }) {
             open={showMore}
             getContainer={false}
             push={false}
+            motion={NO_CSS_MOTION}
             size="100%"
             className="[&_.ant-drawer-body]:p-0"
         >

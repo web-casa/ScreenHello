@@ -2883,17 +2883,6 @@
         background: var(--se-accent-soft, rgba(37, 99, 235, 0.12));
     }
 
-    /* Repeated full-screen drawer compositing overlaps the large-image codec
-       working set in WebKit. Keep only this overlay's motion effectively instant;
-       controls, other drawers, and the existing focus/teardown flow are unchanged. */
-    .shoteasy-export-overlay .ant-drawer-content-wrapper,
-    .shoteasy-export-overlay .ant-drawer-mask {
-        animation-duration: 0.01ms !important;
-        animation-delay: 0s !important;
-        transition-duration: 0.01ms !important;
-        transition-delay: 0s !important;
-    }
-
     .shoteasy-export-actions {
         display: flex;
         justify-content: flex-end;

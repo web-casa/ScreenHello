@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Button, Drawer, Segmented } from 'antd';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import useStores from '@stores/useStores';
 import { EXPORT_FORMATS, EXPORT_RATIOS } from '@utils/stylePreset';
 import { LOSSY_QUALITY_PRESETS, MAX_PREVIEW_PIXELS, PNG_PALETTE_COLORS, exportSettingsKey, validateExportSettings, AVIF_STANDARD_ONLY_MESSAGE, normalizeEditorExportSettings as normalizeExportSettings } from '@utils/exportSettings';
@@ -118,6 +119,8 @@ export default observer(function ExportPanel() {
             placement="right"
             size={460}
             open
+            motion={NO_CSS_MOTION}
+            maskMotion={NO_CSS_MOTION}
             onClose={close}
             keyboard={!handingOff}
             focusable={{ trap: true, focusTriggerAfterClose: false }}
