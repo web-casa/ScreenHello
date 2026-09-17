@@ -2,7 +2,11 @@ use serde::Serialize;
 use tauri::Manager;
 
 mod desktop_capture;
+mod capture_geometry;
+#[cfg(all(target_os = "macos", feature = "screen-capture-kit"))]
+mod macos_capture;
 mod desktop_exit;
+mod desktop_help;
 mod desktop_state;
 mod desktop_system;
 mod native_files;
@@ -82,6 +86,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             desktop_environment,
+            desktop_help::desktop_open_help,
             desktop_state::desktop_state_status,
             native_locale::desktop_set_locale,
             native_files::desktop_pick_files,

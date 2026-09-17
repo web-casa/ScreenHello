@@ -41,6 +41,7 @@ enum CaptureBackend {
     X11,
     WaylandPortal,
     MacosCoreGraphics,
+    MacosScreenCaptureKit,
     WindowsGdi,
 }
 
@@ -200,7 +201,11 @@ fn linux_capture_capability(
 #[cfg(target_os = "macos")]
 fn current_capture_capability() -> CaptureCapability {
     CaptureCapability::with_status(
-        CaptureBackend::MacosCoreGraphics,
+        if cfg!(feature = "screen-capture-kit") {
+            CaptureBackend::MacosScreenCaptureKit
+        } else {
+            CaptureBackend::MacosCoreGraphics
+        },
         if macos_screen_capture_access_granted() {
             CaptureCapabilityStatus::Ready
         } else {
@@ -531,6 +536,16 @@ fn encode_png(image: xcap::image::RgbaImage) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+#[cfg(all(target_os = "macos", feature = "screen-capture-kit"))]
+fn capture_target(target: CaptureTarget, region: Option<CaptureRegion>) -> Result<Vec<u8>, String> {
+    encode_png(crate::macos_capture::capture(
+        target.native_id,
+        target.kind == CaptureSourceKind::Window,
+        region.map(|r| (r.x, r.y, r.width, r.height)),
+    )?)
+}
+
+#[cfg(not(all(target_os = "macos", feature = "screen-capture-kit")))]
 fn capture_target(target: CaptureTarget, region: Option<CaptureRegion>) -> Result<Vec<u8>, String> {
     match target.kind {
         CaptureSourceKind::Monitor => {
@@ -605,6 +620,15 @@ fn capture_primary() -> Result<Vec<u8>, String> {
     if !valid_dimensions(width, height) {
         return Err(error_code("desktop-capture-too-large"));
     }
+    #[cfg(all(target_os = "macos", feature = "screen-capture-kit"))]
+    return encode_png(crate::macos_capture::capture(
+        monitor
+            .id()
+            .map_err(|_| error_code("desktop-capture-source-unavailable"))?,
+        false,
+        None,
+    )?);
+    #[cfg(not(all(target_os = "macos", feature = "screen-capture-kit")))]
     encode_png(
         monitor
             .capture_image()

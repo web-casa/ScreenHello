@@ -572,6 +572,54 @@ pub(crate) async fn desktop_choose_save_file<R: Runtime>(
     })
 }
 
+// MAS atomic replacement needs directory access, not only access to the file
+// selected by NSSavePanel. Request it explicitly for each write; do not persist
+// paths as if they were security-scoped bookmarks across launches.
+#[cfg(any(feature = "mac-app-store", test))]
+fn validate_save_directory(path: &Path, selected: Option<&Path>) -> Result<(), String> {
+    let selected = selected.ok_or_else(|| error_code("native-file-save-cancelled"))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| error_code("native-file-parent-invalid"))?;
+    let parent = fs::canonicalize(parent).map_err(|_| error_code("native-file-parent-invalid"))?;
+    let directory =
+        fs::canonicalize(selected).map_err(|_| error_code("native-file-directory-invalid"))?;
+    if !directory.is_dir() || directory != parent {
+        return Err(error_code("native-file-directory-invalid"));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "mac-app-store")]
+async fn authorize_save_directory<R: Runtime>(
+    window: &WebviewWindow<R>,
+    path: &Path,
+) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| error_code("native-file-parent-invalid"))?;
+    let dialog = window
+        .dialog()
+        .file()
+        .set_parent(window)
+        .set_directory(parent)
+        .set_title(crate::native_locale::text(
+            window.app_handle(),
+            "请选择目标文件所在文件夹，以授权安全保存",
+        ));
+    let selected = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder())
+        .await
+        .map_err(|_| error_code("native-file-picker-failed"))?;
+    let directory = selected
+        .map(|value| {
+            value
+                .into_path()
+                .map_err(|_| error_code("native-file-directory-invalid"))
+        })
+        .transpose()?;
+    validate_save_directory(path, directory.as_deref())
+}
+
 #[tauri::command]
 pub(crate) async fn desktop_write_file<R: Runtime>(
     window: WebviewWindow<R>,
@@ -596,6 +644,15 @@ pub(crate) async fn desktop_write_file<R: Runtime>(
     if bytes.len() as u64 > target.kind.byte_limit() {
         return Err(error_code("native-file-too-large"));
     }
+    #[cfg(feature = "mac-app-store")]
+    {
+        authorize_save_directory(&window, &target.path).await?;
+        // The UI may have released or replaced its handle while the panel was open.
+        let current = state.get_owned(&token, &owner)?;
+        if !Arc::ptr_eq(&current.write_policy, &target.write_policy) {
+            return Err(error_code("native-file-handle-invalid"));
+        }
+    }
     let data = bytes.clone();
     tauri::async_runtime::spawn_blocking(move || write_target(&target, &data))
         .await
@@ -618,6 +675,40 @@ pub(crate) fn desktop_release_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sandbox_save_requires_the_exact_destination_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("new.screenhello");
+        assert_eq!(
+            validate_save_directory(&destination, None),
+            Err("native-file-save-cancelled".into())
+        );
+        assert_eq!(
+            validate_save_directory(&destination, Some(other.path())),
+            Err("native-file-directory-invalid".into())
+        );
+        assert!(!destination.exists());
+        validate_save_directory(&destination, Some(directory.path())).unwrap();
+        assert!(!destination.exists()); // Validation itself must not create or truncate.
+        fs::write(&destination, b"original").unwrap();
+        assert!(validate_save_directory(&destination, Some(&destination)).is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"original");
+    }
+
+    #[test]
+    fn failed_atomic_commit_cleans_temporary_files_and_preserves_existing_bytes() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("existing.png");
+        fs::write(&path, b"original").unwrap();
+        assert_eq!(
+            write_atomic(&path, b"replacement", WritePolicy::CreateNew),
+            Err("native-file-exists".into())
+        );
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
 
     const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef";
 

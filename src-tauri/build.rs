@@ -1,4 +1,17 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos")
+        && std::env::var_os("CARGO_FEATURE_SCREEN_CAPTURE_KIT").is_some()
+    {
+        let major = std::env::var("MACOSX_DEPLOYMENT_TARGET")
+            .ok()
+            .and_then(|value| value.split('.').next()?.parse::<u32>().ok());
+        assert!(
+            major.is_some_and(|value| value >= 14),
+            "ScreenCaptureKit requires MACOSX_DEPLOYMENT_TARGET >= 14"
+        );
+    }
+
     assert!(
         !(std::env::var_os("CARGO_FEATURE_MAC_APP_STORE").is_some()
             && std::env::var_os("CARGO_FEATURE_DESKTOP_TEST_DRIVER").is_some()),
@@ -15,6 +28,7 @@ fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
             "desktop_environment",
+            "desktop_open_help",
             "desktop_state_status",
             "desktop_set_locale",
             "desktop_pick_files",

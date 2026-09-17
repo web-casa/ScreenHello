@@ -33,6 +33,7 @@ pub(crate) fn text<R: Runtime>(app: &AppHandle<R>, source: &'static str) -> &'st
 
 fn english(source: &str) -> &str {
     match source {
+        "请选择目标文件所在文件夹，以授权安全保存" => "Select the destination file’s folder to allow safe saving",
         "编辑器尚未就绪，退出可能丢失未保存内容。仍要退出吗？" => "The editor is not ready. Quitting may lose unsaved changes. Quit anyway?",
         "显示 ScreenHello" => "Show ScreenHello", "截取主屏幕" => "Capture primary display", "退出" => "Quit",
         "打开 ScreenHello 项目" => "Open ScreenHello project", "选择本地图片" => "Choose local images",

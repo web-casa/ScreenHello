@@ -1,0 +1,31 @@
+name: ScreenCaptureKit adapter native tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [build/screencapturekit-adapter-20260917]
+permissions:
+  contents: read
+concurrency:
+  group: sck-adapter-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  native:
+    if: github.repository_id == '1353846676'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Native Rust compile and tests without requesting screenshot permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.96.0 --profile minimal
+          cargo +1.96.0 test --manifest-path src-tauri/Cargo.toml --locked --lib --features mac-app-store
