@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawn } from 'node:child_process';
 import { Builder, By, Capabilities, until } from 'selenium-webdriver';
-import { installDesktopMessageObserver } from './desktop-message-observer.mjs';
+import { installDesktopMessageObserver, readDesktopRenderState } from './desktop-message-observer.mjs';
 import { desktopCodecArtifacts } from './audit-desktop-codecs.mjs';
 import { createDesktopSession, stopDesktopAutomation } from './desktop-process-tree.mjs';
 
@@ -239,6 +239,7 @@ let driver;
 let secondInstance;
 let driverOutput = '';
 let stage = 'driver-start';
+const clipboardRenderSamples = [];
 const appendOutput = (chunk) => {
     driverOutput = `${driverOutput}${chunk}`.slice(-16_384);
 };
@@ -603,11 +604,16 @@ try {
     const copy = await driver.findElement(By.css('button[aria-label="复制图片"]'));
     await copy.click();
     const clipboardMessage = await driver.wait(async () => {
-        const messages = await driver.executeScript('return window.__screenhelloDesktopMessages || []');
-        return messages.find((message) => message.includes('复制成功') || message.includes('复制失败')) || false;
+        const { messages, render } = await driver.executeScript(`return {
+            messages: window.__screenhelloDesktopMessageResults || [],
+            render: (${readDesktopRenderState.toString()})(),
+        }`);
+        if (clipboardRenderSamples.length < 160) clipboardRenderSamples.push(render);
+        return messages.find(message => message.type === 'error' || message.text.includes('复制成功')) || false;
     }, 30_000);
     await driver.executeScript('window.__screenhelloDesktopMessageObserver?.disconnect()');
-    if (!clipboardMessage.includes('复制成功')) throw new Error('desktop-clipboard-image-write-failed');
+    console.log('Clipboard scene readiness:', JSON.stringify(clipboardRenderSamples.at(-1)));
+    if (clipboardMessage.type !== 'success' || !clipboardMessage.text.includes('复制成功')) throw new Error(`desktop-clipboard-image-write-failed:${clipboardMessage.text}`);
 
     // Optional native close probe; no production IPC close permission is added.
     // The helper must send the platform's ordinary window-close request.
@@ -630,6 +636,7 @@ try {
     }
 
     const result = {
+        graphicsMode: process.platform === 'linux' && process.env.WEBKIT_DISABLE_COMPOSITING_MODE === '1' ? 'compositing-disabled' : 'default',
         title: await driver.getTitle(),
         status: await status.getAttribute('data-status'),
         platform: await status.getAttribute('data-platform'),
@@ -704,6 +711,7 @@ try {
     console.log(JSON.stringify(result, null, 2));
 } catch (error) {
     let pageState = null;
+    const renderState = driver ? await driver.executeScript(`return (${readDesktopRenderState.toString()})()`).catch(() => null) : null;
     if (driver) {
         pageState = await driver.executeScript(`return {
             messages: Array.from(document.querySelectorAll('.ant-message-notice')).map((element) => element.textContent),
@@ -723,6 +731,7 @@ try {
             })),
         }`).catch(() => null);
     }
+    if (pageState) Object.assign(pageState, { renderState, clipboardRenderSamples });
     process.stderr.write(`${JSON.stringify({ stage, pageState })}\n`);
     // Failed runs must retain useful diagnostics without writing a successful
     // runtime.json or substituting a failure image for the acceptance screenshot.

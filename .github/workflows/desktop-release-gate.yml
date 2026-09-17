@@ -245,6 +245,9 @@ jobs:
         if: runner.os == 'Linux'
         env:
           SCREENHELLO_DESKTOP_DRIVER_PROVIDER: embedded
+          # Xvfb has no GPU compositor. The default WebKitGTK path can leave
+          # render callbacks waiting despite a visible, focused WebView.
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
         run: xvfb-run -a -s '-screen 0 1280x1024x24' dbus-run-session -- node scripts/test-desktop-runtime.mjs
 
       - name: Exercise embedded desktop runtime on macOS or Windows

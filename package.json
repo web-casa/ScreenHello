@@ -45,7 +45,7 @@
     "desktop:check": "cargo check --manifest-path src-tauri/Cargo.toml --locked",
     "desktop:store:package": "node scripts/package-desktop-store.mjs",
     "desktop:test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --locked",
-    "desktop:test:runtime": "xvfb-run -a dbus-run-session -- node scripts/test-desktop-runtime.mjs",
+    "desktop:test:runtime": "cross-env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a dbus-run-session -- node scripts/test-desktop-runtime.mjs",
     "desktop:test:runtime:embedded": "cross-env SCREENHELLO_DESKTOP_DRIVER_PROVIDER=embedded node scripts/test-desktop-runtime.mjs",
     "desktop:build:test-driver": "node scripts/build-desktop-test-driver.mjs",
     "desktop:build": "tauri build --no-bundle --ci",

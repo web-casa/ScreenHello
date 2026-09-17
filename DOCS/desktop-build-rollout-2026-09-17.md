@@ -134,3 +134,26 @@ MAS 配置随后补充 WebKit 沙箱初始化所需的 `network.client`，依据
 该候选浏览器 CI 为 354 通过、81 条件跳过、3 失败：同一动画测试在三个引擎仍断言 CSS duration 小于 0.001 秒。组件 motion 关闭后，未触发的样式声明仍可为 0.3 秒，这个断言已不对应行为。改为从页面初始化开始捕获真正的 animationstart / transitionrun，检查内容与遮罩可见且没有活动动画，保留三轮关闭/重开/焦点、不影响其他弹层与不触发编码的断言。更新后连同观察器共 6 项三引擎回归通过，没有恢复曾导致原生抽屉隐藏的微时长 CSS。
 
 本轮检查入口修正后的 lint、Web 构建、26 项原生 driver / 公开导出契约单测通过。新增 helper 已纳入公开导出白名单和 Gate 路径触发范围。
+
+## 检查入口修正候选 `5b24a18`
+
+本地提交 `5f46fcd782aa5d9238409f20c21086605db5ba8c` 导出为公开 `5b24a18ca1ada5dafbae0fc11b3aa233d2047ed8`，共 822 个白名单文件。已启动[完整六目标 Gate](https://github.com/web-casa/ScreenHello/actions/runs/35198181434)、[签名 ARM64 DMG](https://github.com/web-casa/ScreenHello/actions/runs/35198162194) 和[浏览器 CI](https://github.com/web-casa/ScreenHello/actions/runs/35198164856)，PR #10 已同步当前实现和待验证边界。
+
+该候选签名 ARM64 DMG 成功：[下载 artifact](https://github.com/web-casa/ScreenHello/actions/runs/35198162194/artifacts/10487003766)。下载后 `sha256sum -c` 通过，最终 SHA-256 `09a3eaf3a4dc76b62a3f5ee09bc3c0658eea916f2ea9b9ea79f76b5d93359cda`。Apple 公证 `824cabab-ce72-4a55-bae6-384b96af4b67` 为 Accepted，签名记录包含 stapled ticket；GUI 人工验收仍未执行。
+
+
+`5b24a18` 最终完整 Gate 为五目标通过，Linux ARM64 仍在复制之前的画面就绪阶段失败。观察器修复后捕获到具体提示“等待画面或压缩处理超时”，此前误以为可能只是漏捕获“复制成功”的判断没有得到支持。本轮补充 Ant Design 的成功/错误类型识别，任何具体错误都立即以失败退出，不再只匹配“复制失败”四个字。
+
+该候选浏览器 CI 成功：公开导出范围内 81 文件 / 1,283 单测通过、5 条件跳过；360 项 E2E 通过、81 条件跳过；48 项 PWA 通过、4 条件跳过；15 项 release 检查通过；公开 consumer 开发/preview 各 13 通过、5 项可选素材跳过。与私有工作区的 1,393 单测 / consumer 各 18 项范围不同，不能混记。五个原生目标的安装包及配套文件下载后，35 个 SHA-256 全部核对通过；本地证据汇总也仅因 Linux ARM64 缺失而拒绝完整通过。
+
+### Ubuntu 无显示器渲染对照
+
+建立隔离 Ubuntu 24.04 ARM64 / WebKitGTK 2.52.6 容器（与 runner 的 WebKit 版本一致），分别运行普通 MiniBrowser、本地原生测试件、精确公开 `5b24a18` 重新编译的原生程序及该候选原检查脚本。均有成功记录，但随后的原生复测捕获同样的 `export-render-timeout`。只读诊断不读取项目、图片或 URL，只记录 pending task 数量、paint revision、渲染队列、页面可见性和焦点。
+
+失败时页面可见且聚焦、没有待处理图片任务；Leafer 渲染回调长时间未调度，最终没有在原有 10 秒期限内通过就绪检查。限制容器为 1 核后，默认合成路径再次失败。保持相同程序、CPU、检查脚本和超时不变，仅设置 `WEBKIT_DISABLE_COMPOSITING_MODE=1` 后连续三次通过，整轮约 6 秒。
+
+这是 Xvfb 无 GPU 合成环境的对照证据，不是把所有 Linux GPU 问题归为同一原因。核对了 [Tauri 上游相近报告 #15936](https://github.com/tauri-apps/tauri/issues/15936)，并发现 `~/tools/imgconvert/scripts/smoke-linux-package-install.mjs` 已使用相同的 Xvfb 软件渲染设置。修复限于 Linux Gate 的 Xvfb 步骤及 `pnpm desktop:test:runtime` 命令；生产程序保持原有渲染选择，所有布局、原生复制、编码器和超时断言仍保留。真正桌面 GPU、Wayland 与真人 GUI 验收仍需分别执行。
+
+运行证据新增 `graphicsMode`，明确记录当前测试环境。新的六平台候选仍需远端完整验证；本地对照通过不能替代 runner 的结果。
+
+补充对照：使用未加入新诊断代码的公开候选原检查脚本，在同一单核 Ubuntu 容器仅禁用合成后也完整通过（约 7.2 秒）。修复后的 lint、Web 构建、65 项相关单测、三引擎消息观察器回归、桌面 PoC 与 workflow audit 通过；临时诊断容器已清理。

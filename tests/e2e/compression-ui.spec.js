@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installDesktopMessageObserver } from '../../scripts/desktop-message-observer.mjs';
+import { installDesktopMessageObserver, readDesktopRenderState } from '../../scripts/desktop-message-observer.mjs';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { createPngFixture } from '../fixtures/createPngFixture.js';
@@ -379,11 +379,15 @@ test('C2 seven locales, light/dark, narrow viewport and keyboard controls remain
 
 test('desktop clipboard observer retains same-key Ant Design message updates', async ({ page }) => {
     await openEditor(page, 64);
+    expect(await page.evaluate(readDesktopRenderState)).toMatchObject({ pendingTasks: 0, running: true });
     await page.evaluate(installDesktopMessageObserver);
     await page.evaluate(() => window.__shoteasyStores.editor.message.open({ key: 'clipboard-observer', type: 'loading', content: '正在复制…', duration: 0 }));
     await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessages)).toContain('正在复制…');
     await page.evaluate(() => window.__shoteasyStores.editor.message.open({ key: 'clipboard-observer', type: 'success', content: '复制成功', duration: 0 }));
     await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessages)).toContain('复制成功');
+    await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessageResults)).toContainEqual({ type: 'success', text: '复制成功' });
+    await page.evaluate(() => window.__shoteasyStores.editor.message.open({ key: 'clipboard-observer', type: 'error', content: '等待画面或压缩处理超时，请降低尺寸后重试。', duration: 0 }));
+    await expect.poll(() => page.evaluate(() => window.__screenhelloDesktopMessageResults)).toContainEqual({ type: 'error', text: '等待画面或压缩处理超时，请降低尺寸后重试。' });
     // React can update a text node without adding/removing any child nodes.
     await page.evaluate(() => {
         const notice = document.createElement('div');

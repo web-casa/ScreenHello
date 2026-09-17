@@ -36,7 +36,7 @@ expectEqual(desktopLockVersion, packageJson.version, 'desktop-cargo-lock-version
 expectEqual(packageJson.scripts?.['desktop:web:dev'], 'cross-env SCREENHELLO_TARGET=desktop vite', 'desktop-dev-script-invalid');
 expectEqual(packageJson.scripts?.['desktop:web:build'], 'pnpm check:antd-css && cross-env SCREENHELLO_TARGET=desktop vite build', 'desktop-build-script-invalid');
 expectEqual(packageJson.scripts?.['desktop:build'], 'tauri build --no-bundle --ci', 'desktop-native-build-script-invalid');
-expectEqual(packageJson.scripts?.['desktop:test:runtime'], 'xvfb-run -a dbus-run-session -- node scripts/test-desktop-runtime.mjs', 'desktop-runtime-test-script-invalid');
+expectEqual(packageJson.scripts?.['desktop:test:runtime'], 'cross-env WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run -a dbus-run-session -- node scripts/test-desktop-runtime.mjs', 'desktop-runtime-test-script-invalid');
 expectEqual(config.build?.frontendDist, '../dist-desktop', 'desktop-frontend-dist-invalid');
 expectEqual(config.build?.devUrl, 'http://localhost:1420', 'desktop-dev-url-invalid');
 expectEqual(config.build?.removeUnusedCommands, true, 'desktop-unused-commands-not-removed');
