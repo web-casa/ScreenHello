@@ -41,6 +41,7 @@ describe('MAS universal candidate workflow', () => {
     });
 
     it('builds one locked universal package and records incomplete external acceptance honestly', () => {
+        expect(workflow).toContain("MACOSX_DEPLOYMENT_TARGET: '14.0'");
         expect(workflow).toContain('rustup target add aarch64-apple-darwin x86_64-apple-darwin');
         expect(workflow).toContain('pnpm desktop:store:package --channel mas --arch universal');
         expect(packager).toContain("'--config', config, '--', '--locked'");
