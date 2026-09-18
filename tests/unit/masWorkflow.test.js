@@ -54,4 +54,16 @@ describe('MAS universal candidate workflow', () => {
         expect(workflow).toContain('store-upload=not-run');
         expect(workflow).toContain('actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a');
     });
+
+    it('embeds a world-readable provisioning profile so App Store validation accepts the PKG', () => {
+        // The workflow decodes secrets under umask 077, so the embedded copy has
+        // to be staged readably or ASC rejects the payload as root-only files.
+        expect(packager).toContain("const stagedProfile = path.join(output, 'embedded.provisionprofile')");
+        expect(packager).toContain('await copyFile(profile, stagedProfile)');
+        expect(packager).toContain('await chmod(stagedProfile, 0o644)');
+        expect(packager).toContain("files: { 'embedded.provisionprofile': stagedProfile }");
+        expect(packager).not.toContain("files: { 'embedded.provisionprofile': profile }");
+        expect(packager).toContain('store-embedded-profile-not-world-readable');
+        expect(packager).toContain("((await stat(embeddedProfile)).mode & 0o777) !== 0o644");
+    });
 });

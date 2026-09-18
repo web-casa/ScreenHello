@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -43,13 +43,20 @@ assert not p.get('ProvisionedDevices') and not p.get('ProvisionsAllDevices'), 'n
     } finally {
         await rm(decodedProfile, { force: true });
     }
+    // Tauri embeds the referenced file verbatim, mode included. A profile that
+    // was decoded under a restrictive umask is root-only readable, and App Store
+    // validation then rejects the PKG with "files that are only readable by the
+    // root user". Keep the credential copy private and stage a readable one.
+    const stagedProfile = path.join(output, 'embedded.provisionprofile');
+    await copyFile(profile, stagedProfile);
+    await chmod(stagedProfile, 0o644);
     const config = path.join(output, 'tauri.store.json');
     await writeFile(config, json({
         identifier: input.identifier,
         build: { features: ['mac-app-store'] },
         bundle: { active: true, targets: ['app'], category: 'Photography', macOS: {
             minimumSystemVersion: '14.0', signingIdentity: input.appIdentity, entitlements, hardenedRuntime: true,
-            bundleVersion: input.buildNumber, files: { 'embedded.provisionprofile': profile },
+            bundleVersion: input.buildNumber, files: { 'embedded.provisionprofile': stagedProfile },
         } },
     }), { flag: 'wx' });
     const env = { ...process.env, MACOSX_DEPLOYMENT_TARGET: '14.0' };
@@ -72,7 +79,10 @@ info = plistlib.load(open(sys.argv[3], 'rb'))
 assert info.get('LSMinimumSystemVersion') == '14.0', 'MAS minimum system version mismatch'
 assert info['CFBundleIdentifier'] == sys.argv[4] and info['CFBundleVersion'] == sys.argv[5], 'bundle identity/version mismatch'
 `, entitlements, actual, path.join(app, 'Contents', 'Info.plist'), input.identifier, input.buildNumber]);
-    if (await digest(path.join(app, 'Contents', 'embedded.provisionprofile')) !== await digest(profile)) throw new Error('store-embedded-profile-mismatch');
+    const embeddedProfile = path.join(app, 'Contents', 'embedded.provisionprofile');
+    if (await digest(embeddedProfile) !== await digest(stagedProfile)) throw new Error('store-embedded-profile-mismatch');
+    // App Store validation rejects a PKG whose payload holds root-only files.
+    if (((await stat(embeddedProfile)).mode & 0o777) !== 0o644) throw new Error('store-embedded-profile-not-world-readable');
     const file = path.join(output, `ScreenHello-mas-${input.arch}.pkg`);
     run('productbuild', ['--component', app, '/Applications', '--sign', input.installerIdentity, file]);
     run('pkgutil', ['--check-signature', file]);

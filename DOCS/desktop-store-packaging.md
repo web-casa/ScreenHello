@@ -48,6 +48,8 @@ GitHub Actions 手动运行 `macOS MAS Universal Candidate` 时，确认项选�
 
 打包入口检查 profile 过期/Team/app identity/开发权限/设备绑定，验证 app 的架构、代码签名、实际 entitlements、Bundle ID/build number 与嵌入 profile，再用 Installer identity 生成 PKG 并检查签名。它清除直装公证环境变量；MAS 不走 Developer ID notarization。
 
+Tauri 会按源文件权限把 provisioning profile 原样嵌入 app，`productbuild` 也保留该权限放进 PKG。导入步骤在 `umask 077` 下解码 profile（这是保护私钥文件所必需的），因此打包入口改为把 profile 复制成权限 `0644` 的暂存副本再嵌入，并断言包内 `embedded.provisionprofile` 为 `0644`。否则 App Store Connect 校验会以 HTTP 409 `STATE_ERROR.VALIDATION_ERROR` 拒绝整包，理由是“installer package includes files that are only readable by the root user”。
+
 必须继续处理并在真实沙箱中验证：
 
 1. 文件选择后的授权、取消、输出目录、原子写入使用同目录临时文件，以及自动追加扩展名。当前 PathBuf/token 不能证明具备安全范围权限；需要按测试结果引入 security-scoped URL / NSFileCoordinator，或明确要求重新选择输出目录。
