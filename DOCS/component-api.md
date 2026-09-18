@@ -98,7 +98,7 @@ Surface Studio / Surface Pro 与五款历史 MacBook/iMac/iPad/iPhone 是构建�
 ## 发布信息
 
 - 包名：`rico-screenshot`（产物文件沿用 `image-beautifier.es.js` 历史命名）
-- 当前版本：`1.0.4`
+- 当前版本：`1.0.5`
 - 模块格式：ES module
 - 许可证：MIT
 - `package.json#files`：`lib`、`LICENSE`、`README.md`

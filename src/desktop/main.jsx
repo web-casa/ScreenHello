@@ -1,3 +1,10 @@
+// 桌面外壳与独立站共用同一批 Radix 控件，必须同样引入主题变量、组件样式与桥接层：
+// 缺了它们，顶栏的复制/导出按钮和检查器里的 Radix 控件会退化成没有按钮外观的裸图标
+// 与文字，`display: contents`、深色 token 对齐和 44px 触控目标也会一并丢失。
+// 顺序与 src/main.jsx 一致：tokens → components → 桥接覆盖。
+import '@radix-ui/themes/tokens.css';
+import '@radix-ui/themes/components.css';
+import '../style/radix-bridge.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { AppContent } from '../App.jsx';

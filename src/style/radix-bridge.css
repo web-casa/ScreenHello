@@ -18,6 +18,27 @@
     .shoteasy-top-actions-radix .rt-Button { min-width: 44px; min-height: 44px; }
 }
 
+/* 顶栏动作按钮的尺寸规则写在 main.css，但都带 `.ant-btn` 限定，只作用于 Ant 变体；
+   工作区模式改用 Radix Button，于是复制/导出只有 Radix size=2 的 32px 高、12px 内边距，
+   比同一行的其它控件矮 2px、内边距窄 4px，看上去挤在一起。这里把它们对齐到同一套几何。
+   注意 `.radix-themes` 与 `.shoteasy-top-actions-radix` 是同一个 span（Theme asChild），
+   写成后代选择器不会命中。 */
+.shoteasy-top-actions-radix .rt-Button.shoteasy-top-action {
+    width: 34px;
+    height: 34px;
+    padding-inline: 0;
+}
+
+.shoteasy-top-actions-radix .rt-Button.shoteasy-export-primary {
+    height: 34px;
+    padding-inline: 16px;
+}
+
+/* 复制按钮的软灰底在深色顶栏上几乎看不出是一颗按钮，补一条可辨识的边。 */
+.shoteasy-top-actions-radix .rt-Button.shoteasy-copy-action {
+    box-shadow: inset 0 0 0 1px var(--se-border-strong);
+}
+
 /* ---------- 深色下 Radix 默认 token 与本应用规范不一致，按应用 token 对齐 ----------
    Radix 的轨道用 --gray-a5，在深色面板上几乎不可见；滑块颜色看不清就是这么来的。
    这里不改 Radix 的组件结构，只把颜色换成本应用的语义色。 */

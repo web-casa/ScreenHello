@@ -31,17 +31,19 @@ describe('desktop release contract audit', () => {
 
     it('rejects a leading-zero numeric prerelease identifier even when every version source agrees', () => {
         const value = baseline();
-        const invalidVersion = '1.0.4-01';
+        // 版本号随每次发版变化，这里必须从当前 package.json 派生，写死字面量会在下次发版时失效。
+        const declared = value.packageJson.version;
+        const invalidVersion = `${declared}-01`;
         value.packageJson.version = invalidVersion;
         value.tauriConfig.version = invalidVersion;
-        value.cargoToml = value.cargoToml.replace('version = "1.0.4"', `version = "${invalidVersion}"`);
-        value.cargoLock = value.cargoLock.replace('version = "1.0.4"', `version = "${invalidVersion}"`);
+        value.cargoToml = value.cargoToml.replace(`version = "${declared}"`, `version = "${invalidVersion}"`);
+        value.cargoLock = value.cargoLock.replace(`version = "${declared}"`, `version = "${invalidVersion}"`);
 
         expect(auditDesktopReleaseContract(value)).toContain('desktop-release-contract-package-version-invalid');
     });
 
     it.each([
-        ['a divergent Tauri version', (value) => { value.tauriConfig.version = '1.0.5'; }],
+        ['a divergent Tauri version', (value) => { value.tauriConfig.version = '9.9.9'; }],
         ['a divergent Cargo version', (value) => {
             value.cargoToml = value.cargoToml.replace(
                 `version = "${value.packageJson.version}"`,
