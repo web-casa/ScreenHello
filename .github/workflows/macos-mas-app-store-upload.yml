@@ -5,8 +5,8 @@ name: macOS MAS App Store Connect Upload
 # refuses any byte sequence other than the reviewed SHA-256, validates and
 # uploads that PKG with altool, and stops before review submission.
 #
-# The defaults below are the candidate that was accepted by App Store Connect on
-# 2026-09-18 (delivery UUID 8314fef6-608c-4398-a6f7-f3b661051ed4). Re-dispatching
+# The defaults below are ScreenHello 1.0.5, accepted by App Store Connect on
+# 2026-09-18 (delivery UUID 41ba89e2-73de-4014-9825-d569c16c1c40). Re-dispatching
 # the identical build number is expected to be refused by Apple as a redundant
 # upload, so a new candidate needs new input values.
 on:
@@ -24,17 +24,17 @@ on:
         description: Actions run id that holds the reviewed MAS universal candidate artifact.
         required: true
         type: string
-        default: '35381654983'
+        default: '35388074997'
       artifact_name:
         description: Artifact name produced by that packaging run.
         required: true
         type: string
-        default: ScreenHello-mas-universal-763e436849775f8f29062715baf4ef3cb3783946-build-1
+        default: ScreenHello-mas-universal-76c299231f3e028f0981b92b2696801eed841316-build-1
       expected_sha256:
         description: Reviewed SHA-256 of the PKG; the upload refuses any other bytes.
         required: true
         type: string
-        default: a1faca72c09e258a840f16cbaefa5f5df50ad8735e0d9d0dd550b779b926cf29
+        default: 7cfd1a2c6d1773345bef3ec004ca84bfe783a1902968fcc2726bea40fab46fad
       asc_provider:
         description: Optional App Store Connect provider short name when the Apple ID belongs to more than one team.
         required: false
