@@ -16,6 +16,7 @@ export const expectedGitHubActionsSupplyChain = Object.freeze({
         'linux-deb-repository-signed-candidate.yml': 3,
         'macos-arm64-dmg.yml': 1,
         'macos-intel-signed-candidate.yml': 2,
+        'macos-mas-app-store-upload.yml': 0,
         'macos-mas-universal-candidate.yml': 2,
         'macos-signed-candidate.yml': 2,
         'screencapturekit-adapter.yml': 0,

@@ -44,6 +44,8 @@ pnpm desktop:store:package --channel mas --arch universal --output artifacts/sto
 
 GitHub Actions 手动运行 `macOS MAS Universal Candidate` 时，确认项选择 `package-mas-universal-candidate`，首次上传的 build number 可用 `1`。工作流从仓库 Variables 读取 bundle/certificate identity，从 Secrets 读取两张空密码 P12、Team ID 和 profile；它使用临时钥匙串，结束时清理证书、profile 和钥匙串。PKG 产物只代表签名与结构检查通过，安装、双架构 GUI、App Store processing 和审核仍分别记录为未执行。
 
+`.github/workflows/macos-mas-app-store-upload.yml` 是独立、只允许手动触发的上传入口，确认项选择 `upload-mas-candidate-to-app-store-connect` 才会执行。它不重新构建：从 `source_run_id` 指向的打包运行下载候选 artifact，先核对 `expected_sha256` 与 `package-evidence.json`（含 `dirty=false`、各验收项仍为 `not-run`、`releaseReady=false`），再用 `xcrun altool --validate-app` 与 `--upload-app` 上传同一个 PKG，`product-errors` 一律视为失败。凭据使用 `APPLE_ID` 与 `APPLE_APP_SPECIFIC_PASSWORD`，只注入到这两个 altool 步骤，多团队账号可用 `asc_provider` 指定 provider；证据在发布前先做凭据扫描与脱敏，命中即拒绝。上传成功只证明 Apple 接收了该构建，`storeProcessing`、`storeReview` 与发布仍记录为 `not-run`。
+
 当前权限声明 App Sandbox、用户选择文件读写、匹配的 application/team identifier，以及 WebKit 初始化需要的 `network.client`；没有网络服务端、全盘访问或临时沙箱例外。[Tauri 上游白屏问题及维护者说明](https://github.com/tauri-apps/tauri-docs/issues/3171) 记录了仅加载打包内容也可能需要该客户端权限。这是沙箱能力声明，不是实际传输统计；应用网络行为仍需结合 CSP 与运行记录验收。Store 编译开关关闭使用共享 `/tmp` socket 的单实例插件，系统状态如实返回 `singleInstance: unavailable`。直装版继续启用原有插件。MAS feature 禁止与 runner-only test driver 同时启用。
 
 打包入口检查 profile 过期/Team/app identity/开发权限/设备绑定，验证 app 的架构、代码签名、实际 entitlements、Bundle ID/build number 与嵌入 profile，再用 Installer identity 生成 PKG 并检查签名。它清除直装公证环境变量；MAS 不走 Developer ID notarization。

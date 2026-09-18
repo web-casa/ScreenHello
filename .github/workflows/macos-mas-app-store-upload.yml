@@ -1,0 +1,162 @@
+name: macOS MAS App Store Connect Upload
+
+# Uploads one already-reviewed MAS universal PKG to App Store Connect.
+# It never rebuilds: it downloads the artifact produced by the packaging run,
+# refuses any byte sequence other than the reviewed SHA-256, validates and
+# uploads that PKG with altool, and stops before review submission.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Select the explicit App Store Connect upload operation.
+        required: true
+        type: choice
+        default: do-not-upload
+        options:
+          - do-not-upload
+          - upload-mas-candidate-to-app-store-connect
+      source_run_id:
+        description: Actions run id that holds the reviewed MAS universal candidate artifact.
+        required: true
+        type: string
+        default: '35331499660'
+      artifact_name:
+        description: Artifact name produced by that packaging run.
+        required: true
+        type: string
+        default: ScreenHello-mas-universal-bf7d72c35ae863dc21e6efbb66e6c12fe7833c34-build-1
+      expected_sha256:
+        description: Reviewed SHA-256 of the PKG; the upload refuses any other bytes.
+        required: true
+        type: string
+        default: 28a6069ed7b6c0f1f3b7936d2b1abab399f07569f4580ba98a8827cd57f1a530
+      asc_provider:
+        description: Optional App Store Connect provider short name when the Apple ID belongs to more than one team.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: macos-mas-app-store-upload-${{ inputs.source_run_id }}-${{ inputs.expected_sha256 }}
+  cancel-in-progress: false
+
+env:
+  SCREENHELLO_MAS_UPLOAD_DIR: artifacts/mas-app-store-upload
+
+jobs:
+  upload:
+    if: >-
+      github.repository_id == '1353846676' &&
+      inputs.confirm == 'upload-mas-candidate-to-app-store-connect'
+    name: Upload the reviewed MAS PKG to App Store Connect
+    runs-on: macos-14
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out this workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Confirm the App Store Connect upload toolchain is available
+        run: |
+          set -euo pipefail
+          mkdir -p "$SCREENHELLO_MAS_UPLOAD_DIR"
+          xcrun --find altool | tee "$SCREENHELLO_MAS_UPLOAD_DIR/upload-toolchain.txt"
+          xcrun altool --version 2>&1 | tee -a "$SCREENHELLO_MAS_UPLOAD_DIR/upload-toolchain.txt" || true
+
+      - name: Download the reviewed candidate artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.artifact_name }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/mas-app-store-upload
+
+      - name: Refuse any bytes other than the reviewed candidate
+        env:
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+          EXPECTED_BUNDLE_ID: ${{ vars.SCREENHELLO_MAS_BUNDLE_ID }}
+        run: |
+          set -euo pipefail
+          node scripts/mas-app-store-upload.mjs verify \
+            --output "$SCREENHELLO_MAS_UPLOAD_DIR" \
+            --expected-sha256 "$EXPECTED_SHA256" \
+            --expected-bundle-id "$EXPECTED_BUNDLE_ID"
+
+      - name: Validate the candidate with App Store Connect
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          ASC_PROVIDER: ${{ inputs.asc_provider }}
+        run: |
+          set -euo pipefail
+          for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Required App Store Connect upload configuration is unavailable: $name"
+              exit 1
+            fi
+          done
+          output="$SCREENHELLO_MAS_UPLOAD_DIR"
+          arguments=(--validate-app -f "$output/ScreenHello-mas-universal.pkg" -t macos -u "$APPLE_ID" -p "$APPLE_APP_SPECIFIC_PASSWORD" --output-format json)
+          if [ -n "$ASC_PROVIDER" ]; then arguments+=(--asc-provider "$ASC_PROVIDER"); fi
+          status=0
+          xcrun altool "${arguments[@]}" > "$output/altool-validate.json" 2> "$output/altool-validate.stderr.txt" || status=$?
+          cat "$output/altool-validate.json" "$output/altool-validate.stderr.txt"
+          node scripts/mas-app-store-upload.mjs altool-result --phase validate --file "$output/altool-validate.json"
+          test "$status" -eq 0
+
+      - name: Upload the candidate to App Store Connect
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          ASC_PROVIDER: ${{ inputs.asc_provider }}
+        run: |
+          set -euo pipefail
+          output="$SCREENHELLO_MAS_UPLOAD_DIR"
+          arguments=(--upload-app -f "$output/ScreenHello-mas-universal.pkg" -t macos -u "$APPLE_ID" -p "$APPLE_APP_SPECIFIC_PASSWORD" --output-format json)
+          if [ -n "$ASC_PROVIDER" ]; then arguments+=(--asc-provider "$ASC_PROVIDER"); fi
+          status=0
+          xcrun altool "${arguments[@]}" > "$output/altool-upload.json" 2> "$output/altool-upload.stderr.txt" || status=$?
+          cat "$output/altool-upload.json" "$output/altool-upload.stderr.txt"
+          node scripts/mas-app-store-upload.mjs altool-result --phase upload --file "$output/altool-upload.json"
+          test "$status" -eq 0
+
+      - name: Record upload evidence without credential material
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          UPLOAD_RUN_ID: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/mas-app-store-upload.mjs record \
+            --output "$SCREENHELLO_MAS_UPLOAD_DIR" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --upload-run-id "$UPLOAD_RUN_ID" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --repository "$REPOSITORY"
+          node scripts/mas-app-store-upload.mjs redact --output "$SCREENHELLO_MAS_UPLOAD_DIR"
+          node scripts/mas-app-store-upload.mjs scan --output "$SCREENHELLO_MAS_UPLOAD_DIR"
+
+      - name: Upload App Store Connect evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ScreenHello-mas-asc-upload-${{ inputs.source_run_id }}-${{ github.run_id }}
+          path: artifacts/mas-app-store-upload/
+          if-no-files-found: error
+          retention-days: 14
