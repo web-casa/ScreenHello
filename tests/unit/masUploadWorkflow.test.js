@@ -60,7 +60,9 @@ describe('MAS App Store Connect upload workflow', () => {
         expect(workflow).toContain("inputs.confirm == 'upload-mas-candidate-to-app-store-connect'");
         expect(workflow).toContain('default: do-not-upload');
         expect(workflow).toContain("github.repository_id == '1353846676'");
-        expect(workflow).not.toMatch(/^\s{2}(?:push|pull_request|pull_request_target|schedule|workflow_run):/mu);
+        expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+        expect(workflow).toContain('branches: [build/mas-asc-upload-20260919]');
+        expect(workflow).not.toMatch(/^\s{2}(?:pull_request|pull_request_target|schedule|workflow_run):/mu);
     });
 
     it('uploads only the reviewed candidate and never rebuilds one', () => {

@@ -35,6 +35,12 @@ on:
         required: false
         type: string
         default: ''
+  push:
+    # Actions only registers a manually dispatched workflow once it has been
+    # parsed for a pushed branch, so this trigger exists to make the manual gate
+    # dispatchable. The upload job additionally requires the dispatch event and
+    # the explicit confirmation input, so a push can never upload a package.
+    branches: [build/mas-asc-upload-20260919]
 
 permissions:
   contents: read
@@ -51,6 +57,7 @@ jobs:
   upload:
     if: >-
       github.repository_id == '1353846676' &&
+      github.event_name == 'workflow_dispatch' &&
       inputs.confirm == 'upload-mas-candidate-to-app-store-connect'
     name: Upload the reviewed MAS PKG to App Store Connect
     runs-on: macos-14
