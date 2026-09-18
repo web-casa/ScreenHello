@@ -10,7 +10,7 @@
 | Mac App Store | 优先 universal PKG，同时包含 ARM64 与 x86_64；支持单架构诊断构建 | `mac-app-store` feature、独立沙箱权限、profile/架构/签名检查与 `productbuild` 打包入口 | 真实应用身份、MAS 证书/profile、macOS 原生打包、沙箱功能验收、上传和审核 |
 | Microsoft Store | ARM64 与 x64 两个 MSIX，同一应用身份 | 独立身份/版本校验、随包固定 WebView2、MakeAppx 打包/解包与内容核对入口 | Partner Center 身份/版本、两架构固定 Runtime、原生打包、侧载/升级/WACK、上传和审核 |
 
-**本轮商店脚本尚未在 macOS / Windows 执行；不能把源码检查或 Linux 上 Rust feature 测试称为商店包已生成。** 目前没有自动上传或商店发布工作流。直装矩阵中的 `storeChannels: deferred` 只描述该矩阵不向商店发布；本文件定义独立商店开发渠道。
+**本轮商店打包脚本尚未成功生成 macOS / Windows 商店包；不能把源码检查或 Linux 上 Rust feature 测试称为商店包已生成。** 已新增仅手动触发的 MAS universal 候选工作流 `.github/workflows/macos-mas-universal-candidate.yml`，它生成并上传 GitHub Actions 测试产物，但不会上传 App Store Connect。直装矩阵中的 `storeChannels: deferred` 只描述该矩阵不向商店发布；本文件定义独立商店开发渠道。
 
 ## 共用前提
 
@@ -41,6 +41,8 @@ pnpm desktop:store:package --channel mas --arch universal --output artifacts/sto
 ```
 
 `--arch arm64` / `--arch x64` 只生成相应架构，可用于诊断；提交首选 universal，仍需分别在 Apple Silicon 与 Intel 上测试。
+
+GitHub Actions 手动运行 `macOS MAS Universal Candidate` 时，确认项选择 `package-mas-universal-candidate`，首次上传的 build number 可用 `1`。工作流从仓库 Variables 读取 bundle/certificate identity，从 Secrets 读取两张空密码 P12、Team ID 和 profile；它使用临时钥匙串，结束时清理证书、profile 和钥匙串。PKG 产物只代表签名与结构检查通过，安装、双架构 GUI、App Store processing 和审核仍分别记录为未执行。
 
 当前权限声明 App Sandbox、用户选择文件读写、匹配的 application/team identifier，以及 WebKit 初始化需要的 `network.client`；没有网络服务端、全盘访问或临时沙箱例外。[Tauri 上游白屏问题及维护者说明](https://github.com/tauri-apps/tauri-docs/issues/3171) 记录了仅加载打包内容也可能需要该客户端权限。这是沙箱能力声明，不是实际传输统计；应用网络行为仍需结合 CSP 与运行记录验收。Store 编译开关关闭使用共享 `/tmp` socket 的单实例插件，系统状态如实返回 `singleInstance: unavailable`。直装版继续启用原有插件。MAS feature 禁止与 runner-only test driver 同时启用。
 
@@ -100,3 +102,5 @@ MakeAppx `pack` 保留默认校验，不使用 `/nv`；随后 `unpack` 核对 ma
 - [Microsoft Store MSIX 要求](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements)
 - [MakeAppx 支持的命令](https://learn.microsoft.com/en-us/windows/win32/appxpkg/make-appx-package--makeappx-exe-)
 - [WebView2 分发](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution)
+
+第七阶段接入公开仓库的 MAS universal 签名候选工作流、空密码 P12 临时钥匙串、失败清理、全 Mach-O 双架构检查及 GitHub artifact 证据；详见[开发记录](./desktop-store-phase-7-2026-09-18.md)。商店上传与实机验收仍独立待办。

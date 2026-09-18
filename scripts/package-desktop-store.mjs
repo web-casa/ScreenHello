@@ -55,7 +55,7 @@ assert not p.get('ProvisionedDevices') and not p.get('ProvisionsAllDevices'), 'n
     const env = { ...process.env, MACOSX_DEPLOYMENT_TARGET: '14.0' };
     // A MAS package must not enter the Developer ID notarization route.
     for (const key of ['APPLE_ID', 'APPLE_PASSWORD', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_API_ISSUER', 'APPLE_API_KEY', 'APPLE_API_KEY_PATH', 'APPLE_SIGNING_IDENTITY']) delete env[key];
-    tauri(['build', '--ci', '--target', input.target, '--bundles', 'app', '--config', config], env);
+    tauri(['build', '--ci', '--target', input.target, '--bundles', 'app', '--config', config, '--', '--locked'], env);
     const app = path.join(nativeRoot, 'target', input.target, 'release', 'bundle', 'macos', 'ScreenHello.app');
     const binary = path.join(app, 'Contents', 'MacOS', 'screenhello-desktop');
     const architectures = run('lipo', ['-archs', binary], process.env, true).split(/\s+/u).sort();
