@@ -196,9 +196,15 @@ jobs:
 
       - name: Download and verify the pinned WebView2 fixed-version runtime
         run: |
-          node scripts/read-webview2-runtime.mjs --arch ${{ matrix.arch }} |
-            Tee-Object -FilePath webview2-pin-${{ matrix.arch }}.txt |
-            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # GITHUB_ENV only reaches later steps, so export the pin into this
+          # process as well; the download below runs in this same step.
+          $pin = node scripts/read-webview2-runtime.mjs --arch ${{ matrix.arch }}
+          $pin | Tee-Object -FilePath webview2-pin-${{ matrix.arch }}.txt
+          $pin | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $pin | ForEach-Object {
+            $name, $value = $_ -split '=', 2
+            Set-Item -Path "env:$name" -Value $value
+          }
           $cab = Join-Path $env:RUNNER_TEMP 'webview2.cab'
           Invoke-WebRequest -Uri $env:SCREENHELLO_WEBVIEW2_URL -OutFile $cab
           $actual = (Get-FileHash -LiteralPath $cab -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -216,7 +222,10 @@ jobs:
 
       - name: Package the ${{ matrix.arch }} MSIX
         run: |
+          # The packager reads this from its own environment, so set it in this
+          # process instead of only queuing it for later steps.
           $makeappx = & "$env:GITHUB_WORKSPACE/scripts/find-makeappx.ps1"
+          $env:SCREENHELLO_MAKEAPPX = $makeappx
           "SCREENHELLO_MAKEAPPX=$makeappx" | Out-File -FilePath $env:GITHUB_ENV -Append
           $output = "artifacts/stores/msix-${{ matrix.arch }}"
           pnpm desktop:store:package --channel msix --arch ${{ matrix.arch }} --output $output

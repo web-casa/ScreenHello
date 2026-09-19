@@ -83,6 +83,14 @@ describe('Windows MSIX store candidate workflow', () => {
         expect(workflow).not.toMatch(/Publisher="CN=[^$]/u);
     });
 
+    it('exports same-step variables into the process, not only into GITHUB_ENV', () => {
+        // GITHUB_ENV only reaches later steps, so a value a step consumes itself
+        // must also be written to the current process environment.
+        expect(workflow).toContain('Set-Item -Path "env:$name" -Value $value');
+        expect(workflow).toContain('$env:SCREENHELLO_MAKEAPPX = $makeappx');
+        expect(workflow).toContain('SCREENHELLO_WEBVIEW2_RUNTIME_DIR=');
+    });
+
     it('records honest evidence and never uploads to Partner Center', () => {
         expect(workflow).toContain("e.channel!=='msix'");
         expect(workflow).toContain("e.releaseReady!==false");
