@@ -83,6 +83,15 @@ describe('Windows MSIX store candidate workflow', () => {
         expect(workflow).not.toMatch(/Publisher="CN=[^$]/u);
     });
 
+    it('lets cp create the WebView2 staging directory instead of pre-creating it', () => {
+        // mkdir() followed by cp(errorOnExist) always threw EEXIST for the target
+        // it had just created, so the MSIX path could never produce a package.
+        const packager = readFileSync(new URL('../../scripts/package-desktop-store.mjs', import.meta.url), 'utf8');
+        expect(packager).toContain('await mkdir(path.dirname(stagedRuntime), { recursive: true })');
+        expect(packager).not.toContain('await mkdir(stagedRuntime);');
+        expect(packager).toContain('await cp(runtime, stagedRuntime, { recursive: true, dereference: false, errorOnExist: true, force: false })');
+    });
+
     it('runs the Authenticode check with a Windows PowerShell-only module path', () => {
         // The runner PSModulePath lists PowerShell 7 modules first, so Windows
         // PowerShell 5.1 cannot autoload Microsoft.PowerShell.Security and

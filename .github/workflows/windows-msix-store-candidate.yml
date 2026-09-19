@@ -229,6 +229,9 @@ jobs:
           "SCREENHELLO_MAKEAPPX=$makeappx" | Out-File -FilePath $env:GITHUB_ENV -Append
           $output = "artifacts/stores/msix-${{ matrix.arch }}"
           pnpm desktop:store:package --channel msix --arch ${{ matrix.arch }} --output $output
+          # PowerShell does not stop on a native command's non-zero exit, which
+          # turned packaging failures into a misleading "missing MSIX" error.
+          if ($LASTEXITCODE -ne 0) { throw "MSIX packaging failed with exit code $LASTEXITCODE" }
           $msix = Join-Path $output "ScreenHello-$env:SCREENHELLO_MSIX_VERSION-${{ matrix.arch }}.msix"
           if (-not (Test-Path $msix)) { throw "Missing MSIX output: $msix" }
           if (-not (Test-Path (Join-Path $output 'package-evidence.json'))) { throw 'Missing package-evidence.json' }

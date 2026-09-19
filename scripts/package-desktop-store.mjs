@@ -118,7 +118,9 @@ async function packageMsix(input, output) {
     const runtimeRelative = `store-webview2/${input.arch}`;
     const stagedRuntime = path.join(nativeRoot, runtimeRelative);
     await mkdir(path.dirname(stagedRuntime), { recursive: true });
-    await mkdir(stagedRuntime); // Refuse to overwrite another build's runtime.
+    // Do not pre-create the staging directory: cp creates it, and with
+    // errorOnExist it still refuses to overwrite a runtime left behind by an
+    // earlier build. Pre-creating it made every run fail with EEXIST.
     try {
         await cp(runtime, stagedRuntime, { recursive: true, dereference: false, errorOnExist: true, force: false });
         const config = path.join(output, 'tauri.store.json');
