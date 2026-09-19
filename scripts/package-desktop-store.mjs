@@ -17,6 +17,22 @@ const run = (command, args, env = process.env, capture = false) => {
     return result.stdout?.trim();
 };
 const digest = async (file) => createHash('sha256').update(await readFile(file)).digest('hex');
+// Windows PowerShell 5.1 cannot autoload Microsoft.PowerShell.Security when the
+// inherited PSModulePath lists PowerShell 7 modules first: the extended type data
+// for System.Security.AccessControl.ObjectSecurity is already present, the module
+// fails to load, and Get-AuthenticodeSignature then reports a missing command
+// instead of a signature problem. Restrict the module path for that call.
+const windowsPowerShellEnvironment = (extra) => ({
+    ...process.env,
+    PSModulePath: [
+        path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'Modules'),
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WindowsPowerShell', 'Modules'),
+        process.env.USERPROFILE
+            ? path.join(process.env.USERPROFILE, 'Documents', 'WindowsPowerShell', 'Modules')
+            : null,
+    ].filter(Boolean).join(path.delimiter),
+    ...extra,
+});
 // Invoke pnpm through its installed JS entry on Windows, without a shell/cmd.exe.
 const tauri = (args, env) => {
     const entry = process.env.npm_execpath;
@@ -96,8 +112,8 @@ async function packageMsix(input, output) {
     const runtimeExe = path.join(runtime, 'msedgewebview2.exe');
     assertPeArchitecture(await readFile(runtimeExe), input.arch);
     run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-        "$s = Get-AuthenticodeSignature -LiteralPath $env:SCREENHELLO_VERIFY_FILE; if ($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)') { throw 'Invalid Microsoft WebView2 signature' }"],
-    { ...process.env, SCREENHELLO_VERIFY_FILE: runtimeExe });
+        "$s = Get-AuthenticodeSignature -LiteralPath $env:SCREENHELLO_VERIFY_FILE; if ($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)') { throw ('Invalid Microsoft WebView2 signature: status=' + $s.Status + ' subject=' + $s.SignerCertificate.Subject) }"],
+    windowsPowerShellEnvironment({ SCREENHELLO_VERIFY_FILE: runtimeExe }));
     // This path is compiled into Tauri and preserved next to the packaged EXE.
     const runtimeRelative = `store-webview2/${input.arch}`;
     const stagedRuntime = path.join(nativeRoot, runtimeRelative);

@@ -83,6 +83,17 @@ describe('Windows MSIX store candidate workflow', () => {
         expect(workflow).not.toMatch(/Publisher="CN=[^$]/u);
     });
 
+    it('runs the Authenticode check with a Windows PowerShell-only module path', () => {
+        // The runner PSModulePath lists PowerShell 7 modules first, so Windows
+        // PowerShell 5.1 cannot autoload Microsoft.PowerShell.Security and
+        // Get-AuthenticodeSignature reports a missing command.
+        const packager = readFileSync(new URL('../../scripts/package-desktop-store.mjs', import.meta.url), 'utf8');
+        expect(packager).toContain('windowsPowerShellEnvironment');
+        expect(packager).toContain("'System32', 'WindowsPowerShell', 'v1.0', 'Modules'");
+        expect(packager).toContain('windowsPowerShellEnvironment({ SCREENHELLO_VERIFY_FILE: runtimeExe })');
+        expect(packager).toContain("' subject=' + $s.SignerCertificate.Subject");
+    });
+
     it('exports same-step variables into the process, not only into GITHUB_ENV', () => {
         // GITHUB_ENV only reaches later steps, so a value a step consumes itself
         // must also be written to the current process environment.
