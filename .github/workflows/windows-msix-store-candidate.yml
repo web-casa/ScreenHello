@@ -1,0 +1,236 @@
+name: Windows MSIX Store Candidate
+
+# Builds the Microsoft Store MSIX for both Windows architectures on native
+# runners: x64 on windows-2025, ARM64 on windows-11-arm. It packages an
+# unsigned store candidate only; Microsoft re-signs published packages, so no
+# code-signing certificate is imported here and nothing is uploaded to Partner
+# Center.
+#
+# The credential-free preflight runs on every push to this branch, so the
+# toolchain (both Rust targets and the Windows SDK MakeAppx) is proven before a
+# Partner Center identity exists. Packaging additionally needs the identity
+# variables and the pinned WebView2 runtime in config/webview2-runtime.json.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Select the explicit MSIX packaging operation.
+        required: true
+        type: choice
+        default: do-not-package
+        options:
+          - do-not-package
+          - package-msix-store-candidate
+      version:
+        description: Four-part MSIX version; the last part must be zero.
+        required: true
+        type: string
+        default: 1.0.5.0
+  push:
+    branches: [build/msix-store-candidate-20260919]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-msix-store-${{ github.sha }}-${{ inputs.version || '1.0.5.0' }}
+  cancel-in-progress: false
+
+env:
+  RUST_TOOLCHAIN: 1.96.0
+  SCREENHELLO_MSIX_VERSION: ${{ inputs.version || '1.0.5.0' }}
+  SCREENHELLO_MSIX_IDENTITY_NAME: ${{ vars.SCREENHELLO_MSIX_IDENTITY_NAME }}
+  SCREENHELLO_MSIX_PUBLISHER: ${{ vars.SCREENHELLO_MSIX_PUBLISHER }}
+  SCREENHELLO_MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.SCREENHELLO_MSIX_PUBLISHER_DISPLAY_NAME }}
+
+jobs:
+  preflight:
+    if: >-
+      github.repository_id == '1353846676' &&
+      github.ref == 'refs/heads/build/msix-store-candidate-20260919'
+    name: MSIX ${{ matrix.arch }} preflight
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+            runner: windows-2025
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the immutable candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Set up Rust and the ${{ matrix.arch }} Windows target
+        run: |
+          rustup toolchain install "$env:RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
+          rustup default "$env:RUST_TOOLCHAIN"
+          rustup target add ${{ matrix.target }}
+          rustc -vV
+          cargo -vV
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Validate the candidate without credentials
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test:unit
+          pnpm audit:desktop:contract
+          pnpm audit:github-actions
+          cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+          cargo check --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }}
+          cargo test --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }}
+          cargo clippy --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }} --all-targets -- -D warnings
+
+      - name: Confirm the Windows SDK MakeAppx is available
+        run: |
+          $makeappx = & "$env:GITHUB_WORKSPACE/scripts/find-makeappx.ps1"
+          if (-not (Test-Path $makeappx)) { throw "MakeAppx path does not exist: $makeappx" }
+          "makeappx=$makeappx" | Tee-Object -FilePath makeappx-path.txt
+
+      - name: Record the host architecture this target was built on
+        run: |
+          "runner=${{ matrix.runner }} arch=${{ matrix.arch }} target=${{ matrix.target }} host=$env:PROCESSOR_ARCHITECTURE" |
+            Tee-Object -FilePath msix-preflight-${{ matrix.arch }}.txt
+
+      - name: Check the WebView2 runtime pin format
+        run: |
+          node -e "const fs=require('node:fs');const c=JSON.parse(fs.readFileSync('config/webview2-runtime.json','utf8'));for(const arch of ['x64','arm64']){const r=c.runtimes[arch];if(!r||typeof r.url!=='string'||typeof r.sha256!=='string'||typeof r.version!=='string'){throw new Error('webview2 pin entry malformed for '+arch);}}"
+          "webview2-pin-format=checked" | Tee-Object -FilePath webview2-pin-${{ matrix.arch }}.txt
+
+      - name: Upload the preflight record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ScreenHello-msix-preflight-${{ matrix.arch }}-${{ github.sha }}
+          path: |
+            makeappx-path.txt
+            msix-preflight-${{ matrix.arch }}.txt
+            webview2-pin-${{ matrix.arch }}.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    needs: preflight
+    if: >-
+      github.repository_id == '1353846676' &&
+      github.ref == 'refs/heads/build/msix-store-candidate-20260919' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'package-msix-store-candidate'
+    name: Package MSIX ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+            runner: windows-2025
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out the immutable candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up project-pinned pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Set up Rust and the ${{ matrix.arch }} Windows target
+        run: |
+          rustup toolchain install "$env:RUST_TOOLCHAIN" --profile minimal
+          rustup default "$env:RUST_TOOLCHAIN"
+          rustup target add ${{ matrix.target }}
+          rustc -vV
+          cargo -vV
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+
+      - name: Verify the Partner Center identity is configured
+        run: |
+          foreach ($name in @('SCREENHELLO_MSIX_VERSION', 'SCREENHELLO_MSIX_IDENTITY_NAME',
+                              'SCREENHELLO_MSIX_PUBLISHER', 'SCREENHELLO_MSIX_PUBLISHER_DISPLAY_NAME')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              throw "Required MSIX configuration is unavailable: $name (set the repository variable from Partner Center -> Product identity)."
+            }
+          }
+          if ($env:SCREENHELLO_MSIX_VERSION -notmatch '^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.0$') {
+            throw 'SCREENHELLO_MSIX_VERSION must be a four-part version whose last part is zero.'
+          }
+          if ($env:SCREENHELLO_MSIX_PUBLISHER -notmatch '^CN=.+') {
+            throw 'SCREENHELLO_MSIX_PUBLISHER must be the full CN=... publisher from Partner Center.'
+          }
+
+      - name: Download and verify the pinned WebView2 fixed-version runtime
+        run: |
+          node scripts/read-webview2-runtime.mjs --arch ${{ matrix.arch }} |
+            Tee-Object -FilePath webview2-pin-${{ matrix.arch }}.txt |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $cab = Join-Path $env:RUNNER_TEMP 'webview2.cab'
+          Invoke-WebRequest -Uri $env:SCREENHELLO_WEBVIEW2_URL -OutFile $cab
+          $actual = (Get-FileHash -LiteralPath $cab -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:SCREENHELLO_WEBVIEW2_SHA256.ToLowerInvariant()) {
+            throw "WebView2 runtime SHA-256 mismatch: expected $env:SCREENHELLO_WEBVIEW2_SHA256, got $actual"
+          }
+          $destination = Join-Path $env:RUNNER_TEMP 'webview2'
+          New-Item -ItemType Directory -Path $destination | Out-Null
+          expand.exe -F:* $cab $destination | Out-Null
+          $exe = Get-ChildItem -Path $destination -Recurse -Filter msedgewebview2.exe | Select-Object -First 1
+          if (-not $exe) { throw 'The pinned WebView2 archive does not contain msedgewebview2.exe.' }
+          "SCREENHELLO_WEBVIEW2_RUNTIME_DIR=$($exe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "webview2-sha256=$actual`nwebview2-version=$($exe.Directory.Name)" |
+            Tee-Object -FilePath webview2-runtime-${{ matrix.arch }}.txt
+
+      - name: Package the ${{ matrix.arch }} MSIX
+        run: |
+          $makeappx = & "$env:GITHUB_WORKSPACE/scripts/find-makeappx.ps1"
+          "SCREENHELLO_MAKEAPPX=$makeappx" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $output = "artifacts/stores/msix-${{ matrix.arch }}"
+          pnpm desktop:store:package --channel msix --arch ${{ matrix.arch }} --output $output
+          $msix = Join-Path $output "ScreenHello-$env:SCREENHELLO_MSIX_VERSION-${{ matrix.arch }}.msix"
+          if (-not (Test-Path $msix)) { throw "Missing MSIX output: $msix" }
+          if (-not (Test-Path (Join-Path $output 'package-evidence.json'))) { throw 'Missing package-evidence.json' }
+          node -e "const fs=require('node:fs');const e=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));if(e.channel!=='msix'||e.arch!=='${{ matrix.arch }}'||e.dirty!==false||e.packaging!=='passed'||e.releaseReady!==false)process.exit(1);" "$output/package-evidence.json"
+          (Get-FileHash -LiteralPath $msix -Algorithm SHA256).Hash.ToLowerInvariant() |
+            Tee-Object -FilePath (Join-Path $output 'SHA256SUMS.txt')
+
+      - name: Upload the MSIX store candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ScreenHello-msix-${{ matrix.arch }}-${{ github.sha }}
+          path: artifacts/stores/msix-${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 14

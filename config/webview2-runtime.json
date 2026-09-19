@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": "https://developer.microsoft.com/en-us/microsoft-edge/webview2/",
+  "policy": "official-fixed-version-cab-pinned-per-architecture-by-sha256",
+  "note": "Download policy: open the WebView2 download page, choose Fixed Version, pick one version and one architecture, and record the resulting .cab URL together with its SHA-256 here. CI verifies the archive hash before extracting, and package-desktop-store.mjs still requires a valid Microsoft Authenticode signature on the extracted msedgewebview2.exe, so the pinned archive is never trusted on its own. Update both entries together and keep the version recorded even though the URL encodes it.",
+  "runtimes": {
+    "x64": {
+      "version": "",
+      "url": "",
+      "sha256": ""
+    },
+    "arm64": {
+      "version": "",
+      "url": "",
+      "sha256": ""
+    }
+  }
+}

@@ -22,6 +22,7 @@ export const expectedGitHubActionsSupplyChain = Object.freeze({
         'screencapturekit-probe.yml': 0,
         'web-release-browser-matrix.yml': 3,
         'windows-arm64-signed-candidate.yml': 2,
+        'windows-msix-store-candidate.yml': 2,
         'windows-signed-candidate.yml': 2,
     }),
 });
