@@ -89,7 +89,23 @@ pnpm desktop:store:package --channel msix --arch arm64 --output artifacts/stores
 
 不继承 NSIS 下载 bootstrapper 的逻辑。脚本检查 Runtime PE 架构和微软 Authenticode 签名，将固定 Runtime 临时放入忽略目录 `src-tauri/store-webview2/<arch>`，编译相同相对路径并复制到包内；完成或失败后清理本次临时目录。Runtime 的固定值放在 `config/webview2-runtime.json`，随代码评审而不是藏在仓库变量里：CI 先校验压缩包 SHA-256，打包脚本再独立要求解包出的 `msedgewebview2.exe` 带有效微软签名，两者任一不通过都不产出包。
 
-**当前状态（2026-09-19）**：preflight 已在两架构原生 runner 通过（运行 `35415184303`，MakeAppx 分别是 `10.0.26100.0\x64\makeappx.exe` 与 `10.0.26100.0\arm64\makeappx.exe`），`package` job 被正确跳过。**Partner Center 产品尚未注册**，身份三值不存在；`config/webview2-runtime.json` 的两个 pin 仍为空。这两项补齐前不会产出任何 MSIX。
+**当前状态（2026-09-19）**：两架构 MSIX 均已生成并通过独立核验（运行 `35430306346`，commit `158560f`）。
+
+| 架构 | runner | MSIX | 字节 | SHA-256 |
+| --- | --- | --- | --- | --- |
+| x64 | `windows-2025` | `ScreenHello-1.0.5.0-x64.msix` | 325 194 018 | `d73f7b88f5297d4efaa7eb38271ffd68f477d25857f2e116b191b886caeae460` |
+| arm64 | `windows-11-arm` | `ScreenHello-1.0.5.0-arm64.msix` | 310 160 317 | `3c3e3fcf2142150e28f8732db3227ce2d7e43ecf82006ea2352e54478ba043b3` |
+
+`package-evidence.json` 记录 `channel=msix`、`dirty=false`、`packaging=passed`、`releaseReady=false`，安装/GUI/升级/上传/审核全部 `not-run`。本地解包核对 29/29 通过：manifest 的 Name/Publisher/Version/ProcessorArchitecture 与 Partner Center 身份一致，主程序与随包 WebView2 的 PE 架构分别匹配各自包（x64 为 `0x8664`，arm64 为 `0xAA64`），且未混入另一架构的运行时。
+
+首次跑通 MSIX 链路时修掉了四个此前从未暴露的缺陷（该路径此前从未成功产出过包）：
+
+1. **同一 step 内读 `GITHUB_ENV`**：Actions 只把 `GITHUB_ENV` 应用到后续 step，下载与打包步骤改为同时写入当前进程环境。
+2. **`Get-AuthenticodeSignature` 无法加载**：runner 的 `PSModulePath` 把 PowerShell 7 模块排在前面，Windows PowerShell 5.1 的 `Microsoft.PowerShell.Security` 因类型数据重复而加载失败；打包入口改为对该调用使用只含 Windows PowerShell 目录的 `PSModulePath`。复现与验证见运行 `35426698201`。
+3. **`mkdir` + `cp(errorOnExist)`**：暂存目录被提前创建，随后 `cp` 必然以 EEXIST 失败；改为让 `cp` 自行创建，仍拒绝覆盖上一次构建留下的运行时。
+4. **诊断文件写进工作树**：`webview2-*.txt` 落在仓库根目录，使 `git status --porcelain` 非空，`package-evidence.json` 因此记成 `dirty=true` 并被本工作流自己的证据闸门拒绝；记录改写到 `RUNNER_TEMP`。
+
+这四处都补了单元回归测试。**仍未执行**：侧载安装、无预装 WebView2 的离线启动、升级、卸载、WACK、以及任何 Partner Center 上传或提交。
 
 Manifest 声明 `runFullTrust`，用于本地桌面程序的文件、剪贴板、截图与窗口交互；没有自动提权。最低候选目标是 Windows 10 2004（19041），这是配置值，尚不是最低系统实机验收结论。
 

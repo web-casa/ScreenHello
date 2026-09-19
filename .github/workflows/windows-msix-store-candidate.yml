@@ -247,8 +247,15 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ScreenHello-msix-${{ matrix.arch }}-${{ github.sha }}
+          # The packager also leaves the unpacked layout and the MakeAppx
+          # extraction behind; uploading those doubled the artifact to hundreds
+          # of megabytes without adding evidence.
           path: |
-            artifacts/stores/msix-${{ matrix.arch }}/
+            artifacts/stores/msix-${{ matrix.arch }}/*.msix
+            artifacts/stores/msix-${{ matrix.arch }}/package-evidence.json
+            artifacts/stores/msix-${{ matrix.arch }}/SHA256SUMS.txt
+            artifacts/stores/msix-${{ matrix.arch }}/tauri.store.json
+            artifacts/stores/msix-${{ matrix.arch }}/layout/AppxManifest.xml
             ${{ runner.temp }}/msix-records/
           if-no-files-found: error
           retention-days: 14
