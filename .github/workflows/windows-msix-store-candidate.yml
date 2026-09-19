@@ -104,28 +104,28 @@ jobs:
 
       - name: Confirm the Windows SDK MakeAppx is available
         run: |
+          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/msix-records" -Force | Out-Null
           $makeappx = & "$env:GITHUB_WORKSPACE/scripts/find-makeappx.ps1"
           if (-not (Test-Path $makeappx)) { throw "MakeAppx path does not exist: $makeappx" }
-          "makeappx=$makeappx" | Tee-Object -FilePath makeappx-path.txt
+          "makeappx=$makeappx" | Tee-Object -FilePath "$env:RUNNER_TEMP/msix-records/makeappx-path.txt"
 
       - name: Record the host architecture this target was built on
         run: |
+          # Records go to RUNNER_TEMP: anything written into the checkout would
+          # show up in `git status --porcelain` and fail the packager's dirty guard.
           "runner=${{ matrix.runner }} arch=${{ matrix.arch }} target=${{ matrix.target }} host=$env:PROCESSOR_ARCHITECTURE" |
-            Tee-Object -FilePath msix-preflight-${{ matrix.arch }}.txt
+            Tee-Object -FilePath "$env:RUNNER_TEMP/msix-records/msix-preflight-${{ matrix.arch }}.txt"
 
       - name: Check the WebView2 runtime pin format
         run: |
           node -e "const fs=require('node:fs');const c=JSON.parse(fs.readFileSync('config/webview2-runtime.json','utf8'));for(const arch of ['x64','arm64']){const r=c.runtimes[arch];if(!r||typeof r.url!=='string'||typeof r.sha256!=='string'||typeof r.version!=='string'){throw new Error('webview2 pin entry malformed for '+arch);}}"
-          "webview2-pin-format=checked" | Tee-Object -FilePath webview2-pin-${{ matrix.arch }}.txt
+          "webview2-pin-format=checked" | Tee-Object -FilePath "$env:RUNNER_TEMP/msix-records/webview2-pin-${{ matrix.arch }}.txt"
 
       - name: Upload the preflight record
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ScreenHello-msix-preflight-${{ matrix.arch }}-${{ github.sha }}
-          path: |
-            makeappx-path.txt
-            msix-preflight-${{ matrix.arch }}.txt
-            webview2-pin-${{ matrix.arch }}.txt
+          path: ${{ runner.temp }}/msix-records/
           if-no-files-found: error
           retention-days: 14
 
@@ -198,8 +198,12 @@ jobs:
         run: |
           # GITHUB_ENV only reaches later steps, so export the pin into this
           # process as well; the download below runs in this same step.
+          # Records go to RUNNER_TEMP: writing them into the checkout makes
+          # `git status --porcelain` non-empty, so the packager would record
+          # dirty=true and the evidence gate below would reject a good build.
+          New-Item -ItemType Directory -Path "$env:RUNNER_TEMP/msix-records" -Force | Out-Null
           $pin = node scripts/read-webview2-runtime.mjs --arch ${{ matrix.arch }}
-          $pin | Tee-Object -FilePath webview2-pin-${{ matrix.arch }}.txt
+          $pin | Tee-Object -FilePath "$env:RUNNER_TEMP/msix-records/webview2-pin-${{ matrix.arch }}.txt"
           $pin | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           $pin | ForEach-Object {
             $name, $value = $_ -split '=', 2
@@ -218,7 +222,7 @@ jobs:
           if (-not $exe) { throw 'The pinned WebView2 archive does not contain msedgewebview2.exe.' }
           "SCREENHELLO_WEBVIEW2_RUNTIME_DIR=$($exe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
           "webview2-sha256=$actual`nwebview2-version=$($exe.Directory.Name)" |
-            Tee-Object -FilePath webview2-runtime-${{ matrix.arch }}.txt
+            Tee-Object -FilePath "$env:RUNNER_TEMP/msix-records/webview2-runtime-${{ matrix.arch }}.txt"
 
       - name: Package the ${{ matrix.arch }} MSIX
         run: |
@@ -243,6 +247,8 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ScreenHello-msix-${{ matrix.arch }}-${{ github.sha }}
-          path: artifacts/stores/msix-${{ matrix.arch }}/
+          path: |
+            artifacts/stores/msix-${{ matrix.arch }}/
+            ${{ runner.temp }}/msix-records/
           if-no-files-found: error
           retention-days: 14

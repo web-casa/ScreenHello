@@ -111,6 +111,18 @@ describe('Windows MSIX store candidate workflow', () => {
         expect(workflow).toContain('SCREENHELLO_WEBVIEW2_RUNTIME_DIR=');
     });
 
+    it('keeps generated records out of the checkout so the dirty guard stays honest', () => {
+        // Writing any file into the checkout makes `git status --porcelain`
+        // non-empty, so the packager records dirty=true and the evidence gate in
+        // this very workflow then rejects an otherwise good package.
+        const targets = [...workflow.matchAll(/(?:Tee-Object|Out-File)\s+-FilePath\s+([^\n|]+)/gu)]
+            .map((match) => match[1].trim());
+        expect(targets.length).toBeGreaterThan(0);
+        for (const target of targets) {
+            expect(target).toMatch(/\$(?:env:RUNNER_TEMP|env:GITHUB_ENV|output)/u);
+        }
+    });
+
     it('records honest evidence and never uploads to Partner Center', () => {
         expect(workflow).toContain("e.channel!=='msix'");
         expect(workflow).toContain("e.releaseReady!==false");
