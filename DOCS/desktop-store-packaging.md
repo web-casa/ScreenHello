@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | GitHub 测试直装 | macOS ARM64/x64 DMG、Windows ARM64/x64 NSIS、Linux ARM64/x64 DEB | 候选 `e66d2c0` 六目标原生 Gate 和浏览器 CI 通过；macOS ARM64 另有签名、公证 DMG | 真实安装/GUI/升级验收 |
 | Mac App Store | 优先 universal PKG，同时包含 ARM64 与 x86_64；支持单架构诊断构建 | `mac-app-store` feature、独立沙箱权限、profile/架构/签名检查与 `productbuild` 打包入口 | 真实应用身份、MAS 证书/profile、macOS 原生打包、沙箱功能验收、上传和审核 |
-| Microsoft Store | ARM64 与 x64 两个 MSIX，同一应用身份 | 独立身份/版本校验、随包固定 WebView2、MakeAppx 打包/解包与内容核对入口 | Partner Center 身份/版本、两架构固定 Runtime、原生打包、侧载/升级/WACK、上传和审核 |
+| Microsoft Store | ARM64 与 x64 两个 MSIX，同一应用身份 | 独立身份/版本校验、随包固定 WebView2、MakeAppx 打包/解包与内容核对入口；两架构 credential-free preflight 已在原生 runner 通过（运行 `35415184303`） | Partner Center 注册与身份、两架构 Runtime pin、原生打包、侧载/升级/WACK、上传和审核 |
 
 **本轮商店打包脚本尚未成功生成 macOS / Windows 商店包；不能把源码检查或 Linux 上 Rust feature 测试称为商店包已生成。** 已新增仅手动触发的 MAS universal 候选工作流 `.github/workflows/macos-mas-universal-candidate.yml`，它生成并上传 GitHub Actions 测试产物，但不会上传 App Store Connect。直装矩阵中的 `storeChannels: deferred` 只描述该矩阵不向商店发布；本文件定义独立商店开发渠道。
 
@@ -61,14 +61,21 @@ Tauri 会按源文件权限把 provisioning profile 原样嵌入 app，`productb
 
 | 变量 | 来源 |
 | --- | --- |
-| `SCREENHELLO_MSIX_IDENTITY_NAME` | Partner Center → Product identity → Package/Identity/Name |
-| `SCREENHELLO_MSIX_PUBLISHER` | 同页面 Package/Identity/Publisher，完整 `CN=...` |
-| `SCREENHELLO_MSIX_PUBLISHER_DISPLAY_NAME` | 同页面发布者显示名 |
-| `SCREENHELLO_MSIX_VERSION` | 明确选择的四段版本，首段非零、末段为零、每段不超过 65535；先核对已有包 |
-| `SCREENHELLO_WEBVIEW2_RUNTIME_DIR` | 微软 Fixed Version Runtime 解包目录，根下含当前架构 `msedgewebview2.exe` |
-| `SCREENHELLO_MAKEAPPX` | Windows SDK 的 MakeAppx.exe 绝对路径 |
+`.github/workflows/windows-msix-store-candidate.yml` 是 MSIX 候选入口，两个架构各自跑在原生 runner 上：`x64` 用 `windows-2025`（宿主 AMD64），`arm64` 用 `windows-11-arm`（宿主 ARM64，不是模拟）。`SCREENHELLO_MAKEAPPX` 由 `scripts/find-makeappx.ps1` 从已装 Windows SDK 按宿主架构解析，两个 runner 都是 SDK 10.0.26100。
 
-在对应原生 Windows runner 上执行，分别选择匹配架构的 Runtime：
+- `preflight` job 不需要任何凭据，push 到 `build/msix-store-candidate-20260919` 就会执行：两架构分别 `cargo check/test/clippy --target`，跑完整 JS 校验与单测，并确认 MakeAppx 可用。push **不会**打包——`package` job 额外要求 `workflow_dispatch` 事件与显式确认项。
+- `package` job 要求三个 Partner Center 身份变量、四段版本号，以及已固定的 WebView2 运行时；缺任何一项都明确失败，不会退化成占位身份。
+
+| 变量 | 来源 |
+| --- | --- |
+| `SCREENHELLO_MSIX_IDENTITY_NAME` | Partner Center → Product identity → Package/Identity/Name（仓库 Variable） |
+| `SCREENHELLO_MSIX_PUBLISHER` | 同页面 Package/Identity/Publisher，完整 `CN=...`（仓库 Variable） |
+| `SCREENHELLO_MSIX_PUBLISHER_DISPLAY_NAME` | 同页面发布者显示名（仓库 Variable） |
+| `SCREENHELLO_MSIX_VERSION` | 明确选择的四段版本，首段非零、末段为零、每段不超过 65535；先核对已有包 |
+| `config/webview2-runtime.json` → `runtimes.<arch>` | 微软 Fixed Version Runtime 的 `.cab` 直链、版本与 SHA-256；未固定时 `scripts/read-webview2-runtime.mjs` 直接拒绝运行 |
+| `SCREENHELLO_MAKEAPPX` | Windows SDK 的 MakeAppx.exe 绝对路径，CI 中由 `scripts/find-makeappx.ps1` 解析 |
+
+本地复现对应架构的命令：
 
 ```powershell
 rustup target add x86_64-pc-windows-msvc
@@ -80,7 +87,9 @@ rustup target add aarch64-pc-windows-msvc
 pnpm desktop:store:package --channel msix --arch arm64 --output artifacts/stores/msix-arm64-001
 ```
 
-不继承 NSIS 下载 bootstrapper 的逻辑。脚本检查 Runtime PE 架构和微软 Authenticode 签名，将固定 Runtime 临时放入忽略目录 `src-tauri/store-webview2/<arch>`，编译相同相对路径并复制到包内；完成或失败后清理本次临时目录。Runtime 的下载来源、版本、原始压缩包 SHA-256 与更新周期仍需在正式 CI 固定。
+不继承 NSIS 下载 bootstrapper 的逻辑。脚本检查 Runtime PE 架构和微软 Authenticode 签名，将固定 Runtime 临时放入忽略目录 `src-tauri/store-webview2/<arch>`，编译相同相对路径并复制到包内；完成或失败后清理本次临时目录。Runtime 的固定值放在 `config/webview2-runtime.json`，随代码评审而不是藏在仓库变量里：CI 先校验压缩包 SHA-256，打包脚本再独立要求解包出的 `msedgewebview2.exe` 带有效微软签名，两者任一不通过都不产出包。
+
+**当前状态（2026-09-19）**：preflight 已在两架构原生 runner 通过（运行 `35415184303`，MakeAppx 分别是 `10.0.26100.0\x64\makeappx.exe` 与 `10.0.26100.0\arm64\makeappx.exe`），`package` job 被正确跳过。**Partner Center 产品尚未注册**，身份三值不存在；`config/webview2-runtime.json` 的两个 pin 仍为空。这两项补齐前不会产出任何 MSIX。
 
 Manifest 声明 `runFullTrust`，用于本地桌面程序的文件、剪贴板、截图与窗口交互；没有自动提权。最低候选目标是 Windows 10 2004（19041），这是配置值，尚不是最低系统实机验收结论。
 
