@@ -1,12 +1,13 @@
 {
     "compilerOptions": {
-        "baseUrl": "./src",
         "paths": {
-            "@components/*": ["./components/*"],
-            "@assets/*": ["./assets/*"],
-            "@stores": ["./stores/index.js"],
-            "@utils/*": ["./utils/*"],
-            "@hooks/*": ["./hooks/*"]
+            "@components/*": ["./src/components/*"],
+            "@assets/*": ["./src/assets/*"],
+            "@stores": ["./src/stores/index.js"],
+            "@stores/*": ["./src/stores/*"],
+            "@style/*": ["./src/style/*"],
+            "@utils/*": ["./src/utils/*"],
+            "@hooks/*": ["./src/hooks/*"]
         }
     }
 }

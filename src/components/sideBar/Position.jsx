@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
@@ -8,6 +9,7 @@ import useStores from '@stores/useStores';
 const cols = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
 
 export default observer(function Position() {
+    const t = useI18n();
     const stores = useStores();
     const [open, setOpen] = useState(false);
     const handleSelect = (value) => {
@@ -15,7 +17,7 @@ export default observer(function Position() {
         setOpen(false);
     };
     const content = (
-        <div className={cn('shoteasy-position-grid position-block', stores.option.align)} role="group" aria-label="图片位置">
+        <div className={cn('shoteasy-position-grid position-block', stores.option.align)} role="group" aria-label={t("图片位置")}>
             {cols.map(item => (
                 <button
                     key={item}
@@ -42,7 +44,7 @@ export default observer(function Position() {
                 type="text"
                 shape="circle"
                 className={cn('shoteasy-inspector-icon-button', open && 'is-active')}
-                aria-label="图片位置"
+                aria-label={t("图片位置")}
                 icon={<Icon.LayoutGrid size={18} />}
             />
         </Popover>

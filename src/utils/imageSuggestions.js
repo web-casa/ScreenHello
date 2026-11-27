@@ -43,7 +43,7 @@ export function analyzeRgbaEdges(data, width, height, sourceWidth = width, sourc
     const orientation = ratio >= 1.1 ? 'landscape' : (ratio <= 0.9 ? 'portrait' : 'square');
     const frame = orientation === 'landscape'
         ? (luminance < 0.4 ? 'windowsBarDark' : 'windowsBarLight')
-        : (orientation === 'portrait' ? 'genericPhone' : 'card');
+        : 'card';
     return {
         edgeColor,
         luminance,

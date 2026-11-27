@@ -1,4 +1,8 @@
-import { getBackgroundDefinition, normalizeBackgroundKey } from '@utils/backgroundConfig';
+import { getBackgroundDefinition, isImageBackgroundKey, normalizeBackgroundKey } from '@utils/backgroundConfig';
+import { normalizeCodeCard } from '@utils/codeCardSchema';
+import { isPerspectiveBlockedFrame, normalizePerspective } from '@utils/perspectiveSchema';
+import { normalizeTextCard } from '@utils/textCardSchema';
+import { normalizeWatermark } from '@utils/watermarkSchema';
 
 const BACKGROUND_MODES = ['cover', 'fit', 'stretch'];
 const BACKGROUND_ALIGNS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
@@ -147,6 +151,7 @@ export function defaultOption() {
         padding: 0,
         paddingBg: DEFAULT_PADDING_BACKGROUND,
         innerBorder: normalizeInnerBorder(),
+        perspective3d: normalizePerspective(),
         round: 10,
         shadow: shadowFromIntensity(3),
         frame: 'none',
@@ -165,6 +170,7 @@ export function defaultOption() {
         align: 'center',
         waterImg: null,
         waterIndex: 1,
+        watermark: normalizeWatermark(),
         hdrEnabled: false,
         size: { type: 'auto', title: '自动' },
         frameConf: {
@@ -243,9 +249,9 @@ export function normalizeOption(raw) {
         ? (rawBackground.presetKey || rawBackground.key || rawBackground.id)
         : rawBackground;
     out.background = normalizeBackgroundKey(rawBackgroundKey);
-    // 只有用户上传的图片背景拥有二进制资源。历史 gh_img_* 现在迁移为代码渐变，
+    // 上传与新图片预设拥有二进制资源。历史 gh_img_* 仍迁移为代码渐变，
     // 必须同时丢弃旧 assetId，避免草稿/归档继续要求已移除的第三方文件。
-    out.backgroundAssetId = out.background === 'upload_image'
+    out.backgroundAssetId = isImageBackgroundKey(out.background)
         ? (raw.backgroundAssetId ?? rawBackground?.assetId ?? null)
         : null;
     const rawBackgroundMode = raw.backgroundMode ?? rawBackground?.mode ?? raw.frameConf?.background?.mode;
@@ -264,10 +270,13 @@ export function normalizeOption(raw) {
     out.offsetX = Number.isFinite(offsetX) ? offsetX : base.offsetX;
     const offsetY = Number(raw.offsetY);
     out.offsetY = Number.isFinite(offsetY) ? offsetY : base.offsetY;
-    // 3D 旋转（rotationX/rotationY/perspective）功能已移除：剥离旧草稿中的残留字段
+    // 旧版无界 3D 标量字段（rotationX/rotationY/perspective）继续剥离；新版结构化透视使用 perspective3d。
     delete out.rotationX;
     delete out.rotationY;
     delete out.perspective;
+    out.perspective3d = isPerspectiveBlockedFrame(out.frame)
+        ? normalizePerspective()
+        : normalizePerspective(raw.perspective3d);
     const blur = Number(raw.backgroundBlur);
     out.backgroundBlur = Number.isFinite(blur) ? Math.max(0, Math.min(30, blur)) : base.backgroundBlur;
     const maskOpacity = Number(raw.backgroundMaskOpacity);
@@ -286,11 +295,17 @@ export function normalizeOption(raw) {
     // 阴影：旧文档/旧 store 存的是 0-6 number，统一迁移为完整配置对象
     out.shadow = normalizeShadow(raw.shadow);
     out.innerBorder = normalizeInnerBorder(raw.innerBorder);
+    out.watermark = normalizeWatermark(raw.watermark, out.waterImg);
+    if (!out.watermark.enabled) {
+        out.waterImg = null;
+    } else if (out.watermark.mode === 'image') {
+        out.waterImg = null;
+    }
     out.frameConf = { ...base.frameConf, ...(raw.frameConf || {}) };
     const rawFill = raw.frameConf?.background ?? (rawBackground && typeof rawBackground === 'object' ? rawBackground.fill : undefined);
     if (definition?.type === 'none') {
         out.frameConf.background = null;
-    } else if (definition?.type === 'upload-image') {
+    } else if (isImageBackgroundKey(out.background)) {
         // 上传背景只能由已登记的本地 AssetStore Blob 恢复，不能信任项目 JSON 中的 URL。
         out.frameConf.background = {
             type: 'image',
@@ -341,7 +356,7 @@ export function normalizeProjectImage(raw, index = 0) {
     const transform = raw.transform && typeof raw.transform === 'object' ? raw.transform : raw;
     const width = Math.max(0, Math.round(finite(raw.width)));
     const height = Math.max(0, Math.round(finite(raw.height)));
-    return {
+    const normalized = {
         id: textId(raw.id, `image-${index + 1}`),
         assetId: typeof raw.assetId === 'string' && raw.assetId.trim()
             ? raw.assetId.trim().slice(0, 160)
@@ -362,10 +377,17 @@ export function normalizeProjectImage(raw, index = 0) {
         },
         zIndex: Math.max(0, Math.round(finite(raw.zIndex, index))),
         locked: raw.locked === true,
+        visible: raw.visible !== false,
         groupId: typeof raw.groupId === 'string' && raw.groupId.trim()
             ? raw.groupId.trim().slice(0, 120)
             : null,
     };
+    if (raw.codeCard && typeof raw.codeCard === 'object' && !Array.isArray(raw.codeCard)) {
+        normalized.codeCard = normalizeCodeCard(raw.codeCard);
+    } else if (raw.textCard && typeof raw.textCard === 'object' && !Array.isArray(raw.textCard)) {
+        normalized.textCard = normalizeTextCard(raw.textCard);
+    }
+    return normalized;
 }
 
 const normalizeImages = (images) => {

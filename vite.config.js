@@ -1,11 +1,21 @@
 import { defineConfig, esmExternalRequirePlugin } from 'vite';
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { createPwaOptions, normalizeWebBase } from './config/pwaConfig.js';
+import { upngCjsPlugin } from './config/upngCodecPlugin.mjs';
+import { radixCssPlugin, scopeLibraryRootSelectors, scopeRadixTokens } from './config/radixCss.mjs';
+import { libraryDeviceBoundaryPlugin } from './config/libraryDeviceBoundaryPlugin.mjs';
+import { devFaviconPlugin, readWebIconVersions, webFaviconPlugin } from './config/devFaviconPlugin.mjs';
+import { publicSitePlugin } from './config/seoPlugin.mjs';
+import { docsDevMiddleware } from './config/docsDevPlugin.mjs';
+import { resolveCodecPreloads, codecPreloadHashPlugin } from './config/codecPreload.mjs';
+import { buildEditorCsp, cspHash, extractInlineBlocks } from './docs-site/src/lib/csp.mjs';
+import { parseHeadersText, renderHeaders } from './docs-site/src/lib/headers.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const libraryPeers = Object.keys(pkg.peerDependencies || {});
@@ -13,14 +23,49 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const libraryPeerPatterns = libraryPeers.map((dependency) => new RegExp(`^${escapeRegExp(dependency)}(?:/|$)`));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const browserTargets = ['chrome111', 'edge111', 'firefox128', 'safari16.4'];
-
 const resolve = (url) => path.resolve(__dirname, url);
 const type = process.env.NODE_TYPE;
+const desktopMode = process.env.SCREENHELLO_TARGET === 'desktop';
+// Playwright runs against an immutable source snapshot. Its screenshot/report
+// output is generated while the server is live, so filesystem watching can turn
+// a report write into an HMR reload during a fresh page bootstrap.
+const e2eMode = process.env.SCREENHELLO_E2E === '1';
+const tauriDevHost = process.env.TAURI_DEV_HOST;
 const webBase = normalizeWebBase(process.env.SCREENHELLO_BASE_PATH || '/');
+const webIconVersions = type === 'lib' || desktopMode ? {} : readWebIconVersions(resolve('./public'));
 const buildConf = {
-    base: type === 'lib' ? './' : webBase,
-    build: { target: browserTargets },
+    base: type === 'lib' || desktopMode ? './' : webBase,
+    build: {
+        target: browserTargets,
+        ...(type === 'lib' || desktopMode ? {} : { modulePreload: { resolveDependencies: resolveCodecPreloads } }),
+        rolldownOptions: {
+            output: {
+                // Keep all translations available offline and split stable runtime frameworks
+                // so every precached JS chunk stays well below the 1 MiB PWA file ceiling.
+                codeSplitting: {
+                    groups: [
+                        { name: 'vendor-react', priority: 40, test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler)[\\/]/ },
+                        { name: 'vendor-rc', priority: 30, test: /[\\/]node_modules[\\/]@rc-component[\\/]/ },
+                        { name: 'vendor-antd', priority: 20, test: /[\\/]node_modules[\\/](?:antd|@ant-design|dayjs)[\\/]/ },
+                        { name: 'vendor-leafer', priority: 20, test: /[\\/]node_modules[\\/](?:leafer-ui|@leafer-ui|@leafer-in)[\\/]/ },
+                        { name: 'vendor-radix', priority: 20, test: /[\\/]node_modules[\\/]@radix-ui[\\/]/ },
+                        { name: 'i18n-catalogs', priority: 20, test: /[\\/]src[\\/]i18n[\\/](?:catalog\.js|[^/\\]+\.json)$/ },
+                    ],
+                },
+            },
+        },
+    },
 };
+
+if (desktopMode) {
+    buildConf.root = resolve('./desktop');
+    buildConf.publicDir = false;
+    buildConf.build = {
+        ...buildConf.build,
+        outDir: resolve('./dist-desktop'),
+        emptyOutDir: true,
+    };
+}
 
 // Vite library mode emits `new URL("assets/...", import.meta.url)` for `?no-inline`
 // assets. A consumer's dependency optimizer may relocate that JS chunk without the
@@ -39,7 +84,8 @@ const preserveLibraryAssetImports = () => ({
                 // 把包内 .js?url 作为普通依赖导入会被 Rolldown 优化器当成 JS 模块。
                 if (/\.worker-[^/]+\.js$/.test(assetPath)) return match;
                 if (!imports.has(assetPath)) {
-                    const assetQuery = assetPath.endsWith('.wasm') ? '?url&no-inline' : '';
+                    const assetQuery = assetPath.endsWith('.wasm') ? '?url&no-inline'
+                        : /\/bg-(?:image|thumb)-/.test(assetPath) ? '?no-inline' : '';
                     imports.set(assetPath, {
                         identifier: `__screenhello_asset_${imports.size}`,
                         // 裸 `.wasm` import 会被宿主 Vite 当成原生 WASM 模块；
@@ -89,19 +135,129 @@ if (type === 'lib') {
                 assetFileNames: (assetInfo) => assetInfo.name === 'style.css'
                     ? 'style.css'
                     : 'assets/[name]-[hash][extname]',
+                codeSplitting: {
+                    groups: [
+                        { name: 'vendor-leafer', test: /node_modules\/(?:leafer-ui|@leafer-ui\/|@leafer-in\/)/ },
+                        { name: 'i18n-catalogs', test: /\/src\/i18n\/(?:catalog\.js|[^/]+\.json)$/ },
+                    ],
+                },
             },
         },
         outDir: 'lib', // 打包后存放的目录文件
     }
 }
 
+// 仅在库产物构建（NODE_TYPE=lib）启用：
+// - pre 阶段去除全局 Tailwind Preflight 并替换 src/style/main.css 的 :root；
+// - post 阶段在 vite:css-post 产出最终 style.css 后，收敛 Tailwind theme/properties 与 Radix 顶层选择器，
+//   保证 lib/style.css 不污染宿主页面基础元素与主题变量。
+const libraryCssIsolationPlugins = () => ([
+    {
+        name: 'screenhello-library-css-isolation-pre',
+        enforce: 'pre',
+        transform(code, id) {
+            const file = id.split('?')[0].replaceAll('\\', '/');
+            if (!file.endsWith('/src/style/main.css')) return null;
+            const scoped = code
+                .replace(
+                    '@import "tailwindcss" source("../");',
+                    '@import "tailwindcss/theme.css" layer(theme);\n@import "tailwindcss/utilities.css" layer(utilities);\n@source "../";\n@import "@style/library-reset.css";',
+                )
+                .replace(
+                    /^(\s*):root\s*\{/mu,
+                    '$1:where(.shoteasy-app, .shoteasy-components, .shoteasy-portal, .radix-themes, [class*="shoteasy-"]) {',
+                );
+            return { code: scoped, map: null };
+        },
+    },
+    {
+        name: 'screenhello-library-css-isolation-post',
+        enforce: 'post',
+        generateBundle(_options, bundle) {
+            for (const output of Object.values(bundle)) {
+                if (output.type !== 'asset' || !output.fileName.endsWith('.css')) continue;
+                const rewrite = (css) => scopeLibraryRootSelectors(scopeRadixTokens(css));
+                if (typeof output.source === 'string') {
+                    output.source = rewrite(output.source);
+                } else if (output.source instanceof Uint8Array) {
+                    const decoded = new TextDecoder().decode(output.source);
+                    output.source = new TextEncoder().encode(rewrite(decoded));
+                }
+            }
+        },
+    },
+]);
+
+// 公开文档站由独立的 Astro + Fumadocs 应用生成（docs-site/），根应用只负责把它的
+// 产物并入同一个部署目录。docs-site/ 的构建后处理会写出含 hash CSP 的 _headers、
+// _redirects、sitemap 等；这些文件只由那一侧产出，根应用不再重复生成。
+const docsSitePlugin = () => {
+    const docsDist = resolve('./docs-site/dist');
+    let outDir;
+    let isBuild = false;
+    const buildDocs = () => {
+        execFileSync('pnpm', ['--dir', resolve('./docs-site'), 'build'], {
+            stdio: 'inherit',
+            shell: process.platform === 'win32',
+            env: { ...process.env, SCREENHELLO_BASE_PATH: webBase },
+        });
+    };
+    return {
+        name: 'screenhello-docs-site',
+        configResolved(config) { outDir = config.build.outDir; isBuild = config.command === 'build'; },
+        buildStart() {
+            // Each environment needs its own base/origin; never reuse a stale docs build.
+            if (isBuild) buildDocs();
+        },
+        configureServer(server) {
+            buildDocs();
+            server.middlewares.use(docsDevMiddleware(docsDist, webBase));
+        },
+        closeBundle() {
+            if (!isBuild) return;
+            if (!existsSync(path.join(docsDist, 'docs'))) {
+                throw new Error('docs-site-not-built: run "pnpm build:docs" before the site build');
+            }
+            cpSync(docsDist, outDir, { recursive: true });
+            // 若 dist/index.html 含任何可执行内联脚本，自动计算其 SHA-256 并同步到编辑器 CSP。
+            const indexPath = path.join(outDir, 'index.html');
+            const headersPath = path.join(outDir, '_headers');
+            if (existsSync(indexPath) && existsSync(headersPath)) {
+                const indexHtml = readFileSync(indexPath, 'utf8');
+                const { scripts } = extractInlineBlocks(indexHtml);
+                if (scripts.length > 0) {
+                    const hashes = [...new Set(scripts.map((body) => cspHash(body)))];
+                    const nextEditorCsp = buildEditorCsp(hashes);
+                    const editorRoutes = new Set([webBase, `${webBase}index.html`, `${webBase}404.html`]);
+                    const parsed = parseHeadersText(readFileSync(headersPath, 'utf8'));
+                    const updated = parsed.map(([route, values]) => (
+                        editorRoutes.has(route)
+                            ? [route, values.map((v) => (
+                                v.startsWith('Content-Security-Policy:')
+                                    ? `Content-Security-Policy: ${nextEditorCsp}`
+                                    : v
+                            ))]
+                            : [route, values]
+                    ));
+                    writeFileSync(headersPath, renderHeaders(updated));
+                }
+            }
+        },
+    };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
+    appType: type === 'lib' || desktopMode ? undefined : 'mpa',
+    define: { 'import.meta.env.SCREENHELLO_PUBLIC_SITE': JSON.stringify(type !== 'lib' && !desktopMode) },
+    clearScreen: desktopMode ? false : undefined,
     optimizeDeps: {
         // 根应用只扫描自己的入口；tests/consumer 是独立安装、独立启动的真实包消费端。
         entries: ['index.html'],
         // jSquash 官方文档要求 Vite 不预构建其动态 WASM 路径；实际生产构建仍由 Vite 接管资源 URL。
-        exclude: ['@jsquash/avif', '@jsquash/webp'],
+        exclude: ['@jsquash/avif', '@jsquash/webp', '@jsquash/oxipng'],
+        include: ['upng-js'],
+        rolldownOptions: { plugins: [upngCjsPlugin()] },
     },
     resolve: {
         // 根应用与嵌套/已安装 consumer fixture 必须解析到同一组宿主实例。
@@ -120,12 +276,49 @@ export default defineConfig({
         // Release browsers run in a sibling Docker container and reach the host through this explicit gateway name.
         allowedHosts: ['host.docker.internal'],
     },
+    server: {
+        // `null` is Vite's documented switch for disabling chokidar. Keep normal
+        // development watching intact; only the hermetic Playwright server turns
+        // it off because no test edits source files at runtime.
+        watch: e2eMode ? null : {
+            // Test reports, screenshots and build output are written while the
+            // E2E dev server is alive. They are not source modules; watching
+            // them can send an HMR reload into a page that is still booting.
+            ignored: ['**/src-tauri/**', '**/artifacts/**', '**/test-results/**', '**/docs-site/dist/**', '**/dist/**', '**/lib/**'],
+        },
+        ...(desktopMode ? {
+            port: 1420,
+            strictPort: true,
+            host: tauriDevHost || false,
+            hmr: tauriDevHost ? {
+                protocol: 'ws',
+                host: tauriDevHost,
+                port: 1421,
+            } : undefined,
+        } : {}),
+    },
     plugins: [
+        // library 产物不带 Devices.css 位图设备素材（见 config/libraryDeviceBoundaryPlugin.mjs）
+        ...(type === 'lib' ? [libraryDeviceBoundaryPlugin()] : []),
+        ...(type === 'lib' || desktopMode ? [] : [codecPreloadHashPlugin()]),
+        devFaviconPlugin(resolve('./src/assets/favicon.png')),
+        ...(type === 'lib' || desktopMode ? [] : [webFaviconPlugin(resolve('./public'), webIconVersions)]),
+        // 公开文档站（Fumadocs）只进独立站产物，library/desktop 不带。
+        ...(type === 'lib' || desktopMode ? [] : [docsSitePlugin()]),
+        ...(type === 'lib' || desktopMode ? [] : [publicSitePlugin({
+            base: webBase,
+            origin: process.env.SCREENHELLO_SITE_ORIGIN || 'https://screenhello.com',
+            indexable: process.env.SCREENHELLO_SITE_INDEXABLE !== 'false',
+        })]),
+        upngCjsPlugin(),
+        ...(type === 'lib' ? libraryCssIsolationPlugins() : []),
+        radixCssPlugin({ scopeTokens: type === 'lib' }),
         tailwindcss(),
         react(),
         ...(type === 'lib'
             ? [preserveLibraryAssetImports()]
-            : [VitePWA(createPwaOptions(webBase))]),
+            : (desktopMode ? [] : [VitePWA(createPwaOptions(webBase, webIconVersions))])),
     ],
+    worker: { plugins: () => [upngCjsPlugin()] },
     ...buildConf
 });

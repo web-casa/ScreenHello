@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Box, Rect } from 'leafer-ui';
+import { Box, ImageEvent, Rect } from 'leafer-ui';
 import useStores from '@stores/useStores';
 import { computedSize, enhanceImageToHdr, getPosition, getRotatedPosition, getMargin } from '@utils/utils';
-import { createFrameDecorations, getBrowserHeaderHeight, getFrameDefinition, getFrameMetrics, isDeviceFrame } from '@utils/frameConfig';
-import { debounce } from 'lodash';
+import { createFrameDecorations, getBrowserHeaderHeight, getFrameContentBasis, getFrameDefinition, getFrameMetrics, isDeviceFrame } from '@utils/frameConfig';
+import { computePerspectiveGeometry, isPerspectiveActive } from '@utils/perspectiveSchema';
+import { debounce } from '@utils/timing';
+import { getRasterDevice } from '@utils/rasterDeviceConfig';
 
 const addBefore = (parent, node, reference) => {
     const index = parent.children?.indexOf?.(reference);
     parent.add(node, Number.isInteger(index) && index >= 0 ? index : undefined);
 };
+
+// 图片层保持在 0～1 之间：按 ProjectDocument zIndex 排序，同时继续位于
+// zIndex>=1 的标注/上层水印之下，并让 zIndex=-1 的下层水印保持在图片之后。
+const imageLayerZIndex = (zIndex) => Math.max(0, Number(zIndex) || 0) / 100;
 
 export default observer(function Screenshot({ parent, layer }) {
     const stores = useStores();
@@ -19,8 +25,9 @@ export default observer(function Screenshot({ parent, layer }) {
     }, 100), [stores]);
     const hdrTaskRef = useRef(0);
     const [hdrImageUrl, setHdrImageUrl] = useState(null);
-    const [image, box, container] = useMemo(() => {
+    const [image, box, container, raster] = useMemo(() => {
         const image = new Rect({ origin: 'center' });
+        const raster = new Rect({ hittable: false, visible: false });
         const box = new Box({ overflow: 'hide', strokeAlign: 'inside', children: [image] });
         const container = new Box({
             id: `screenhello-image:${layer.id}`,
@@ -29,6 +36,7 @@ export default observer(function Screenshot({ parent, layer }) {
             editable: true,
             hittable: true,
             cursor: 'grab',
+            zIndex: imageLayerZIndex(layer.zIndex),
             editConfig: {
                 moveable: true,
                 resizeable: true,
@@ -54,13 +62,16 @@ export default observer(function Screenshot({ parent, layer }) {
             skewX: 0,
             skewY: 0,
             fill: '#ffffff00',
-            children: [box],
+            children: [box, raster],
         });
         container.__screenhelloImageId = layer.id;
-        return [image, box, container];
+        return [image, box, container, raster];
     }, [layer.id]);
 
-    useEffect(() => () => createSnap.cancel(), [createSnap]);
+    useEffect(() => {
+        const unregister = stores.renderTaskTracker?.registerFlusher(() => createSnap.flush());
+        return () => { createSnap.cancel(); unregister?.(); };
+    }, [createSnap, stores]);
 
     useEffect(() => {
         const source = runtimeImage?.src;
@@ -71,6 +82,7 @@ export default observer(function Screenshot({ parent, layer }) {
             return undefined;
         }
         let cancelled = false;
+        const effect = stores.renderTaskTracker?.beginEffect(container);
         setHdrImageUrl(null);
         const isCurrent = () => !cancelled
             && hdrTaskRef.current === taskId
@@ -80,12 +92,13 @@ export default observer(function Screenshot({ parent, layer }) {
             ? enhanceImageToHdr(source, { shouldContinue: isCurrent })
             : null).then((result) => {
             if (!result || !isCurrent()) return;
+            if (result === source) effect?.fallback('hdr-fallback');
             setHdrImageUrl(result);
         }).catch(() => {
-            if (isCurrent()) setHdrImageUrl(null);
+            if (isCurrent()) { setHdrImageUrl(null); effect?.fallback('hdr-fallback'); }
         });
         stores.renderTaskTracker?.track(operation);
-        return () => { cancelled = true; };
+        return () => { cancelled = true; effect?.dispose(); };
     }, [layer.id, runtimeImage?.src, stores, stores.option.hdrEnabled]);
 
     useEffect(() => {
@@ -96,13 +109,22 @@ export default observer(function Screenshot({ parent, layer }) {
             align: stores.option.mode === 'fit' ? 'center' : 'top',
             mode: stores.option.mode,
         };
-        createSnap();
+        stores.editor.createSnap('update', { force: true });
     }, [image, hdrImageUrl, runtimeImage?.src, stores.option.mode, stores.option.hdrEnabled]);
 
     useEffect(() => {
-        container.editable = !layer.locked;
+        const isVisible = layer.visible !== false;
+        container.visible = isVisible;
+        container.hittable = isVisible;
+        container.editable = isVisible && !layer.locked;
         container.cursor = layer.locked ? 'not-allowed' : 'grab';
-    }, [container, layer.locked]);
+        createSnap();
+    }, [container, createSnap, layer.locked, layer.visible]);
+
+    useEffect(() => {
+        container.zIndex = imageLayerZIndex(layer.zIndex);
+        createSnap();
+    }, [container, createSnap, layer.zIndex]);
 
     useEffect(() => {
         box.fill = stores.option.padding === 0 && !isDeviceFrame(stores.option.frame)
@@ -120,14 +142,16 @@ export default observer(function Screenshot({ parent, layer }) {
 
     useEffect(() => {
         const definition = getFrameDefinition(stores.option.frame);
-        container.cornerRadius = stores.option.round;
+        const perspectiveOn = isPerspectiveActive(stores.option.perspective3d) && !isDeviceFrame(stores.option.frame);
+        container.cornerRadius = (definition.kind === 'raster-device' || perspectiveOn) ? 0 : stores.option.round;
         image.cornerRadius = definition.kind === 'browser' || definition.kind === 'arc' ? null : stores.option.round;
         createSnap();
-    }, [container, image, stores.option.frame, stores.option.round]);
+    }, [container, image, stores.option.frame, stores.option.perspective3d, stores.option.round]);
 
     useEffect(() => {
         const shadow = stores.option.shadow;
-        if (!shadow?.visible || stores.option.frame === 'macbookpro16' || isDeviceFrame(stores.option.frame)) {
+        const perspectiveOn = isPerspectiveActive(stores.option.perspective3d) && !isDeviceFrame(stores.option.frame);
+        if (!shadow?.visible || stores.option.frame === 'macbookpro16' || isDeviceFrame(stores.option.frame) || perspectiveOn) {
             container.shadow = null;
         } else {
             container.shadow = {
@@ -140,7 +164,7 @@ export default observer(function Screenshot({ parent, layer }) {
             };
         }
         createSnap();
-    }, [container, stores.option.frame, stores.option.shadow, stores.option.shadow?.visible, stores.option.shadow?.x, stores.option.shadow?.y, stores.option.shadow?.blur, stores.option.shadow?.spread, stores.option.shadow?.color]);
+    }, [container, stores.option.frame, stores.option.perspective3d, stores.option.shadow, stores.option.shadow?.visible, stores.option.shadow?.x, stores.option.shadow?.y, stores.option.shadow?.blur, stores.option.shadow?.spread, stores.option.shadow?.color]);
 
     useEffect(() => {
         image.scaleX = stores.option.scaleX ? -1 : 1;
@@ -175,7 +199,11 @@ export default observer(function Screenshot({ parent, layer }) {
         const maxWidth = Math.max(1, frameConf.width - margin - inset * 2);
         const browserHeaderHeight = getBrowserHeaderHeight(frame, browserHeaderSize);
         const maxHeight = Math.max(1, frameConf.height - margin - inset - bottomInset - browserHeaderHeight);
-        const baseContentSize = computedSize(img.width || 1, img.height || 1, maxWidth, maxHeight);
+        // 位图机身与形态预设按机身比例布局（图片贴进屏幕），其余外框按图片尺寸。
+        const contentBasis = getFrameContentBasis(frame);
+        const baseContentSize = contentBasis
+            ? computedSize(contentBasis.width, contentBasis.height, maxWidth, maxHeight)
+            : computedSize(img.width || 1, img.height || 1, maxWidth, maxHeight);
         const hasIndependentBrowserHeader = definition.kind === 'browser' || definition.kind === 'arc';
         // 浏览器顶部栏由 browserHeaderSize 独立控制。缩放只折算到网页内容区域，
         // 避免拖动四角时地址栏、圆点、图标和 URL 文字被一起放大或缩小。
@@ -186,7 +214,13 @@ export default observer(function Screenshot({ parent, layer }) {
             }
             : baseContentSize;
         const metrics = getFrameMetrics(frame, contentSize.width, contentSize.height, { headerSize: browserHeaderSize });
-        const { totalWidth, totalHeight, headerHeight } = metrics;
+        const perspectiveActive = isPerspectiveActive(stores.option.perspective3d) && !isDeviceFrame(frame);
+        const perspectiveGeometry = perspectiveActive
+            ? computePerspectiveGeometry(metrics.totalWidth, metrics.totalHeight, stores.option.perspective3d, stores.option.shadow)
+            : null;
+        const totalWidth = perspectiveGeometry ? perspectiveGeometry.totalWidth : metrics.totalWidth;
+        const totalHeight = perspectiveGeometry ? perspectiveGeometry.totalHeight : metrics.totalHeight;
+        const { headerHeight } = metrics;
         // 平面布局：scale 为二维缩放，rotation（Z 轴）直接作用于 container；
         // 旋转时 origin=center，x/y 是未缩放盒子的左上角（见下方换算）。
         const hasSpatialTransform = rotation !== 0;
@@ -207,15 +241,19 @@ export default observer(function Screenshot({ parent, layer }) {
         }
         positionX += offsetX;
         positionY += offsetY;
-        const decorationState = createFrameDecorations(frame, metrics, {
-            shadow: stores.option.shadow,
-            url: browserUrl,
-        });
+        const decorationState = perspectiveActive
+            ? { nodes: [], overlays: [], strokeWidth: null, stroke: null }
+            : createFrameDecorations(frame, metrics, {
+                shadow: stores.option.shadow,
+                url: browserUrl,
+            });
         const decorations = decorationState.nodes || [];
         const overlays = decorationState.overlays || [];
 
         decorations.forEach((node) => addBefore(container, node, box));
         overlays.forEach((node) => container.add(node));
+        container.overflow = perspectiveActive ? 'show' : 'hide';
+        container.hitFill = perspectiveActive ? 'pixel' : 'all';
         container.strokeWidth = decorationState.strokeWidth ?? null;
         container.stroke = decorationState.stroke ?? null;
         container.width = totalWidth;
@@ -233,6 +271,12 @@ export default observer(function Screenshot({ parent, layer }) {
         box.x = metrics.boxX;
         box.y = metrics.boxY;
         box.cornerRadius = metrics.screenRadius ?? null;
+        raster.x = perspectiveActive ? 0 : (metrics.deviceX || 0);
+        raster.y = perspectiveActive ? 0 : (metrics.deviceY || 0);
+        raster.width = perspectiveActive ? totalWidth : (metrics.deviceWidth || totalWidth);
+        raster.height = perspectiveActive ? totalHeight : (metrics.deviceHeight || totalHeight);
+        raster.__screenhelloFlatWidth = metrics.totalWidth;
+        raster.__screenhelloFlatHeight = metrics.totalHeight;
         const effectivePadding = hasIndependentBrowserHeader ? padding * scale : padding;
         const imageWidth = Math.max(1, metrics.boxWidth - effectivePadding);
         const imageHeight = Math.max(1, Math.round(imageWidth * metrics.boxHeight / Math.max(1, metrics.boxWidth)));
@@ -303,6 +347,10 @@ export default observer(function Screenshot({ parent, layer }) {
             image.height = liveImageHeight + 2;
             image.x = livePadding / 2 - 1;
             image.y = (box.height - liveImageHeight) / 2 - 1;
+            raster.x = (metrics.deviceX || 0) * localRatioX;
+            raster.y = (metrics.deviceY || 0) * localRatioY;
+            raster.width = (metrics.deviceWidth || totalWidth) * localRatioX;
+            raster.height = (metrics.deviceHeight || totalHeight) * localRatioY;
         };
         const allDecorations = [...decorations, ...overlays];
         const decorationEntries = allDecorations.map((node) => ({
@@ -321,8 +369,11 @@ export default observer(function Screenshot({ parent, layer }) {
                 }
                 : baseContentSize;
             const nextMetrics = getFrameMetrics(frame, nextContentSize.width, nextContentSize.height, { headerSize: browserHeaderSize });
-            const nextWidth = nextMetrics.totalWidth;
-            const nextHeight = nextMetrics.totalHeight;
+            const nextPersp = perspectiveActive
+                ? computePerspectiveGeometry(nextMetrics.totalWidth, nextMetrics.totalHeight, stores.option.perspective3d, stores.option.shadow)
+                : null;
+            const nextWidth = nextPersp ? nextPersp.totalWidth : nextMetrics.totalWidth;
+            const nextHeight = nextPersp ? nextPersp.totalHeight : nextMetrics.totalHeight;
             if (nextRotation !== 0) {
                 const rad = nextRotation * Math.PI / 180;
                 const rotatedW = Math.abs(nextWidth * Math.cos(rad)) + Math.abs(nextHeight * Math.sin(rad));
@@ -358,10 +409,86 @@ export default observer(function Screenshot({ parent, layer }) {
             container.skewX = 0;
             container.skewY = 0;
             container.rotation = 0;
+            container.overflow = 'hide';
+            container.hitFill = 'all';
             box.cornerRadius = null;
-            container.cornerRadius = stores.option.round;
+            container.cornerRadius = getRasterDevice(stores.option.frame) ? 0 : stores.option.round;
         };
-    }, [box, container, image, layer, layer.id, layer.transform.x, layer.transform.y, layer.transform.rotation, layer.transform.scale, runtimeImage?.width, runtimeImage?.height, stores.option.align, stores.option.browserHeaderSize, stores.option.browserUrl, stores.option.frame, stores.option.frameConf.width, stores.option.frameConf.height, stores.option.padding, stores.option.shadow]);
+    }, [box, container, image, raster, layer, layer.id, layer.transform.x, layer.transform.y, layer.transform.rotation, layer.transform.scale, runtimeImage?.width, runtimeImage?.height, stores.option.align, stores.option.browserHeaderSize, stores.option.browserUrl, stores.option.frame, stores.option.frameConf.width, stores.option.frameConf.height, stores.option.padding, stores.option.perspective3d, stores.option.shadow]);
+
+    useEffect(() => {
+        const device = getRasterDevice(stores.option.frame);
+        const perspectiveActive = !device && !isDeviceFrame(stores.option.frame) && isPerspectiveActive(stores.option.perspective3d);
+        box.visible = !device && !perspectiveActive;
+        raster.visible = Boolean(device || perspectiveActive);
+        if (!device && !perspectiveActive) return undefined;
+        const controller = new AbortController();
+        const effect = stores.renderTaskTracker.beginEffect(raster);
+        let ownedUrl;
+        const failCode = device ? 'device-render-failed' : 'perspective-render-failed';
+        const loadFailed = () => { if (!controller.signal.aborted) effect.fail(failCode); };
+        raster.on(ImageEvent.ERROR, loadFailed);
+        raster.fill = null;
+        const displaySrc = stores.option.hdrEnabled && hdrImageUrl ? hdrImageUrl : runtimeImage?.src;
+        const operation = stores.imageStore.enqueueProcessing(async () => {
+            if (controller.signal.aborted) return null;
+            if (device) {
+                const factor = 1440 / Math.max(1, raster.width);
+                const options = {
+                    mode: stores.option.frameMode,
+                    padding: stores.option.padding * factor,
+                    paddingBg: stores.option.paddingBg,
+                    round: stores.option.round * factor,
+                    border: { ...stores.option.innerBorder, width: (stores.option.innerBorder?.width || 0) * factor },
+                    flipX: stores.option.scaleX,
+                    flipY: stores.option.scaleY,
+                };
+                const { renderRasterDevice } = await import('@utils/renderRasterDevice');
+                return renderRasterDevice(device, displaySrc, options, controller.signal);
+            }
+            const flatW = Math.max(1, Number(raster.__screenhelloFlatWidth) || Number(runtimeImage?.width) || 800);
+            const flatH = Math.max(1, Number(raster.__screenhelloFlatHeight) || Number(runtimeImage?.height) || 600);
+            const exportRatio = stores.option.exportPerspectiveRatio;
+            const { renderPerspectiveLayer } = await import('@utils/perspectiveRenderer');
+            const rendered = await renderPerspectiveLayer(displaySrc, flatW, flatH, {
+                frame: stores.option.frame,
+                browserUrl: stores.option.browserUrl,
+                browserHeaderSize: stores.option.browserHeaderSize,
+                padding: stores.option.padding,
+                paddingBg: stores.option.paddingBg,
+                round: stores.option.round,
+                innerBorder: stores.option.innerBorder,
+                shadow: stores.option.shadow,
+                perspective: stores.option.perspective3d,
+                flipX: stores.option.scaleX,
+                flipY: stores.option.scaleY,
+                quality: exportRatio ? 'export' : 'preview',
+                pixelRatio: exportRatio || 1.5,
+            }, controller.signal);
+            return rendered?.url || null;
+        }).then(url => {
+            if (!url) return;
+            if (controller.signal.aborted) { URL.revokeObjectURL(url); return; }
+            ownedUrl = url;
+            raster.fill = { type: 'image', url, mode: 'stretch' };
+            stores.editor.createSnap('update', { force: true });
+        }).catch(() => {
+            if (!controller.signal.aborted) effect.fail(failCode);
+        });
+        stores.renderTaskTracker.track(operation);
+        return () => {
+            controller.abort(); effect.dispose(); raster.off(ImageEvent.ERROR, loadFailed); raster.fill = null;
+            if (ownedUrl) URL.revokeObjectURL(ownedUrl);
+        };
+    }, [box, raster, stores, stores.option.frame, stores.option.frameMode, stores.option.browserUrl,
+        stores.option.browserHeaderSize, stores.option.padding, stores.option.paddingBg, stores.option.round,
+        stores.option.innerBorder?.visible, stores.option.innerBorder?.color, stores.option.innerBorder?.width,
+        stores.option.shadow?.visible, stores.option.shadow?.x, stores.option.shadow?.y,
+        stores.option.shadow?.blur, stores.option.shadow?.spread, stores.option.shadow?.color,
+        stores.option.perspective3d, stores.option.exportPerspectiveRatio,
+        stores.option.scaleX, stores.option.scaleY, stores.option.hdrEnabled, hdrImageUrl,
+        layer.transform.scale, runtimeImage?.src,
+        runtimeImage?.width, runtimeImage?.height, stores.option.frameConf.width, stores.option.frameConf.height]);
 
     useEffect(() => {
         parent.add(container);

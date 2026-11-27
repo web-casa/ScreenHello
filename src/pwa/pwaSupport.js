@@ -18,8 +18,9 @@ export const getInstallMode = ({
 
 export const getUpdateBlockReason = (stores) => {
     if (stores?.workspace?.busy
-        || stores?.batch?.isRunning
+        || stores?.batch?.isBusy
         || stores?.exportService?.isBusy
+        || stores?.commands?.exportActive
         || Number(stores?.renderTaskTracker?.size) > 0) {
         return 'busy';
     }

@@ -1,6 +1,7 @@
 import { makeAutoObservable } from 'mobx';
 import { MAX_PROJECT_IMAGES, normalizeProjectImage } from '@utils/projectDocument';
-import { browserPlatform } from '../platform/browserPlatform';
+import { PROJECT_CODE_CARDS_MAX_BYTES, estimateProjectCodeCardBytes } from '@utils/codeCardSchema';
+import { PROJECT_MANIFEST_SOFT_LIMIT_BYTES, estimateSerializedManifestBytes } from '@utils/textCardSchema';
 
 export const MAX_PROJECT_IMAGE_PIXELS = 120_000_000;
 const SNAP_THRESHOLD = 8;
@@ -12,9 +13,9 @@ const createId = (prefix) => {
     return `${prefix}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const revoke = (resource) => {
+const revoke = (resource, platform) => {
     if (resource?._ownsObjectUrl && typeof resource.src === 'string' && resource.src.startsWith('blob:')) {
-        browserPlatform.file.revokeObjectURL(resource.src);
+        platform.file.revokeObjectURL(resource.src);
     }
 };
 
@@ -143,6 +144,8 @@ export class ImageStore {
                 zIndex: startIndex + index,
                 locked: false,
                 groupId: null,
+                ...(value.codeCard ? { codeCard: value.codeCard } : {}),
+                ...(value.textCard && !value.codeCard ? { textCard: value.textCard } : {}),
             }, startIndex + index);
         });
         this._assertBudget(startIndex + nextLayers.length, nextResources);
@@ -178,10 +181,57 @@ export class ImageStore {
             type: resource.type,
             name: resource.name,
         }));
-        if (!shared && previous?.src !== resource.src) revoke(previous);
+        if (!shared && previous?.src !== resource.src) revoke(previous, this.root.platform);
         this.resourceRevision += 1;
         this.baselineRevision += 1;
         return this.layers.get(active.id);
+    }
+
+    /**
+     * 只替换指定的当前图层资源，并把动作作为一步历史提交。
+     * 新资源使用新的 assetId；旧资源由 History 在最后一个引用快照淘汰后统一回收。
+     * codeCard / textCard 三态约定：undefined 保留原图层元数据；null 显式清除；对象则更新。
+     */
+    replaceActiveResource(value, { targetId = this.activeId, commit = true, codeCard, textCard } = {}) {
+        if (this.root.isDisposed) throw Object.assign(new Error('runtime-disposed'), { code: 'runtime-disposed' });
+        const target = targetId ? this.layers.get(targetId) : null;
+        if (!target) throw Object.assign(new Error('image-target-missing'), { code: 'image-target-missing' });
+
+        const assetId = createId('asset');
+        const resource = this._resourceFrom(value, assetId);
+        const nextResources = new Map(this.resources);
+        nextResources.set(assetId, resource);
+        this._assertBudget(this.layers.size, nextResources);
+
+        const nextRaw = {
+            ...target,
+            assetId,
+            width: resource.width,
+            height: resource.height,
+            type: resource.type,
+            name: resource.name,
+        };
+        if (codeCard === null) {
+            delete nextRaw.codeCard;
+        } else if (codeCard !== undefined) {
+            nextRaw.codeCard = codeCard;
+            delete nextRaw.textCard;
+        }
+        if (textCard === null) {
+            delete nextRaw.textCard;
+        } else if (textCard !== undefined) {
+            nextRaw.textCard = textCard;
+            delete nextRaw.codeCard;
+        }
+
+        this.resources = nextResources;
+        this.layers.set(target.id, normalizeProjectImage(nextRaw));
+        this.resourceRevision += 1;
+        this.root.editor.snap = null;
+        this.root.baseSnapshot.invalidate();
+        if (target.id === this.activeId) this._syncOptionFromActive();
+        if (commit) this.root.history?.commit?.('image:replace-active');
+        return this.layers.get(target.id);
     }
 
     replaceAll(value) {
@@ -234,11 +284,12 @@ export class ImageStore {
         this.resourceRevision += 1;
         this.baselineRevision += 1;
         this.select(this.list[0] ? [this.list[0].id] : []);
-        previousResources.forEach(revoke);
+        previousResources.forEach((resource) => revoke(resource, this.root.platform));
     }
 
     restoreLayers(images) {
         const current = this.list;
+        const previousActiveId = this.activeId;
         const next = images.map((raw, index) => {
             const assetId = raw.assetId || current[index]?.assetId;
             if (!assetId || !this.resources.has(assetId)) {
@@ -248,8 +299,12 @@ export class ImageStore {
         });
         this._assertBudget(next.length, this.resources);
         this.layers = new Map(clampOrder(next).map((layer) => [layer.id, layer]));
-        const retainedSelection = this.selectedIds.filter((id) => this.layers.has(id));
-        this.select(retainedSelection.length ? retainedSelection : (this.list[0] ? [this.list[0].id] : []));
+        const isVisibleLayer = (layer) => Boolean(layer && layer.visible !== false);
+        const retainedSelection = this.selectedIds.filter((id) => isVisibleLayer(this.layers.get(id)));
+        const fallbackId = previousActiveId && isVisibleLayer(this.layers.get(previousActiveId))
+            ? previousActiveId
+            : this.list.find(isVisibleLayer)?.id;
+        this.select(retainedSelection.length ? retainedSelection : (fallbackId ? [fallbackId] : []));
     }
 
     toDocument() {
@@ -257,17 +312,22 @@ export class ImageStore {
     }
 
     select(ids, { expandGroup = true } = {}) {
-        const requested = (Array.isArray(ids) ? ids : [ids]).filter((id) => this.layers.has(id));
+        const isVisibleLayer = (layer) => Boolean(layer && layer.visible !== false);
+        const requested = (Array.isArray(ids) ? ids : [ids]).filter((id) => isVisibleLayer(this.layers.get(id)));
         const expanded = new Set(requested);
         if (expandGroup) {
             requested.forEach((id) => {
                 const groupId = this.layers.get(id)?.groupId;
-                if (groupId) this.list.forEach((layer) => { if (layer.groupId === groupId) expanded.add(layer.id); });
+                if (groupId) {
+                    this.list.forEach((layer) => {
+                        if (layer.groupId === groupId && layer.visible !== false) expanded.add(layer.id);
+                    });
+                }
             });
         }
         this.selectedIds = Array.from(expanded);
         this.activeId = this.selectedIds[0]
-            || (this.activeId && this.layers.has(this.activeId) ? this.activeId : this.list[0]?.id)
+            || (this.activeId && isVisibleLayer(this.layers.get(this.activeId)) ? this.activeId : this.list.find(isVisibleLayer)?.id)
             || null;
         this._syncOptionFromActive();
     }
@@ -295,6 +355,23 @@ export class ImageStore {
         this.layers.set(id, next);
         if (syncOption && id === this.activeId) this._syncOptionFromActive();
         return true;
+    }
+
+    /** 批量更新多个未锁定图层的几何变换（不提交历史，供场景模板原子事务使用）。 */
+    applyLayerTransforms(updates = []) {
+        if (!Array.isArray(updates) || !updates.length) return false;
+        let changed = false;
+        updates.forEach(({ id, transform }) => {
+            const layer = id ? this.layers.get(id) : null;
+            if (!layer || layer.locked || !transform) return;
+            this.layers.set(id, normalizeProjectImage({
+                ...layer,
+                transform: { ...layer.transform, ...transform },
+            }));
+            changed = true;
+        });
+        if (changed) this._syncOptionFromActive();
+        return changed;
     }
 
     setGeometry(id, geometry) {
@@ -371,6 +448,17 @@ export class ImageStore {
         const source = this._editableSelection();
         if (!source.length) return false;
         this._assertBudget(this.layers.size + source.length, this.resources);
+        const projectedLayers = [...this.list, ...source];
+        if (estimateProjectCodeCardBytes(projectedLayers) > PROJECT_CODE_CARDS_MAX_BYTES) {
+            return false;
+        }
+        const currentDoc = this.root.editor?.serializeProject?.();
+        if (currentDoc) {
+            const projectedDoc = { ...currentDoc, images: projectedLayers };
+            if (estimateSerializedManifestBytes(projectedDoc) > PROJECT_MANIFEST_SOFT_LIMIT_BYTES) {
+                return false;
+            }
+        }
         const nextIds = [];
         source.forEach((layer) => {
             const id = createId('image');
@@ -435,15 +523,34 @@ export class ImageStore {
         return true;
     }
 
-    reorderSelected(direction) {
+    toggleLayerVisibility(id) {
+        const layer = id ? this.layers.get(id) : null;
+        if (!layer) return false;
+        const nextVisible = layer.visible === false;
+        this.layers.set(id, { ...layer, visible: nextVisible });
+        if (!nextVisible && this.selectedIds.includes(id)) {
+            const remaining = this.selectedIds.filter((selectedId) => selectedId !== id);
+            this.select(remaining, { expandGroup: false });
+            const editor = this.root.editor?.app?.editor;
+            if (editor) {
+                const keptNodes = remaining.map((keptId) => this.nodes.get(keptId)).filter(Boolean);
+                if (keptNodes.length) editor.select(keptNodes);
+                else editor.cancel?.();
+            }
+        }
+        this.root.history?.commit?.('image:visibility');
+        return true;
+    }
+
+    _selectionOrderCandidate(direction) {
         const selected = new Set(this.selectedIds);
-        if (!selected.size) return false;
-        let list = this.list;
+        if (!selected.size || this.selectedList.some((layer) => layer.locked)) return null;
+        let list = [...this.list];
         if (direction === 'top') list = [...list.filter((layer) => !selected.has(layer.id)), ...list.filter((layer) => selected.has(layer.id))];
         else if (direction === 'bottom') list = [...list.filter((layer) => selected.has(layer.id)), ...list.filter((layer) => !selected.has(layer.id))];
         else {
             const step = direction === 'up' ? 1 : direction === 'down' ? -1 : 0;
-            if (!step) return false;
+            if (!step) return null;
             const indexes = list.map((layer, index) => selected.has(layer.id) ? index : -1).filter((index) => index >= 0);
             const ordered = step > 0 ? indexes.reverse() : indexes;
             ordered.forEach((index) => {
@@ -452,9 +559,46 @@ export class ImageStore {
                 [list[index], list[next]] = [list[next], list[index]];
             });
         }
+        const currentOrder = this.list.map((layer) => layer.id).join('|');
+        return list.map((layer) => layer.id).join('|') === currentOrder ? null : list;
+    }
+
+    _commitLayerOrder(list) {
         this.layers = new Map(list.map((layer, zIndex) => [layer.id, { ...layer, zIndex }]));
         this.root.history?.commit?.('image:order');
         return true;
+    }
+
+    canReorderSelected(direction) {
+        return Boolean(this._selectionOrderCandidate(direction));
+    }
+
+    reorderSelected(direction) {
+        const list = this._selectionOrderCandidate(direction);
+        return list ? this._commitLayerOrder(list) : false;
+    }
+
+    /**
+     * 把当前选择作为一个保持内部顺序的块，移动到目标层在面板视觉顺序中的上方或下方。
+     * 面板按 zIndex 倒序展示，因此视觉 above 对应底层数组中的 target 后方。
+     */
+    moveSelectedTo(targetId, position) {
+        if (!['above', 'below'].includes(position)) return false;
+        const selected = new Set(this.selectedIds);
+        if (!selected.size || selected.has(targetId) || this.selectedList.some((layer) => layer.locked)) return false;
+        const current = this.list;
+        const moving = current.filter((layer) => selected.has(layer.id));
+        const remaining = current.filter((layer) => !selected.has(layer.id));
+        const targetIndex = remaining.findIndex((layer) => layer.id === targetId);
+        if (targetIndex < 0 || !moving.length) return false;
+        const insertionIndex = position === 'above' ? targetIndex + 1 : targetIndex;
+        const next = [
+            ...remaining.slice(0, insertionIndex),
+            ...moving,
+            ...remaining.slice(insertionIndex),
+        ];
+        if (next.every((layer, index) => layer.id === current[index]?.id)) return false;
+        return this._commitLayerOrder(next);
     }
 
     alignSelected(axis) {
@@ -546,7 +690,7 @@ export class ImageStore {
         const referenced = retainedAssetIds || new Set(this.list.map((layer) => layer.assetId));
         this.resources.forEach((resource, assetId) => {
             if (!referenced.has(assetId)) {
-                revoke(resource);
+                revoke(resource, this.root.platform);
                 this.resources.delete(assetId);
             }
         });
@@ -562,7 +706,7 @@ export class ImageStore {
     }
 
     clearAll({ release = true, incrementBaseline = true } = {}) {
-        if (release) this.resources.forEach(revoke);
+        if (release) this.resources.forEach((resource) => revoke(resource, this.root.platform));
         this.resources.clear();
         this.layers.clear();
         this.geometry.clear();

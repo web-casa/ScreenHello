@@ -1,3 +1,4 @@
+import useI18n from '../i18n/useI18n';
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
 import { Button, ColorPicker as AntColorPicker } from 'antd';
 import { TinyColor } from '@ctrl/tinycolor';
@@ -45,6 +46,7 @@ function AccessibleColorPanel({
     onUseDropper,
     presets,
 }) {
+    const t = useI18n();
     const alpha = Math.round(color.getAlpha() * 100);
     const hasEyeDropper = typeof window !== 'undefined' && typeof window.EyeDropper === 'function';
 
@@ -53,7 +55,7 @@ function AccessibleColorPanel({
             id={ids.dialog}
             className="shoteasy-color-picker-panel"
             role="dialog"
-            aria-label={`${accessibleName}设置`}
+            aria-label={t("{0}设置", { 0: accessibleName })}
             onKeyDown={onEscape}
         >
             <div className="shoteasy-color-picker-panel__header">
@@ -63,7 +65,7 @@ function AccessibleColorPanel({
                         type="text"
                         shape="circle"
                         size="small"
-                        aria-label="吸取屏幕颜色"
+                        aria-label={t("吸取屏幕颜色")}
                         icon={<Icon.Pipette size={16} />}
                         onClick={onUseDropper}
                     />
@@ -71,19 +73,19 @@ function AccessibleColorPanel({
             </div>
 
             <div className="shoteasy-color-picker-panel__row">
-                <label htmlFor={ids.color}>色彩</label>
+                <label htmlFor={ids.color}>{t("色彩")}</label>
                 <input
                     id={ids.color}
                     type="color"
                     value={color.toHexString()}
                     disabled={disabled}
-                    aria-label={`${accessibleName}色彩`}
+                    aria-label={t("{0}色彩", { 0: accessibleName })}
                     onChange={onColorInput}
                 />
             </div>
 
             <div className="shoteasy-color-picker-panel__row">
-                <label htmlFor={ids.hex}>十六进制</label>
+                <label htmlFor={ids.hex}>{t("十六进制")}</label>
                 <input
                     id={ids.hex}
                     type="text"
@@ -91,7 +93,7 @@ function AccessibleColorPanel({
                     disabled={disabled}
                     spellCheck={false}
                     autoComplete="off"
-                    aria-label={`${accessibleName}十六进制值`}
+                    aria-label={t("{0}十六进制值", { 0: accessibleName })}
                     aria-invalid={!parseHexColor(hexDraft)}
                     onBlur={onHexBlur}
                     onChange={onHexChange}
@@ -102,7 +104,7 @@ function AccessibleColorPanel({
             {!disabledAlpha && (
                 <div className="shoteasy-color-picker-panel__alpha">
                     <div>
-                        <label htmlFor={ids.alpha}>不透明度</label>
+                        <label htmlFor={ids.alpha}>{t("不透明度")}</label>
                         <output htmlFor={ids.alpha}>{alpha}%</output>
                     </div>
                     <input
@@ -113,7 +115,7 @@ function AccessibleColorPanel({
                         step="1"
                         value={alpha}
                         disabled={disabled}
-                        aria-label={`${accessibleName}不透明度`}
+                        aria-label={t("{0}不透明度", { 0: accessibleName })}
                         onChange={onAlphaChange}
                         onKeyUp={onAlphaComplete}
                         onPointerUp={onAlphaComplete}
@@ -123,7 +125,7 @@ function AccessibleColorPanel({
 
             {presets.map((preset, groupIndex) => (
                 <fieldset className="shoteasy-color-picker-panel__presets" key={`${preset.label ?? 'preset'}-${groupIndex}`}>
-                    <legend>{preset.label ?? '预设颜色'}</legend>
+                    <legend>{preset.label ?? t("预设颜色")}</legend>
                     <div>
                         {(preset.colors ?? []).map((presetColor, colorIndex) => {
                             const parsed = parseColor(presetColor);
@@ -136,7 +138,7 @@ function AccessibleColorPanel({
                                     className="shoteasy-color-picker-panel__preset"
                                     style={{ backgroundColor: cssColor }}
                                     disabled={disabled}
-                                    aria-label={`使用颜色 ${parsed.toHex8String()}`}
+                                    aria-label={t("使用颜色 {0}", { 0: parsed.toHex8String() })}
                                     onClick={() => onPreset(parsed)}
                                 />
                             );
@@ -153,6 +155,7 @@ function AccessibleColorPanel({
  * 可操作控件都有稳定的原生语义，不依赖 AntD 私有 DOM 或版本相关选择器。
  */
 export default function ColorPickerWithDropper(props) {
+    const t = useI18n();
     const {
         children,
         defaultValue,
@@ -167,7 +170,7 @@ export default function ColorPickerWithDropper(props) {
         value,
         ...pickerProps
     } = props;
-    const accessibleName = props['aria-label'] || '选择颜色';
+    const accessibleName = props['aria-label'] || t("选择颜色");
     const generatedId = useId().replaceAll(':', '');
     const ids = {
         alpha: `shoteasy-color-alpha-${generatedId}`,
@@ -265,7 +268,7 @@ export default function ColorPickerWithDropper(props) {
         'aria-disabled': disabled || undefined,
         'aria-expanded': isOpen,
         'aria-haspopup': 'dialog',
-        'aria-controls': ids.dialog,
+        'aria-controls': isOpen ? ids.dialog : undefined,
         'aria-label': accessibleName,
         onKeyDown: (event) => {
             onKeyDown?.(event);
@@ -276,7 +279,7 @@ export default function ColorPickerWithDropper(props) {
     };
     const trigger = isValidElement(children)
         ? cloneElement(children, {
-            'aria-controls': ids.dialog,
+            'aria-controls': isOpen ? ids.dialog : undefined,
             'aria-expanded': isOpen,
             'aria-haspopup': 'dialog',
         })

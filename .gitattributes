@@ -1,0 +1,8 @@
+# Keep audited source bytes and shell scripts identical on all native runners.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.wasm binary

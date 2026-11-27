@@ -1,3 +1,4 @@
+import useI18n from '../../i18n/useI18n';
 import { Dropdown, Button } from 'antd';
 
 const widths = [1, 2, 4, 6, 8];
@@ -11,6 +12,7 @@ const items = widths.map(width => ({
 }));
 
 export const WidthDropdown = ({ defaultValue, onChange, placement = 'bottom' }) => {
+    const t = useI18n();
     const handleClick = ({ key }) => {
         onChange(Number(key));
     };
@@ -19,12 +21,13 @@ export const WidthDropdown = ({ defaultValue, onChange, placement = 'bottom' }) 
             menu={{ items, onClick: handleClick, selectedKeys: [defaultValue] }}
             trigger={['click']}
             placement={placement}
+            rootClassName="shoteasy-annotation-popup"
         >
             <Button
                 type="text"
                 shape="circle"
                 className="shoteasy-width-button"
-                aria-label={`线宽 ${defaultValue}px`}
+                aria-label={t("线宽 {0}px", { 0: defaultValue })}
             >
                 <span className="shoteasy-width-preview" aria-hidden="true">
                     <i style={{ height: `${defaultValue}px` }} />

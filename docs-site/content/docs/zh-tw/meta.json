@@ -1,0 +1,40 @@
+{
+  "title": "產品介紹",
+  "pages": [
+    "index~產品介紹",
+    "guide~使用指南",
+    "beautify~截圖美化",
+    "frames~裝置外框",
+    "compression~匯出壓縮",
+    "privacy~本機與隱私"
+  ],
+  "name": "繁體中文",
+  "ui": {
+    "Search": "搜尋文件",
+    "Close Search": "關閉搜尋",
+    "No results found": "找不到結果，請嘗試其他關鍵字。",
+    "Choose a language": "選擇語言",
+    "Toggle Theme": "切換主題",
+    "Light": "淺色",
+    "Dark": "深色",
+    "System": "跟隨系統",
+    "Open Sidebar": "開啟側欄",
+    "Close Sidebar": "關閉側欄",
+    "Collapse Sidebar": "收合側欄",
+    "Hide Sidebar": "隱藏側欄",
+    "Show Sidebar": "顯示側欄",
+    "Next Page": "下一篇",
+    "Previous Page": "上一篇",
+    "On this page": "本頁目錄",
+    "No Headings": "暫無章節",
+    "Toggle Menu": "切換選單",
+    "searchHint": "搜尋目前語言的指南，例如 PNG、專案或匯出。",
+    "guideCaption": "編輯器內建範例：左側設定畫布與外框，右側調整背景與圖片樣式。截圖使用簡體中文介面。",
+    "exportCaption": "匯出面板：選擇格式與倍率，確認最終尺寸後下載。截圖使用簡體中文介面。"
+  },
+  "editorLanguage": "zh-TW",
+  "open": "開啟編輯器",
+  "skip": "跳至內容",
+  "languages": "語言",
+  "updated": "內容核對日期"
+}

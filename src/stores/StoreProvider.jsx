@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { createScreenHelloRuntime } from './index';
 import StoreContext from './storeContext';
 
-export default function StoreProvider({ children, onRuntime }) {
-    const [stores] = useState(() => createScreenHelloRuntime());
+export default function StoreProvider({ children, onRuntime, runtimeOptions }) {
+    const [stores] = useState(() => createScreenHelloRuntime(runtimeOptions));
 
     useEffect(() => {
         stores.cancelScheduledDispose();

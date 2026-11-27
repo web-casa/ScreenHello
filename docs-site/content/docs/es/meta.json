@@ -1,0 +1,40 @@
+{
+  "title": "Introducción",
+  "pages": [
+    "index~Introducción",
+    "guide~Guía",
+    "beautify~Diseño",
+    "frames~Marcos",
+    "compression~Compresión",
+    "privacy~Privacidad"
+  ],
+  "name": "Español",
+  "ui": {
+    "Search": "Buscar documentación",
+    "Close Search": "Cerrar búsqueda",
+    "No results found": "No hay resultados. Prueba otra palabra.",
+    "Choose a language": "Elegir idioma",
+    "Toggle Theme": "Cambiar tema",
+    "Light": "Claro",
+    "Dark": "Oscuro",
+    "System": "Sistema",
+    "Open Sidebar": "Abrir barra lateral",
+    "Close Sidebar": "Cerrar barra lateral",
+    "Collapse Sidebar": "Contraer barra lateral",
+    "Hide Sidebar": "Ocultar barra lateral",
+    "Show Sidebar": "Mostrar barra lateral",
+    "Next Page": "Página siguiente",
+    "Previous Page": "Página anterior",
+    "On this page": "En esta página",
+    "No Headings": "Sin encabezados",
+    "Toggle Menu": "Alternar menú",
+    "searchHint": "Busca en las guías en español, por ejemplo PNG o proyecto.",
+    "guideCaption": "Ejemplo integrado en el editor: lienzo a la izquierda y estilo a la derecha. Captura con la interfaz en inglés.",
+    "exportCaption": "Panel de exportación: elige formato y escala, comprueba el tamaño final y descarga. Captura con la interfaz en inglés."
+  },
+  "editorLanguage": "es",
+  "open": "Abrir editor",
+  "skip": "Ir al contenido",
+  "languages": "Idioma",
+  "updated": "Contenido revisado"
+}

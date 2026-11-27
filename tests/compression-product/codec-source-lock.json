@@ -1,0 +1,45 @@
+{
+  "package": "@jsquash/avif",
+  "version": "2.1.1",
+  "gitHead": "b7fa9ac9ec02f224847ad23d19d115f9e296a368",
+  "integrity": "sha512-LMRxd0fMgfCLtobDh0/sFYJMMiRJTNYSEEWvRDKXlAeZ08t3gI5V+1thIT0XjXJ+SVG7Zug9B0XPyx0Ti5VRNA==",
+  "repository": "jamsinclair/jSquash",
+  "tarball": "https://registry.npmjs.org/@jsquash/avif/-/avif-2.1.1.tgz",
+  "archives": {
+    "https://codeload.github.com/AOMediaCodec/libavif/tar.gz/refs/tags/v1.0.1": "398fe7039ce35db80fe7da8d116035924f2c02ea4a4aa9f4903df6699287599c"
+  },
+  "dependencyCommits": {
+    "https://aomedia.googlesource.com/aom/+/6054fae218eda6e53e1e3b4f7ef0fff4877c7bf1?format=JSON": {
+      "commit": "6054fae218eda6e53e1e3b4f7ef0fff4877c7bf1",
+      "tree": "169fb9012c9d8ccae83b344c32cdbb48d00dd1e6"
+    },
+    "https://chromium.googlesource.com/webm/libwebp/+/e2c85878f6a33f29948b43d3492d9cdaf801aa54?format=JSON": {
+      "commit": "e2c85878f6a33f29948b43d3492d9cdaf801aa54",
+      "tree": "3dcf7a6938fbde2788254fa8de40e82190082e7f"
+    }
+  },
+  "dependencySourceGate": {
+    "status": "HOLD",
+    "reason": "Googlesource generated gzip and tar bytes differ across downloads. Commit/tree metadata is pinned, but complete Git objects/source trees have NOT been fetched and verified. Do not rebuild from these generated archives."
+  },
+  "artifacts": {
+    "codec/enc/avif_enc.js": "c6805e62cae5c1b9870fcc0448437da9e4edfc58c3da264af52361281082c63c",
+    "codec/enc/avif_enc.wasm": "d9f2a95164362af48558d176e619becfd49dd97b50b86c679b47100860522b3d"
+  },
+  "recipe": {
+    "packages/avif/codec/package.json": "503284b2730a2d6ac71e1f48ec508bf92ff555fd7aa9136a256380f5e242da71",
+    "packages/avif/codec/Makefile": "3b51474f9d2d7490a5c299c513e54264f0fcb1680773fb418d8d5f41f876be3d",
+    "packages/avif/codec/helper.Makefile": "939b17c964940abb5ab5c2a07e522bb58fa0069c96a47ddf2b7ef6848c50fc7c",
+    "packages/avif/codec/pre.js": "b4d7da800804a2390eefa7805bb5f4e20cf349681334eb9a1715d2c58a1822b2",
+    "packages/avif/codec/enc/avif_enc.cpp": "f69d82c2dd4ffa3aa06b1b9fa1914e41999a0576515eb906e76817f9077668c4",
+    "tools/build-cpp.sh": "b801a6837b16421bb0189cee2c277caa36104720d234a1690a54a5b0313ab555",
+    "tools/cpp.Dockerfile": "517912e844696b2083a16c3512957794fdf6f40952f6cd89928778bb56302bf8"
+  },
+  "toolchain": {
+    "emscripten": "3.1.57",
+    "image": "emscripten/emsdk@sha256:8b7c9e9e95f3fb92b94876727a35235a8d2908c4d7e2ef2427f78366fd0b1130",
+    "platform": "linux/amd64",
+    "cflags": "-Oz -flto",
+    "imageStatus": "manifest-inspected-not-pulled-or-executed"
+  }
+}

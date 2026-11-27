@@ -1,0 +1,1157 @@
+[
+  {
+    "id": "devicescss-apple-watch-s8-v1",
+    "kind": "apple-watch-s8",
+    "title": "Apple Watch Series 8",
+    "color": "default",
+    "colorTitle": null,
+    "model": null,
+    "swatch": "#363c42",
+    "shell": "devicescss-apple-watch-s8-v1.png",
+    "thumb": "devicescss-apple-watch-s8-v1-thumb.png",
+    "mask": "devicescss-apple-watch-s8-screen.png",
+    "screenAspect": 0.8271604938271605,
+    "sourceWidth": 720,
+    "sourceHeight": 760,
+    "corners": [
+      [
+        92,
+        56
+      ],
+      [
+        628,
+        56
+      ],
+      [
+        628,
+        704
+      ],
+      [
+        92,
+        704
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-apple-watch-ultra-v1",
+    "kind": "apple-watch-ultra",
+    "title": "Apple Watch Ultra",
+    "color": "default",
+    "colorTitle": null,
+    "model": null,
+    "swatch": "#a7500c",
+    "shell": "devicescss-apple-watch-ultra-v1.png",
+    "thumb": "devicescss-apple-watch-ultra-v1-thumb.png",
+    "mask": "devicescss-apple-watch-ultra-screen.png",
+    "screenAspect": 0.8026315789473685,
+    "sourceWidth": 720,
+    "sourceHeight": 760,
+    "corners": [
+      [
+        116,
+        76
+      ],
+      [
+        604,
+        76
+      ],
+      [
+        604,
+        684
+      ],
+      [
+        116,
+        684
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-galaxy-s8-blue-v1",
+    "kind": "galaxy-s8",
+    "title": "Samsung Galaxy S8",
+    "color": "blue",
+    "colorTitle": "蓝色",
+    "model": null,
+    "swatch": "#5192d4",
+    "shell": "devicescss-galaxy-s8-blue-v1.png",
+    "thumb": "devicescss-galaxy-s8-blue-v1-thumb.png",
+    "mask": "devicescss-galaxy-s8-screen.png",
+    "screenAspect": 0.4864864864864865,
+    "sourceWidth": 661,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        17,
+        92
+      ],
+      [
+        644,
+        92
+      ],
+      [
+        644,
+        1379
+      ],
+      [
+        17,
+        1379
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-google-pixel-2-xl-v1",
+    "kind": "google-pixel-2-xl",
+    "title": "Google Pixel 2 XL",
+    "color": "default",
+    "colorTitle": null,
+    "model": null,
+    "swatch": "#cfcfcf",
+    "shell": "devicescss-google-pixel-2-xl-v1.png",
+    "thumb": "devicescss-google-pixel-2-xl-v1-thumb.png",
+    "mask": "devicescss-google-pixel-2-xl-screen.png",
+    "screenAspect": 0.5,
+    "sourceWidth": 699,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        38,
+        97
+      ],
+      [
+        661,
+        97
+      ],
+      [
+        661,
+        1343
+      ],
+      [
+        38,
+        1343
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-google-pixel-6-pro-black-v1",
+    "kind": "google-pixel-6-pro",
+    "title": "Google Pixel 6 Pro",
+    "color": "black",
+    "colorTitle": "黑色",
+    "model": "devicescss-google-pixel-6-pro",
+    "swatch": "#353637",
+    "shell": "devicescss-google-pixel-6-pro-black-v1.png",
+    "thumb": "devicescss-google-pixel-6-pro-black-v1-thumb.png",
+    "mask": "devicescss-google-pixel-6-pro-screen.png",
+    "screenAspect": 0.46078431372549017,
+    "sourceWidth": 675,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        23,
+        33
+      ],
+      [
+        652,
+        33
+      ],
+      [
+        652,
+        1397
+      ],
+      [
+        23,
+        1397
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-google-pixel-6-pro-gold-v1",
+    "kind": "google-pixel-6-pro",
+    "title": "Google Pixel 6 Pro",
+    "color": "gold",
+    "colorTitle": "金色",
+    "model": "devicescss-google-pixel-6-pro",
+    "swatch": "#ffcd9c",
+    "shell": "devicescss-google-pixel-6-pro-gold-v1.png",
+    "thumb": "devicescss-google-pixel-6-pro-gold-v1-thumb.png",
+    "mask": "devicescss-google-pixel-6-pro-screen.png",
+    "screenAspect": 0.46078431372549017,
+    "sourceWidth": 675,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        23,
+        33
+      ],
+      [
+        652,
+        33
+      ],
+      [
+        652,
+        1397
+      ],
+      [
+        23,
+        1397
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-google-pixel-black-v1",
+    "kind": "google-pixel",
+    "title": "Google Pixel",
+    "color": "black",
+    "colorTitle": "黑色",
+    "model": "devicescss-google-pixel",
+    "swatch": "#363635",
+    "shell": "devicescss-google-pixel-black-v1.png",
+    "thumb": "devicescss-google-pixel-black-v1-thumb.png",
+    "mask": "devicescss-google-pixel-screen.png",
+    "screenAspect": 0.5625,
+    "sourceWidth": 697,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        35,
+        159
+      ],
+      [
+        662,
+        159
+      ],
+      [
+        662,
+        1274
+      ],
+      [
+        35,
+        1274
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-google-pixel-blue-v1",
+    "kind": "google-pixel",
+    "title": "Google Pixel",
+    "color": "blue",
+    "colorTitle": "蓝色",
+    "model": "devicescss-google-pixel",
+    "swatch": "#2a5aff",
+    "shell": "devicescss-google-pixel-blue-v1.png",
+    "thumb": "devicescss-google-pixel-blue-v1-thumb.png",
+    "mask": "devicescss-google-pixel-screen.png",
+    "screenAspect": 0.5625,
+    "sourceWidth": 697,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        35,
+        159
+      ],
+      [
+        662,
+        159
+      ],
+      [
+        662,
+        1274
+      ],
+      [
+        35,
+        1274
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-imac-blue-v1",
+    "kind": "imac",
+    "title": "iMac",
+    "color": "blue",
+    "colorTitle": "蓝色",
+    "model": "devicescss-imac",
+    "swatch": "#b4c7da",
+    "shell": "devicescss-imac-blue-v1.png",
+    "thumb": "devicescss-imac-blue-v1-thumb.png",
+    "mask": "devicescss-imac-screen.png",
+    "screenAspect": 1.7777777777777777,
+    "sourceWidth": 1280,
+    "sourceHeight": 1080,
+    "corners": [
+      [
+        32,
+        32
+      ],
+      [
+        1248,
+        32
+      ],
+      [
+        1248,
+        716
+      ],
+      [
+        32,
+        716
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-imac-green-v1",
+    "kind": "imac",
+    "title": "iMac",
+    "color": "green",
+    "colorTitle": "绿色",
+    "model": "devicescss-imac",
+    "swatch": "#bbd0c8",
+    "shell": "devicescss-imac-green-v1.png",
+    "thumb": "devicescss-imac-green-v1-thumb.png",
+    "mask": "devicescss-imac-screen.png",
+    "screenAspect": 1.7777777777777777,
+    "sourceWidth": 1280,
+    "sourceHeight": 1080,
+    "corners": [
+      [
+        32,
+        32
+      ],
+      [
+        1248,
+        32
+      ],
+      [
+        1248,
+        716
+      ],
+      [
+        32,
+        716
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-imac-orange-v1",
+    "kind": "imac",
+    "title": "iMac",
+    "color": "orange",
+    "colorTitle": "橙色",
+    "model": "devicescss-imac",
+    "swatch": "#e9b5a0",
+    "shell": "devicescss-imac-orange-v1.png",
+    "thumb": "devicescss-imac-orange-v1-thumb.png",
+    "mask": "devicescss-imac-screen.png",
+    "screenAspect": 1.7777777777777777,
+    "sourceWidth": 1280,
+    "sourceHeight": 1080,
+    "corners": [
+      [
+        32,
+        32
+      ],
+      [
+        1248,
+        32
+      ],
+      [
+        1248,
+        716
+      ],
+      [
+        32,
+        716
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-imac-pink-v1",
+    "kind": "imac",
+    "title": "iMac",
+    "color": "pink",
+    "colorTitle": "粉色",
+    "model": "devicescss-imac",
+    "swatch": "#edccc6",
+    "shell": "devicescss-imac-pink-v1.png",
+    "thumb": "devicescss-imac-pink-v1-thumb.png",
+    "mask": "devicescss-imac-screen.png",
+    "screenAspect": 1.7777777777777777,
+    "sourceWidth": 1280,
+    "sourceHeight": 1080,
+    "corners": [
+      [
+        32,
+        32
+      ],
+      [
+        1248,
+        32
+      ],
+      [
+        1248,
+        716
+      ],
+      [
+        32,
+        716
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-imac-purple-v1",
+    "kind": "imac",
+    "title": "iMac",
+    "color": "purple",
+    "colorTitle": "紫色",
+    "model": "devicescss-imac",
+    "swatch": "#c4c4e5",
+    "shell": "devicescss-imac-purple-v1.png",
+    "thumb": "devicescss-imac-purple-v1-thumb.png",
+    "mask": "devicescss-imac-screen.png",
+    "screenAspect": 1.7777777777777777,
+    "sourceWidth": 1280,
+    "sourceHeight": 1080,
+    "corners": [
+      [
+        32,
+        32
+      ],
+      [
+        1248,
+        32
+      ],
+      [
+        1248,
+        716
+      ],
+      [
+        32,
+        716
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-imac-yellow-v1",
+    "kind": "imac",
+    "title": "iMac",
+    "color": "yellow",
+    "colorTitle": "黄色",
+    "model": "devicescss-imac",
+    "swatch": "#f4d595",
+    "shell": "devicescss-imac-yellow-v1.png",
+    "thumb": "devicescss-imac-yellow-v1-thumb.png",
+    "mask": "devicescss-imac-screen.png",
+    "screenAspect": 1.7777777777777777,
+    "sourceWidth": 1280,
+    "sourceHeight": 1080,
+    "corners": [
+      [
+        32,
+        32
+      ],
+      [
+        1248,
+        32
+      ],
+      [
+        1248,
+        716
+      ],
+      [
+        32,
+        716
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-ipad-pro-2017-gold-v1",
+    "kind": "ipad-pro-2017",
+    "title": "iPad Pro (2017)",
+    "color": "gold",
+    "colorTitle": "金色",
+    "model": "devicescss-ipad-pro-2017",
+    "swatch": "#e4b08a",
+    "shell": "devicescss-ipad-pro-2017-gold-v1.png",
+    "thumb": "devicescss-ipad-pro-2017-gold-v1-thumb.png",
+    "mask": "devicescss-ipad-pro-2017-screen.png",
+    "screenAspect": 0.75,
+    "sourceWidth": 1003,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        45,
+        111
+      ],
+      [
+        958,
+        111
+      ],
+      [
+        958,
+        1329
+      ],
+      [
+        45,
+        1329
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-ipad-pro-2017-rosegold-v1",
+    "kind": "ipad-pro-2017",
+    "title": "iPad Pro (2017)",
+    "color": "rosegold",
+    "colorTitle": "玫瑰金",
+    "model": "devicescss-ipad-pro-2017",
+    "swatch": "#f6a69a",
+    "shell": "devicescss-ipad-pro-2017-rosegold-v1.png",
+    "thumb": "devicescss-ipad-pro-2017-rosegold-v1-thumb.png",
+    "mask": "devicescss-ipad-pro-2017-screen.png",
+    "screenAspect": 0.75,
+    "sourceWidth": 1003,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        45,
+        111
+      ],
+      [
+        958,
+        111
+      ],
+      [
+        958,
+        1329
+      ],
+      [
+        45,
+        1329
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-ipad-pro-2017-spacegray-v1",
+    "kind": "ipad-pro-2017",
+    "title": "iPad Pro (2017)",
+    "color": "spacegray",
+    "colorTitle": "深空灰",
+    "model": "devicescss-ipad-pro-2017",
+    "swatch": "#818187",
+    "shell": "devicescss-ipad-pro-2017-spacegray-v1.png",
+    "thumb": "devicescss-ipad-pro-2017-spacegray-v1-thumb.png",
+    "mask": "devicescss-ipad-pro-2017-screen.png",
+    "screenAspect": 0.75,
+    "sourceWidth": 1003,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        45,
+        111
+      ],
+      [
+        958,
+        111
+      ],
+      [
+        958,
+        1329
+      ],
+      [
+        45,
+        1329
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-ipad-pro-spacegray-v1",
+    "kind": "ipad-pro",
+    "title": "iPad Pro",
+    "color": "spacegray",
+    "colorTitle": "深空灰",
+    "model": null,
+    "swatch": "#6a6d70",
+    "shell": "devicescss-ipad-pro-spacegray-v1.png",
+    "thumb": "devicescss-ipad-pro-spacegray-v1-thumb.png",
+    "mask": "devicescss-ipad-pro-screen.png",
+    "screenAspect": 0.6988950276243094,
+    "sourceWidth": 1037,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        50,
+        50
+      ],
+      [
+        987,
+        50
+      ],
+      [
+        987,
+        1391
+      ],
+      [
+        50,
+        1391
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-blue-v1",
+    "kind": "iphone-14",
+    "title": "iPhone 14",
+    "color": "blue",
+    "colorTitle": "蓝色",
+    "model": "devicescss-iphone-14",
+    "swatch": "#7992aa",
+    "shell": "devicescss-iphone-14-blue-v1.png",
+    "thumb": "devicescss-iphone-14-blue-v1-thumb.png",
+    "mask": "devicescss-iphone-14-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-pro-black-v1",
+    "kind": "iphone-14-pro",
+    "title": "iPhone 14 Pro",
+    "color": "black",
+    "colorTitle": "黑色",
+    "model": "devicescss-iphone-14-pro",
+    "swatch": "#5c5956",
+    "shell": "devicescss-iphone-14-pro-black-v1.png",
+    "thumb": "devicescss-iphone-14-pro-black-v1-thumb.png",
+    "mask": "devicescss-iphone-14-pro-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-pro-gold-v1",
+    "kind": "iphone-14-pro",
+    "title": "iPhone 14 Pro",
+    "color": "gold",
+    "colorTitle": "金色",
+    "model": "devicescss-iphone-14-pro",
+    "swatch": "#e7d19e",
+    "shell": "devicescss-iphone-14-pro-gold-v1.png",
+    "thumb": "devicescss-iphone-14-pro-gold-v1-thumb.png",
+    "mask": "devicescss-iphone-14-pro-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-pro-silver-v1",
+    "kind": "iphone-14-pro",
+    "title": "iPhone 14 Pro",
+    "color": "silver",
+    "colorTitle": "银色",
+    "model": "devicescss-iphone-14-pro",
+    "swatch": "#c8cacb",
+    "shell": "devicescss-iphone-14-pro-silver-v1.png",
+    "thumb": "devicescss-iphone-14-pro-silver-v1-thumb.png",
+    "mask": "devicescss-iphone-14-pro-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-purple-v1",
+    "kind": "iphone-14",
+    "title": "iPhone 14",
+    "color": "purple",
+    "colorTitle": "紫色",
+    "model": "devicescss-iphone-14",
+    "swatch": "#af9bbf",
+    "shell": "devicescss-iphone-14-purple-v1.png",
+    "thumb": "devicescss-iphone-14-purple-v1-thumb.png",
+    "mask": "devicescss-iphone-14-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-red-v1",
+    "kind": "iphone-14",
+    "title": "iPhone 14",
+    "color": "red",
+    "colorTitle": "红色",
+    "model": "devicescss-iphone-14",
+    "swatch": "#d11813",
+    "shell": "devicescss-iphone-14-red-v1.png",
+    "thumb": "devicescss-iphone-14-red-v1-thumb.png",
+    "mask": "devicescss-iphone-14-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-14-starlight-v1",
+    "kind": "iphone-14",
+    "title": "iPhone 14",
+    "color": "starlight",
+    "colorTitle": "星光色",
+    "model": "devicescss-iphone-14",
+    "swatch": "#bdb4aa",
+    "shell": "devicescss-iphone-14-starlight-v1.png",
+    "thumb": "devicescss-iphone-14-starlight-v1-thumb.png",
+    "mask": "devicescss-iphone-14-screen.png",
+    "screenAspect": 0.46987951807228917,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        33,
+        33
+      ],
+      [
+        680,
+        33
+      ],
+      [
+        680,
+        1410
+      ],
+      [
+        33,
+        1410
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-8-gold-v1",
+    "kind": "iphone-8",
+    "title": "iPhone 8",
+    "color": "gold",
+    "colorTitle": "金色",
+    "model": "devicescss-iphone-8",
+    "swatch": "#e4b08a",
+    "shell": "devicescss-iphone-8-gold-v1.png",
+    "thumb": "devicescss-iphone-8-gold-v1-thumb.png",
+    "mask": "devicescss-iphone-8-screen.png",
+    "screenAspect": 0.5622188905547226,
+    "sourceWidth": 693,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        36,
+        169
+      ],
+      [
+        657,
+        169
+      ],
+      [
+        657,
+        1272
+      ],
+      [
+        36,
+        1272
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-8-spacegray-v1",
+    "kind": "iphone-8",
+    "title": "iPhone 8",
+    "color": "spacegray",
+    "colorTitle": "深空灰",
+    "model": "devicescss-iphone-8",
+    "swatch": "#74747a",
+    "shell": "devicescss-iphone-8-spacegray-v1.png",
+    "thumb": "devicescss-iphone-8-spacegray-v1-thumb.png",
+    "mask": "devicescss-iphone-8-screen.png",
+    "screenAspect": 0.5622188905547226,
+    "sourceWidth": 693,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        36,
+        169
+      ],
+      [
+        657,
+        169
+      ],
+      [
+        657,
+        1272
+      ],
+      [
+        36,
+        1272
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-iphone-x-v1",
+    "kind": "iphone-x",
+    "title": "iPhone X",
+    "color": "default",
+    "colorTitle": null,
+    "model": null,
+    "swatch": "#cacccd",
+    "shell": "devicescss-iphone-x-v1.png",
+    "thumb": "devicescss-iphone-x-v1-thumb.png",
+    "mask": "devicescss-iphone-x-screen.png",
+    "screenAspect": 0.4618226600985222,
+    "sourceWidth": 710,
+    "sourceHeight": 1440,
+    "corners": [
+      [
+        46,
+        46
+      ],
+      [
+        669,
+        46
+      ],
+      [
+        669,
+        1393
+      ],
+      [
+        46,
+        1393
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-macbook-gold-v1",
+    "kind": "macbook",
+    "title": "MacBook",
+    "color": "gold",
+    "colorTitle": "金色",
+    "model": "devicescss-macbook",
+    "swatch": "#edccb4",
+    "shell": "devicescss-macbook-gold-v1.png",
+    "thumb": "devicescss-macbook-gold-v1-thumb.png",
+    "mask": "devicescss-macbook-screen.png",
+    "screenAspect": 1.6,
+    "sourceWidth": 1440,
+    "sourceHeight": 841,
+    "corners": [
+      [
+        160,
+        56
+      ],
+      [
+        1280,
+        56
+      ],
+      [
+        1280,
+        757
+      ],
+      [
+        160,
+        757
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-macbook-pro-2018-spacegray-v1",
+    "kind": "macbook-pro-2018",
+    "title": "MacBook Pro (2018)",
+    "color": "spacegray",
+    "colorTitle": "深空灰",
+    "model": null,
+    "swatch": "#767a7d",
+    "shell": "devicescss-macbook-pro-2018-spacegray-v1.png",
+    "thumb": "devicescss-macbook-pro-2018-spacegray-v1-thumb.png",
+    "mask": "devicescss-macbook-pro-2018-screen.png",
+    "screenAspect": 1.6,
+    "sourceWidth": 1440,
+    "sourceHeight": 864,
+    "corners": [
+      [
+        160,
+        56
+      ],
+      [
+        1280,
+        56
+      ],
+      [
+        1280,
+        757
+      ],
+      [
+        160,
+        757
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-macbook-pro-spacegray-v1",
+    "kind": "macbook-pro",
+    "title": "MacBook Pro",
+    "color": "spacegray",
+    "colorTitle": "深空灰",
+    "model": null,
+    "swatch": "#767a7d",
+    "shell": "devicescss-macbook-pro-spacegray-v1.png",
+    "thumb": "devicescss-macbook-pro-spacegray-v1-thumb.png",
+    "mask": "devicescss-macbook-pro-screen.png",
+    "screenAspect": 1.6,
+    "sourceWidth": 1440,
+    "sourceHeight": 845,
+    "corners": [
+      [
+        136,
+        18
+      ],
+      [
+        1304,
+        18
+      ],
+      [
+        1304,
+        747
+      ],
+      [
+        136,
+        747
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-macbook-rosegold-v1",
+    "kind": "macbook",
+    "title": "MacBook",
+    "color": "rosegold",
+    "colorTitle": "玫瑰金",
+    "model": "devicescss-macbook",
+    "swatch": "#f6a69a",
+    "shell": "devicescss-macbook-rosegold-v1.png",
+    "thumb": "devicescss-macbook-rosegold-v1-thumb.png",
+    "mask": "devicescss-macbook-screen.png",
+    "screenAspect": 1.6,
+    "sourceWidth": 1440,
+    "sourceHeight": 841,
+    "corners": [
+      [
+        160,
+        56
+      ],
+      [
+        1280,
+        56
+      ],
+      [
+        1280,
+        757
+      ],
+      [
+        160,
+        757
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-macbook-spacegray-v1",
+    "kind": "macbook",
+    "title": "MacBook",
+    "color": "spacegray",
+    "colorTitle": "深空灰",
+    "model": "devicescss-macbook",
+    "swatch": "#767a7d",
+    "shell": "devicescss-macbook-spacegray-v1.png",
+    "thumb": "devicescss-macbook-spacegray-v1-thumb.png",
+    "mask": "devicescss-macbook-screen.png",
+    "screenAspect": 1.6,
+    "sourceWidth": 1440,
+    "sourceHeight": 841,
+    "corners": [
+      [
+        160,
+        56
+      ],
+      [
+        1280,
+        56
+      ],
+      [
+        1280,
+        757
+      ],
+      [
+        160,
+        757
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-pro-display-xdr-v1",
+    "kind": "pro-display-xdr",
+    "title": "Pro Display XDR",
+    "color": "default",
+    "colorTitle": null,
+    "model": null,
+    "swatch": "#616162",
+    "shell": "devicescss-pro-display-xdr-v1.png",
+    "thumb": "devicescss-pro-display-xdr-v1-thumb.png",
+    "mask": "devicescss-pro-display-xdr-screen.png",
+    "screenAspect": 1.7727272727272727,
+    "sourceWidth": 1280,
+    "sourceHeight": 950,
+    "corners": [
+      [
+        16,
+        16
+      ],
+      [
+        1264,
+        16
+      ],
+      [
+        1264,
+        720
+      ],
+      [
+        16,
+        720
+      ]
+    ]
+  },
+  {
+    "id": "devicescss-surface-book-v1",
+    "kind": "surface-book",
+    "title": "Surface Book",
+    "color": "default",
+    "colorTitle": null,
+    "model": null,
+    "swatch": "#c8c8c8",
+    "shell": "devicescss-surface-book-v1.png",
+    "thumb": "devicescss-surface-book-v1-thumb.png",
+    "mask": "devicescss-surface-book-screen.png",
+    "screenAspect": 1.5,
+    "sourceWidth": 1440,
+    "sourceHeight": 839,
+    "corners": [
+      [
+        186,
+        47
+      ],
+      [
+        1254,
+        47
+      ],
+      [
+        1254,
+        760
+      ],
+      [
+        186,
+        760
+      ]
+    ]
+  }
+]

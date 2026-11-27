@@ -1,10 +1,12 @@
+import useI18n from '../../i18n/useI18n';
 import { forwardRef, lazy, Suspense, useState } from 'react';
 import { Button, Popover } from 'antd';
 import Icon from '@components/Icon';
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'));
 
-const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect, locale = 'en', theme = 'auto' }, ref) {
+const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect, locale = 'en', theme = 'auto', className }, ref) {
+    const t = useI18n();
     const [open, setOpen] = useState(false);
     const hide = () => {
         setOpen(false);
@@ -21,7 +23,7 @@ const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect
             content={(
                 <div>
                     {open && (
-                        <Suspense fallback={<div role="status" className="p-4 text-xs">正在加载表情…</div>}>
+                        <Suspense fallback={<div role="status" className="p-4 text-xs">{t("正在加载表情…")}</div>}>
                             <EmojiPicker locale={locale} onEmojiSelect={onEmojiSelect} theme={theme} />
                         </Suspense>
                     )}
@@ -29,6 +31,7 @@ const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect
             )}
             title=""
             trigger="click"
+            rootClassName="shoteasy-annotation-popup"
             open={open}
             onOpenChange={handleOpenChange}
         >
@@ -36,8 +39,9 @@ const EmojiSelect = forwardRef(function EmojiSelect({ disabled = false, toSelect
                 ref={ref}
                 type="text"
                 shape="circle"
+                className={className}
                 disabled={disabled}
-                aria-label="选择表情"
+                aria-label={t("选择表情")}
                 icon={<Icon.Smile size={16} />}
             ></Button>
         </Popover>

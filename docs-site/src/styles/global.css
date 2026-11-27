@@ -1,0 +1,252 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* ── 视觉系统 ─────────────────────────────────────────────────────────────
+   判读：面向"快速搞清这工具能做什么、隐私边界在哪"的访客的 6 页产品指南。
+   旋钮 VARIANCE 2 / MOTION 1 / DENSITY 5：低装饰、零动画、信息优先。
+   三条硬约束：
+     1. 不加载任何远程字体。本产品主张"本地优先、不上传"，站点去请求
+        字体 CDN 自相矛盾。全部使用系统字体栈（含 CJK 回退）。
+     2. 深色为基准，背景对齐应用与 PWA 的 #111318（theme-color），
+        使浏览器界面与文档页不出现色差。
+     3. 单一强调色，全站一致；不使用渐变、发光、装饰性色块。
+   旧站（public/site/site.css）用 Georgia 衬线标题 + 冷灰绿底色，
+   这里保留"衬线标题"这一识别特征，配色改为与深色 void 协调的冷色。 */
+
+:root {
+    /* 步骤导航与对比图共用的强调色（浅色主题）。 */
+    --sh-accent: #0f5c50;
+    --sh-serif: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', 'Noto Serif CJK SC', serif;
+    --sh-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans CJK SC',
+        'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans', 'Apple SD Gothic Neo', sans-serif;
+    --sh-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+    /* 圆角只此一档，全站统一。 */
+    --sh-radius: 10px;
+}
+
+/* 深色为基准：背景即应用 void，正文提亮以保证 AA 对比度。 */
+.dark {
+    --color-fd-background: #111318;
+    --color-fd-foreground: #e9ecf1;
+    --color-fd-muted: #191d25;
+    --color-fd-muted-foreground: #a3adbd;
+    --color-fd-popover: #171b22;
+    --color-fd-popover-foreground: #e9ecf1;
+    --color-fd-card: #171b22;
+    --color-fd-card-foreground: #e9ecf1;
+    --color-fd-border: #272d38;
+    --color-fd-primary: #7fd8c6;
+    --color-fd-primary-foreground: #0b1512;
+    --color-fd-secondary: #1d222b;
+    --color-fd-secondary-foreground: #e9ecf1;
+    --color-fd-accent: #1d222b;
+    --color-fd-accent-foreground: #e9ecf1;
+    --color-fd-ring: #7fd8c6;
+    --sh-accent: #7fd8c6;
+}
+
+/* 浅色主题保持同一套冷色调，不混入暖灰。 */
+:root:not(.dark) {
+    --color-fd-background: #fbfcfd;
+    --color-fd-foreground: #14171c;
+    --color-fd-muted: #f1f4f7;
+    --color-fd-muted-foreground: #545e6d;
+    --color-fd-popover: #ffffff;
+    --color-fd-popover-foreground: #14171c;
+    --color-fd-card: #f7f9fb;
+    --color-fd-card-foreground: #14171c;
+    --color-fd-border: #dde3ea;
+    --color-fd-primary: #0f5c50;
+    --color-fd-primary-foreground: #ffffff;
+    --color-fd-secondary: #eef2f6;
+    --color-fd-secondary-foreground: #14171c;
+    --color-fd-accent: #eef2f6;
+    --color-fd-accent-foreground: #14171c;
+    --color-fd-ring: #0f5c50;
+}
+
+/* RootProvider 是客户端 island。首屏和无 JavaScript 阅读时尚未有 .dark，
+   因此按系统偏好先提供同一套深色令牌；显式选择 Light 仍优先。 */
+@media (prefers-color-scheme: dark) {
+    :root:not(.light):not(.dark) {
+        --color-fd-background: #111318;
+        --color-fd-foreground: #e9ecf1;
+        --color-fd-muted: #191d25;
+        --color-fd-muted-foreground: #a3adbd;
+        --color-fd-popover: #171b22;
+        --color-fd-popover-foreground: #e9ecf1;
+        --color-fd-card: #171b22;
+        --color-fd-card-foreground: #e9ecf1;
+        --color-fd-border: #272d38;
+        --color-fd-primary: #7fd8c6;
+        --color-fd-primary-foreground: #0b1512;
+        --color-fd-secondary: #1d222b;
+        --color-fd-secondary-foreground: #e9ecf1;
+        --color-fd-accent: #1d222b;
+        --color-fd-accent-foreground: #e9ecf1;
+        --color-fd-ring: #7fd8c6;
+        --sh-accent: #7fd8c6;
+    }
+}
+
+/* 字体：无远程加载，全部系统栈。 */
+body,
+html {
+    font-family: var(--sh-sans);
+    /* 关闭合成字形，避免系统字体被算法加粗/倾斜后失真。 */
+    font-synthesis: none;
+}
+
+/* 标题用衬线，沿用旧站的识别特征；正文保持无衬线以利长文阅读。 */
+article h1,
+article h2,
+article h3,
+article h4 {
+    font-family: var(--sh-serif);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+}
+
+article h1 {
+    font-size: clamp(1.75rem, 1.1rem + 2.2vw, 2.6rem);
+    line-height: 1.15;
+}
+
+article h2 {
+    line-height: 1.25;
+    /* 用留白而非边框分隔章节，减少视觉噪音。 */
+    margin-top: 2.5rem;
+}
+
+article h3 {
+    line-height: 1.3;
+    margin-top: 1.75rem;
+}
+
+/* 正文阅读节奏：行长与行高优先于密度。 */
+article p,
+article li {
+    line-height: 1.75;
+}
+
+article > p {
+    max-width: 68ch;
+}
+
+/* 引用块：与强调色同源的竖线，不用背景块。 */
+article blockquote {
+    border-inline-start: 2px solid var(--sh-accent);
+    color: var(--color-fd-muted-foreground);
+    font-style: normal;
+    padding-inline-start: 1rem;
+}
+
+article blockquote p {
+    max-width: 64ch;
+}
+
+/* 表格：只有横向分隔线，数字对齐以便比较上限值。 */
+article table {
+    font-size: 0.9375rem;
+    inline-size: 100%;
+}
+
+article thead th {
+    border-block-end: 1px solid var(--color-fd-border);
+    font-family: var(--sh-sans);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-align: start;
+    text-transform: uppercase;
+}
+
+article tbody td {
+    border-block-end: 1px solid var(--color-fd-border);
+    /* 表格第二列多为数值，等宽数字避免逐行跳动。 */
+    font-variant-numeric: tabular-nums;
+}
+
+article code,
+article kbd {
+    font-family: var(--sh-mono);
+}
+
+article kbd {
+    border: 1px solid var(--color-fd-border);
+    border-radius: 6px;
+    font-size: 0.875em;
+    padding: 0.1em 0.4em;
+}
+
+/* 键盘可达性：焦点环使用强调色，2px 起可见。 */
+:where(a, button, [tabindex]):focus-visible {
+    outline: 2px solid var(--sh-accent);
+    outline-offset: 2px;
+}
+
+/* 尊重系统降级偏好：本站在 MOTION 1，不做任何动画，仅兜底。 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+.sh-figure {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+}
+
+@media (min-width: 640px) {
+    .sh-figure {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.sh-figure img {
+    border-radius: 0.75rem;
+    width: 100%;
+    height: auto;
+}
+
+.sh-figure figcaption {
+    color: var(--color-fd-muted-foreground);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.sh-figure > figcaption {
+    grid-column: 1 / -1;
+    margin-top: 0;
+}
+
+/* Article hierarchy is explicit even when framework typography defaults change. */
+article h2 { font-size: 1.5rem; line-height: 1.4; scroll-margin-top: 6rem; }
+article h3 { font-size: 1.125rem; line-height: 1.5; scroll-margin-top: 6rem; }
+article p, article li { line-height: 1.85; overflow-wrap: anywhere; }
+article .sh-description { color: var(--color-fd-muted-foreground); font-size: 1.0625rem; }
+article table { display: block; max-width: 100%; overflow-x: auto; }
+article th, article td { padding: 0.75rem; min-width: 7rem; vertical-align: top; }
+.sh-editor-link { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; padding: 0.5rem 1rem; border-radius: var(--sh-radius); background: var(--sh-accent); color: var(--color-fd-background); font-weight: 600; text-decoration: none; }
+.sh-editor-link:hover { filter: brightness(1.1); }
+.sh-guide-image { margin-block: 1.5rem 2.5rem; }
+.sh-guide-image img { width: 100%; height: auto; border: 1px solid var(--color-fd-border); border-radius: var(--sh-radius); }
+.sh-guide-image figcaption { margin-top: 0.75rem; font-size: 0.875rem; color: var(--color-fd-muted-foreground); }
+.sh-search-hint { padding: 1.5rem; font-size: 0.875rem; color: var(--color-fd-muted-foreground); }
+.sh-search-result { display: flex; flex-direction: column; gap: 0.375rem; text-align: start; }
+.sh-search-result > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 0.875rem; line-height: 1.6; color: var(--color-fd-muted-foreground); }
+.sh-skip { position: fixed; left: 1rem; top: -10rem; z-index: 100; padding: 0.75rem 1rem; background: var(--color-fd-background); color: var(--color-fd-foreground); border: 1px solid var(--color-fd-border); }
+.sh-skip:focus { top: 1rem; }
+.sh-language-fallback { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+.sh-reviewed { margin-top: 2.5rem; color: var(--color-fd-muted-foreground); font-size: 0.8125rem; }
+@media (max-width: 639px) {
+    article h2 { font-size: 1.3rem; }
+    article h3 { font-size: 1.1rem; }
+}

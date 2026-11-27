@@ -1,0 +1,298 @@
+{
+  "lang": "de",
+  "name": "Deutsch",
+  "open": "Editor öffnen",
+  "skip": "Zum Inhalt",
+  "nav": "ScreenHello entdecken",
+  "languages": "Sprache",
+  "before": "Original",
+  "after": "Mit Browserrahmen",
+  "example": "Beispieldarstellung: dasselbe lokale Bild mit Hintergrund, Abstand und Browserrahmen.",
+  "related": "Mehr erfahren",
+  "source": "Quellcode",
+  "upstream": "Basiert auf Shoteasy. Für Code und optionale Grafiken gelten getrennte Lizenzen.",
+  "browser": "Unterstützt: Chrome/Edge 111+, Firefox 128+, Safari 16.4+. Bildschirmaufnahme, Zwischenablage und Installation hängen von Browser und Berechtigungen ab.",
+  "updated": "Inhalt geprüft",
+  "reviewed": "2026-11-26",
+  "labels": [
+    "Überblick",
+    "Gestaltung",
+    "Rahmen",
+    "Komprimierung",
+    "Anleitung",
+    "Datenschutz"
+  ],
+  "pages": [
+    {
+      "title": "Schöne Screenshots. Auf deinem Gerät.",
+      "seoTitle": "Screenshot-Editor: Funktionen und Datenschutz",
+      "description": "ScreenHello ist ein kostenloser, lokaler Screenshot- und Karten-Editor. Hintergründe, Rahmen, 3D-Perspektive, Code- und Textkarten, 18 Szenenvorlagen, Logo-Wasserzeichen und lokaler GIF-Export ohne Upload.",
+      "sections": [
+        [
+          "Aus einem Screenshot wird eine Präsentation",
+          "Öffne ein lokales Bild, füge es aus der Zwischenablage ein, probiere das Beispiel aus oder starte direkt mit einer Code-Karte, Text-/Social-Karte oder einer von 18 Szenenvorlagen. Ergänze Hintergründe, Abstand, 3D-Perspektive, Browserrahmen, Text- oder Bild-Logo-Wasserzeichen und Markierungen. Die gesamte Verarbeitung läuft auf deinem Gerät, ohne Konto oder Cloud-Synchronisierung."
+        ],
+        [
+          "Bearbeiten und später fortsetzen",
+          "Ordne bis zu 12 Bild- oder Kartenebenen an, blende Ebenen per Augen-Symbol ein oder aus, mache Änderungen rückgängig und speichere eine portable .screenhello-Projektdatei (inklusive Code-/Textkarten, 3D-Perspektive und Wasserzeichen). Sie ist deine eigene Sicherung; automatische Browserentwürfe können beim Löschen von Websitedaten verloren gehen."
+        ],
+        [
+          "Web-Funktionen und Grenzen",
+          "Exportiere PNG, JPG oder WebP mit lokaler Komprimierungsvorschau, Standard-AVIF oder rendere 5 nahtlose Mikroanimationen lokal als GIF89a (und browsergestütztes WebM). Diese Seiten beschreiben den Web-Editor. Desktop-Versionen sind noch Testkandidaten; eine Chrome/Edge-Erweiterung ist geplant und kein fertiger Download. AVIF bietet nur Standardexport, ohne Qualitätsregler oder Komprimierungsvorschau."
+        ]
+      ]
+    },
+    {
+      "title": "Gib deinen Screenshots mehr Raum",
+      "seoTitle": "Screenshots gestalten: Hintergrund, Abstand und Schatten",
+      "description": "Gestalte Screenshots lokal mit Hintergrund, Abstand, Rundungen, Schatten, 3D-Perspektive, Code-/Textkarten, Logo-Wasserzeichen und 18 Szenenvorlagen. Rückgängig machbare Bearbeitung inklusive.",
+      "sections": [
+        [
+          "1. Bild öffnen oder Karte erstellen",
+          "Wähle eine Datei, ziehe sie in den Begrüßungsbereich, füge ein Bild ein oder nutze die Schnellaktionen für Code-Karten (14 Sprachen mit Offline-Syntaxhervorhebung, 6 Designs, Zeilen- und +/- Diff-Markierung), Text-/Social-Karten (Beitrag, Zitat, Changelog) oder die 18 Szenenvorlagen. Die Bildschirmaufnahme benötigt eine Browserfreigabe; das Beispiel lädt je nach Fensterbreite im Hoch- oder Querformat.",
+          [
+            {
+              "h": "Bis zu 12 Ebenen mit Sichtbarkeitsschalter",
+              "p": "Ein Projekt fasst höchstens 12 Bild- oder Kartenebenen. Jede behält Position, Größe und Darstellung und lässt sich über das Augen-Symbol vorübergehend aus- und einblenden; ausgeblendete Ebenen werden nicht exportiert und unterstützen Rückgängig/Wiederholen."
+            },
+            {
+              "h": "Tastenkürzel",
+              "p": "Bedienen Sie den Editor ohne die Tastatur zu verlassen. Unter macOS gilt Command statt Ctrl."
+            },
+            {
+              "table": {
+                "head": [
+                  "Aktion",
+                  "Tasten"
+                ],
+                "rows": [
+                  [
+                    "Projekt öffnen",
+                    "Ctrl + O"
+                  ],
+                  [
+                    "Projekt speichern",
+                    "Ctrl + S"
+                  ],
+                  [
+                    "Projekt speichern unter",
+                    "Ctrl + Shift + S"
+                  ],
+                  [
+                    "Export öffnen",
+                    "Ctrl + Shift + E"
+                  ],
+                  [
+                    "Fertiges Bild kopieren",
+                    "Ctrl + C"
+                  ],
+                  [
+                    "Rückgängig",
+                    "Ctrl + Z"
+                  ],
+                  [
+                    "Wiederholen",
+                    "Ctrl + Shift + Z"
+                  ],
+                  [
+                    "Auswahl löschen",
+                    "Delete / Backspace"
+                  ],
+                  [
+                    "Vergrößern",
+                    "Ctrl + +"
+                  ],
+                  [
+                    "Verkleinern",
+                    "Ctrl + -"
+                  ],
+                  [
+                    "An Canvas anpassen",
+                    "Ctrl + 0"
+                  ]
+                ]
+              }
+            },
+            {
+              "note": "In einem Textfeld sind Tastenkürzel inaktiv und unterbrechen die Eingabe nicht."
+            }
+          ]
+        ],
+        [
+          "2. Stil, Vorlagen und Wasserzeichen kombinieren",
+          "Stelle Leinwandgröße (inklusive 1.618:1, OG 1200×630, Product Hunt, Xiaohongshu und LinkedIn), Innenabstand, Rundungen, Schatten und Innenrahmen ein. Wähle Farben, Verläufe, mitgelieferte oder eigene Hintergründe oder wende eine von 18 Szenenvorlagen in einem rückgängig machbaren Schritt an. Ergänze Text- oder lokal komprimierte Bild-Logo-Wasserzeichen (<= 64 KiB, 9er-Raster oder gekachelt) sowie Pfeile, Schrittnummern und Lupen."
+        ],
+        [
+          "3. Standbilder oder Schleifen-Animationen exportieren",
+          "Verwende PNG für Transparenz oder exportiere JPG, WebP und AVIF (JPG und WebP füllen transparente Bereiche weiß). Für Produkt-Teaser wähle Datei → Animation exportieren, um 5 nahtlose Mikroanimationen lokal als GIF89a oder WebM zu kodieren. Der Ansichtszoom ändert nicht die Ausgabegröße; dafür ist der Exportmaßstab zuständig."
+        ]
+      ]
+    },
+    {
+      "title": "Browserrahmen, 3D-Perspektive und Gerätemockups",
+      "seoTitle": "Browserrahmen, 3D-Perspektive und Gerätemockups",
+      "description": "Ergänze Browserrahmen, 8 Live-Vorschau-3D-Perspektiven und freie Winkel. Erfahre, wie Gerätegrafiken, Ausschlussregeln, Anpassung und Lizenzen in ScreenHello funktionieren.",
+      "sections": [
+        [
+          "Browserrahmen und 3D-Perspektive ohne Seitenaufruf",
+          "Wähle links einen Browserrahmen und passe die angezeigte URL sowie die Höhe der Werkzeugleiste an; ScreenHello ruft die Adresse nicht auf. Links stehen außerdem 8 3D-Perspektivvorlagen mit Live-Vorschau sowie eigene Regler für X-/Y-/Z-Winkel und Perspektivabstand bereit, vollständig lokal gerendert und rückgängig machbar."
+        ],
+        [
+          "Gerätepaket und 3D-Ausschlussregel",
+          "Die Auswahl zeigt nur Grafiken des installierten Builds. Manche lokalen Installationen enthalten MacBook Air M2, iMac 24 Zoll, Surface Pro, Surface Studio oder Pixel 9 Pro; die öffentliche Distribution garantiert diese Motive nicht. Ein Raster-Geräterahmen setzt 3D automatisch auf flach zurück; umgekehrt wechselt ein 3D-Preset von einem Geräterahmen auf einen schlichten Browserrahmen."
+        ],
+        [
+          "Proportionen und Lizenzen beachten",
+          "Einpassen zeigt das ganze Bild, Ausfüllen kann es beschneiden, Strecken kann es verzerren. Optionale Grafiken haben eigene Lizenzen; die Codelizenz deckt sie nicht automatisch ab. Projekte speichern nur eine Gerätekennung, nicht das Grafikpaket. Fehlende Grafiken müssen installiert oder durch einen anderen Rahmen ersetzt werden."
+        ]
+      ]
+    },
+    {
+      "title": "Komprimierung und lokaler Animations-Export",
+      "seoTitle": "PNG-, JPG- und WebP-Komprimierung und GIF-Export",
+      "description": "Vergleiche verlustfreie PNG-Optimierung, Farbreduktion, verlustfreies WebP und Qualitätsstufen sowie lokale GIF89a- und WebM-Mikroanimationen mit klaren Grenzen.",
+      "sections": [
+        [
+          "Qualität 100 bedeutet nicht verlustfrei",
+          "Verlustfreie PNG-Optimierung erhält die Pixel, verkleinert aber nicht jede Datei. Die verlustbehaftete Variante reduziert auf 256, 128 oder 64 Farben und kann Verläufe verändern. WebP bietet einen eigenen verlustfreien Modus. Die Qualitätsregler für JPG und WebP bleiben auch bei 100 verlustbehaftet. WebP ersetzt Transparenz vor der Kodierung durch Weiß. AVIF bietet nur Standardexport, ohne Qualitätsregler oder Komprimierungsvorschau.",
+          [
+            {
+              "h": "Standard, verlustfrei und verlustbehaftet",
+              "p": "Der Standardexport verwendet die Standardkodierung des Formats. PNG und WebP bieten verlustfreie Modi; JPG und WebP bieten einstellbare verlustbehaftete Qualität. AVIF bietet nur Standardexport ohne Qualitätsregler oder Komprimierungsvorschau."
+            },
+            {
+              "h": "Grenzen, die greifen",
+              "p": "Diese Werte prüft der Editor, bevor ein Download startet."
+            },
+            {
+              "table": {
+                "head": [
+                  "Vorgang",
+                  "Grenze"
+                ],
+                "rows": [
+                  [
+                    "Vollständige Vorschau",
+                    "1.048.576 Pixel (ca. 1 MP)"
+                  ],
+                  [
+                    "Komprimierter Download",
+                    "4.194.304 Pixel (ca. 4 MP), längste Seite 8192 px"
+                  ],
+                  [
+                    "AVIF-Export",
+                    "4.194.304 Pixel, nur Standardexport"
+                  ],
+                  [
+                    "PNG-Palettenreduktion",
+                    "256, 128 oder 64 Farben"
+                  ],
+                  [
+                    "Verlustbehaftete Qualität",
+                    "JPG / WebP: 90 / 80 / 60"
+                  ],
+                  [
+                    "Exportskalierung",
+                    "1x, 2x oder 3x"
+                  ],
+                  [
+                    "Komprimierungs-Timeout",
+                    "30 Sekunden"
+                  ]
+                ]
+              }
+            },
+            {
+              "h": "Mikroanimationen und lokaler GIF-/WebM-Export",
+              "p": "Wähle aus 5 nahtlosen Schleifen-Animationen (Schweben, Atmen, 3D-Wiegen, Schwenken, Zoomen; 2s, 3s oder 4s bei 15 oder 24 fps). GIF89a wird lokal in einem Web Worker kodiert; WebM steht bereit, sofern MediaRecorder es im Browser unterstützt. Der Export rendert nur die aktuelle Leinwand und ist kein allgemeiner Video-Konverter."
+            },
+            {
+              "note": "AVIF gibt es nur als Standardexport: ohne Qualitätsregler und ohne Kompressionsvorschau."
+            }
+          ]
+        ],
+        [
+          "Dieselbe Komposition vergleichen",
+          "Erzeuge im Exportdialog eine Vorschau und wechsle zwischen Standardexport und komprimiertem Ergebnis bei gleicher Größe. Prüfe Details bei 100 % und die tatsächliche Bytezahl. Verglichen wird die bearbeitete Leinwand, nicht das importierte Original. Auch größere Ergebnisse werden angezeigt. Der Download einer gültigen Vorschau verwendet exakt deren Daten."
+        ],
+        [
+          "Grenzen und lokale Verarbeitung",
+          "AVIF bietet nur Standardexport, ohne Qualitätsregler oder Komprimierungsvorschau. Komprimierte PNG/JPG/WebP-Downloads erlauben 4,194,304 Pixel. Vollständige PNG/JPG/WebP-Vorschauen erlauben 1,048,576 Pixel. Ohne Vorschau sind direkte Downloads innerhalb ihrer Größenbegrenzung weiterhin möglich. Standard-PNG/JPG/WebP erlauben 16,777,216, Standard-AVIF 4,194,304 Pixel; maximal 8192 je Seite. Verkleinere bei Bedarf Leinwand oder Maßstab. Encoder werden beim ersten Gebrauch von dieser Website geladen und lokal ausgeführt. Stapel mit bis zu 12 Bildern liefern erfolgreiche Ergebnisse als ZIP."
+        ]
+      ]
+    },
+    {
+      "title": "Dein erstes ScreenHello-Projekt",
+      "seoTitle": "ScreenHello-Anleitung: Import, Gestaltung und Export",
+      "description": "Bilder importieren, Code- oder Textkarten erstellen, Vorlagen und 3D-Perspektive nutzen, Projekte speichern und lokal als Bild oder GIF exportieren.",
+      "sections": [
+        [
+          "1. Beispiel öffnen, Bild importieren oder Karte starten",
+          "Wähle auf dieser Seite Editor öffnen und dann das Beispiel in der Mitte der Leinwand oder nutze die Schnellaktionen für Code-Karte, Textkarte oder Szenenvorlagen. Für einen eigenen Screenshot öffne eine lokale Datei über die Bildauswahl."
+        ],
+        [
+          "2. Hintergrund, Rahmen, 3D-Perspektive und Wasserzeichen",
+          "Wähle rechts einen Hintergrund, passe Abstand, Ecken, Schatten sowie Text- oder Logo-Wasserzeichen an und schalte Ebenen bei Bedarf über das Augen-Symbol um. Links stellst du Leinwandgröße, Browserrahmen, 3D-Perspektive oder 18 Szenenvorlagen ein."
+        ],
+        [
+          "3. Größe prüfen und Bild oder Animation exportieren",
+          "Öffne oben den Export, wähle PNG, Standardexport und Maßstab 1×, prüfe die Pixelmaße und lade das Bild herunter. Für Schleifen-Animationen öffne Datei → Animation exportieren, um GIF89a oder WebM lokal zu erzeugen."
+        ],
+        [
+          "4. Bearbeitbares Projekt speichern",
+          "Speichere über das Dateimenü eine .screenhello-Projektdatei. Heruntergeladene Bilder oder GIFs sind fertige Ergebnisse; die Projektdatei erhält Ebenen-Sichtbarkeit, Code-/Textkarten, 3D-Perspektive und Logo-Wasserzeichen."
+        ],
+        [
+          "Projektdateien als Sicherung",
+          "Nutze im Dateimenü Projekt speichern oder Speichern unter und später Projekt öffnen. Entwürfe und zuletzt verwendete Projekte liegen in diesem Browser, nicht in der Cloud. Sichere Projektdateien vor dem Löschen von Websitedaten. Übertrage sie selbst auf andere Geräte; es gibt keine automatische Synchronisierung."
+        ],
+        [
+          "Offline arbeiten und Probleme lösen",
+          "Nach der Offline-Bereitschaftsmeldung kann der zwischengespeicherte Editor ohne Verbindung starten. Noch ungenutzte Hintergründe, Geräte und Encoder benötigen eventuell zuerst Internet. Diese Anleitungsseiten gehören nicht zum Offline-Cache. Bei verweigerter Aufnahme- oder Zwischenablageberechtigung öffne eine Datei. Bei überschrittenem Exportlimit reduziere Maße oder Maßstab."
+        ]
+      ]
+    },
+    {
+      "title": "Deine Bilder bleiben auf deinem Gerät",
+      "seoTitle": "Lokale Bildverarbeitung, Projekte und Datenschutz",
+      "description": "So verarbeitet ScreenHello Bilder, Code-/Textkarten, 3D-Ansichten, Logo-Wasserzeichen und GIF-/WebM-Animationen lokal im Browser ohne Upload.",
+      "sections": [
+        [
+          "Was wird lokal verarbeitet?",
+          "Importierte Bilder, Bildschirmaufnahmen, Code- und Textkarten, 3D-Perspektiven, eigene Logo-Wasserzeichen (<= 64 KiB) und Avatare (<= 32 KiB) sowie Bildkomprimierung und GIF89a-/WebM-Kodierung werden vollständig im Browser oder lokalen Web Worker verarbeitet. Es gibt kein Upload-Backend, kein Cloud-Konto und keine Synchronisierung. Lokal bedeutet nicht, dass beim Laden der Website keine Netzwerkverbindungen entstehen."
+        ],
+        [
+          "Speicherung und Netzwerk",
+          "Projekte, Entwürfe und Vorlagen können in IndexedDB liegen (einschließlich selbst hinzugefügter lokaler Avatar- oder Logo-Daten); Sprach- und Darstellungsoptionen werden lokal gespeichert. Code, Symbole, Hintergründe und Encoder werden nach Bedarf angefordert. Der Hostinganbieter kann übliche Zugriffsdaten wie IP-Adresse und Browserkennung verarbeiten. Diese Quellcodeversion ergänzt weder Analyse-SDK noch Werbepixel oder Sitzungsaufzeichnung."
+        ],
+        [
+          "Daten löschen oder übertragen",
+          "Verwalte Entwürfe, Vorlagen und letzte Projekte in der lokalen Bibliothek oder lösche Websitedaten über den Browser. Sichere zuvor benötigte .screenhello-Dateien. Bereits heruntergeladene Dateien werden dadurch nicht vom Gerät entfernt. Externe Quellcodelinks führen zu anderen Websites mit eigenen Regeln."
+        ]
+      ]
+    }
+  ],
+  "docsUi": {
+    "Search": "Dokumentation durchsuchen",
+    "Close Search": "Suche schließen",
+    "No results found": "Keine Ergebnisse. Versuche ein anderes Suchwort.",
+    "Choose a language": "Sprache wählen",
+    "Toggle Theme": "Design wechseln",
+    "Light": "Hell",
+    "Dark": "Dunkel",
+    "System": "System",
+    "Open Sidebar": "Seitenleiste öffnen",
+    "Close Sidebar": "Seitenleiste schließen",
+    "Collapse Sidebar": "Seitenleiste einklappen",
+    "Hide Sidebar": "Seitenleiste ausblenden",
+    "Show Sidebar": "Seitenleiste anzeigen",
+    "Next Page": "Nächste Seite",
+    "Previous Page": "Vorherige Seite",
+    "On this page": "Auf dieser Seite",
+    "No Headings": "Keine Überschriften",
+    "Toggle Menu": "Menü umschalten",
+    "searchHint": "Durchsuche die deutschen Anleitungen, zum Beispiel nach PNG oder Projekt.",
+    "guideCaption": "Das integrierte Beispiel im Editor: links die Leinwand, rechts die Gestaltung. Abbildung mit englischer Oberfläche.",
+    "exportCaption": "Export: Format und Skalierung wählen, Ausgabegröße prüfen und herunterladen. Abbildung mit englischer Oberfläche."
+  }
+}

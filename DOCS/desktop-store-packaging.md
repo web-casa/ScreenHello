@@ -1,0 +1,145 @@
+# MAS / Microsoft Store 开发与打包
+
+更新：2026-09-17。用户新增两个商店的 ARM64、AMD64（工具链名称 x64 / x86_64）交付要求。
+
+最新政策、代码风险与 Skills 调研见 [2026-09-17 商店就绪评估](./desktop-store-readiness-research-2026-09-17.md)。
+
+## 当前交付边界
+
+| 渠道 | 架构 / 文件 | 当前实现 | 尚缺的证据 |
+| --- | --- | --- | --- |
+| GitHub 测试直装 | macOS ARM64/x64 DMG、Windows ARM64/x64 NSIS、Linux ARM64/x64 DEB | 候选 `e66d2c0` 六目标原生 Gate 和浏览器 CI 通过；macOS ARM64 另有签名、公证 DMG | 真实安装/GUI/升级验收 |
+| Mac App Store | 优先 universal PKG，同时包含 ARM64 与 x86_64；支持单架构诊断构建 | `mac-app-store` feature、独立沙箱权限、profile/架构/签名检查与 `productbuild` 打包入口；公开仓库已生成并上传 1.0.4（运行 `35381654983` / `35383159242`）与 1.0.5（运行 `35388074997` / `35389193113`），均被 App Store Connect 接受 | 真实安装、双架构 GUI、沙箱功能验收、processing 结果、审核和发布 |
+| Microsoft Store | ARM64 与 x64 两个 MSIX，同一应用身份 | 独立身份/版本校验、随包固定 WebView2、MakeAppx 打包/解包与内容核对入口；两架构 credential-free preflight 已在原生 runner 通过（运行 `35415184303`） | Partner Center 注册与身份、两架构 Runtime pin、原生打包、侧载/升级/WACK、上传和审核 |
+
+**Windows MSIX 商店包尚未成功生成；不能把源码检查或 Linux 上 Rust feature 测试称为商店包已生成。** macOS MAS 侧已在公开仓库 Actions 生成签名 universal PKG，并由 App Store Connect 接受 1.0.4 与 1.0.5 两个版本，证据见[交接记录](./mas-build-handoff-2026-09-19.md)；上传成功只证明 Apple 接收了该构建，processing、审核、安装与 GUI 仍未执行。MAS 打包工作流 `.github/workflows/macos-mas-universal-candidate.yml` 生成并上传 GitHub Actions 测试产物，本身不会上传 App Store Connect；上传由独立的 `.github/workflows/macos-mas-app-store-upload.yml` 手动完成。直装矩阵中的 `storeChannels: deferred` 只描述该矩阵不向商店发布；本文件定义独立商店开发渠道。
+
+## 共用前提
+
+使用项目固定 Node 24.22.3、pnpm 10.12.1、Rust 1.96.0，先执行 `pnpm install --frozen-lockfile --strict-peer-dependencies`。命令必须通过 pnpm 运行，以复用当前安装的 Tauri CLI。
+
+新入口是 `scripts/package-desktop-store.mjs`，配置/边界校验在 `scripts/desktop-store-config.mjs`。它要求原生系统和实际身份，不提供其他产品的默认身份，也不调用商店上传 API。每次使用新的输出目录；已存在目录会拒绝覆盖。
+
+成功后输出安装文件及 `package-evidence.json`，记录源码提交、工作树是否有改动、配置与 Cargo.lock 哈希、最终包哈希。`releaseReady` 始终为 false，安装、GUI、升级、上传、审核均标为 `not-run`。正式候选必须来自干净源码，补齐原生验收并重新核对原包哈希。
+
+## MAS
+
+配置以下环境变量，证书先通过受控签名环境导入 macOS keychain；不要在仓库、日志或聊天中粘贴私钥：
+
+| 变量 | 来源 |
+| --- | --- |
+| `SCREENHELLO_MAS_BUNDLE_ID` | App Store Connect 应用对应的显式 Bundle ID |
+| `APPLE_TEAM_ID` | 已有组织 secret；必须与证书/profile 一致 |
+| `SCREENHELLO_MAS_BUILD_NUMBER` | 查询已有构建后选择的新的 CFBundleVersion，不能重复上传旧编号 |
+| `SCREENHELLO_MAS_APP_IDENTITY` | Apple Distribution 或 3rd Party Mac Developer Application 证书完整名称 |
+| `SCREENHELLO_MAS_INSTALLER_IDENTITY` | 3rd Party Mac Developer Installer 证书完整名称 |
+| `SCREENHELLO_MAS_PROFILE` | 有效的 Mac App Store distribution provisioning profile 的本地路径 |
+
+已有 `MACOS_CERTIFICATE_P12_BASE64` 用于 Developer ID 直装签名，不能凭存在这个 secret 推定已有 MAS 签名材料。`APPLE_ID` / app-specific password 也不能替代证书和 profile。
+
+```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+pnpm desktop:store:package --channel mas --arch universal --output artifacts/stores/mas-001
+```
+
+`--arch arm64` / `--arch x64` 只生成相应架构，可用于诊断；提交首选 universal，仍需分别在 Apple Silicon 与 Intel 上测试。
+
+GitHub Actions 手动运行 `macOS MAS Universal Candidate` 时，确认项选择 `package-mas-universal-candidate`，首次上传的 build number 可用 `1`。工作流从仓库 Variables 读取 bundle/certificate identity，从 Secrets 读取两张 P12 identity、Team ID 和 profile；它使用临时钥匙串，结束时清理证书、profile 和钥匙串。两张 P12 必须各自包含证书及匹配私钥；当前材料导出时未设密码，工作流以 `-P ''` 导入，不需要密码 Secret。候选运行 `35331499660` attempt 2 已用该方式完成导入、签名、打包和上传，证明空密码 P12 可用；attempt 1 的 `Unknown format in import` 来自当时上传的文件不是有效 PKCS#12 identity。PKG 产物只代表签名与结构检查通过，安装、双架构 GUI、App Store processing 和审核仍分别记录为未执行。
+
+`.github/workflows/macos-mas-app-store-upload.yml` 是独立的上传入口，只有手动 dispatch 且确认项选择 `upload-mas-candidate-to-app-store-connect` 才会执行；该文件另有一条仅用于让 Actions 注册该手动入口的 `push` 触发，job 条件同时要求 `workflow_dispatch` 事件，所以推送本身不会上传任何包。它不重新构建：从 `source_run_id` 下载候选 artifact，核对 `expected_sha256`、`dirty=false`、各验收项仍为 `not-run`、`releaseReady=false` 后才用 `xcrun altool --validate-app` 与 `--upload-app` 上传同一份 PKG，`product-errors` 一律视为失败。凭据使用 `APPLE_ID` 与 `APPLE_APP_SPECIFIC_PASSWORD`，只注入这两个 altool 步骤，多团队账号可用 `asc_provider` 指定 provider；证据发布前先脱敏再扫描，命中凭据即拒绝。`storeProcessing`、`storeReview` 与发布仍记录为 `not-run`。
+
+当前权限声明 App Sandbox、用户选择文件读写、匹配的 application/team identifier，以及 WebKit 初始化需要的 `network.client`；没有网络服务端、全盘访问或临时沙箱例外。[Tauri 上游白屏问题及维护者说明](https://github.com/tauri-apps/tauri-docs/issues/3171) 记录了仅加载打包内容也可能需要该客户端权限。这是沙箱能力声明，不是实际传输统计；应用网络行为仍需结合 CSP 与运行记录验收。Store 编译开关关闭使用共享 `/tmp` socket 的单实例插件，系统状态如实返回 `singleInstance: unavailable`。直装版继续启用原有插件。MAS feature 禁止与 runner-only test driver 同时启用。
+
+打包入口检查 profile 过期/Team/app identity/开发权限/设备绑定，验证 app 的架构、代码签名、实际 entitlements、Bundle ID/build number 与嵌入 profile，再用 Installer identity 生成 PKG 并检查签名。它清除直装公证环境变量；MAS 不走 Developer ID notarization。
+
+Tauri 会按源文件权限把 provisioning profile 原样嵌入 app，`productbuild` 也保留该权限放进 PKG。导入步骤必须在 `umask 077` 下解码 profile（保护私钥文件），因此打包入口改为把 profile 复制成权限 `0644` 的暂存副本再嵌入，并断言包内 `embedded.provisionprofile` 为 `0644`。否则 App Store Connect 校验会以 HTTP 409 `STATE_ERROR.VALIDATION_ERROR` 拒绝整包，理由是“installer package includes files that are only readable by the root user”；上传运行 `35381321481` 即因此在校验步骤失败（上传步骤被跳过，未向 Apple 提交）。
+
+必须继续处理并在真实沙箱中验证：
+
+1. 文件选择后的授权、取消、输出目录、原子写入使用同目录临时文件，以及自动追加扩展名。当前 PathBuf/token 不能证明具备安全范围权限；需要按测试结果引入 security-scoped URL / NSFileCoordinator，或明确要求重新选择输出目录。
+2. 截图后端当前依赖 xcap 的 macOS CGWindow 路径；需评估弃用 API 与当前审核要求，迁移 ScreenCaptureKit 并验证允许/拒绝/撤销授权。不能只凭已签名推定截图可上架。
+3. WKWebView 的本地资源、WASM 编码器、菜单/弹层、剪贴板、快捷键、托盘、退出确认和离线导出；需要实际用户可见 GUI 证据。
+4. universal 最终包的全部原生代码架构、App Privacy、审核说明、真实截图、地区/年龄分级与 App Store Connect processing。
+
+## Microsoft Store
+
+| 变量 | 来源 |
+| --- | --- |
+`.github/workflows/windows-msix-store-candidate.yml` 是 MSIX 候选入口，两个架构各自跑在原生 runner 上：`x64` 用 `windows-2025`（宿主 AMD64），`arm64` 用 `windows-11-arm`（宿主 ARM64，不是模拟）。`SCREENHELLO_MAKEAPPX` 由 `scripts/find-makeappx.ps1` 从已装 Windows SDK 按宿主架构解析，两个 runner 都是 SDK 10.0.26100。
+
+- `preflight` job 不需要任何凭据，push 到 `build/msix-store-candidate-20260919` 就会执行：两架构分别 `cargo check/test/clippy --target`，跑完整 JS 校验与单测，并确认 MakeAppx 可用。push **不会**打包——`package` job 额外要求 `workflow_dispatch` 事件与显式确认项。
+- `package` job 要求三个 Partner Center 身份变量、四段版本号，以及已固定的 WebView2 运行时；缺任何一项都明确失败，不会退化成占位身份。
+
+| 变量 | 来源 |
+| --- | --- |
+| `SCREENHELLO_MSIX_IDENTITY_NAME` | Partner Center → Product identity → Package/Identity/Name（仓库 Variable） |
+| `SCREENHELLO_MSIX_PUBLISHER` | 同页面 Package/Identity/Publisher，完整 `CN=...`（仓库 Variable） |
+| `SCREENHELLO_MSIX_PUBLISHER_DISPLAY_NAME` | 同页面发布者显示名（仓库 Variable） |
+| `SCREENHELLO_MSIX_VERSION` | 明确选择的四段版本，首段非零、末段为零、每段不超过 65535；先核对已有包 |
+| `config/webview2-runtime.json` → `runtimes.<arch>` | 微软 Fixed Version Runtime 的 `.cab` 直链、版本与 SHA-256；未固定时 `scripts/read-webview2-runtime.mjs` 直接拒绝运行 |
+| `SCREENHELLO_MAKEAPPX` | Windows SDK 的 MakeAppx.exe 绝对路径，CI 中由 `scripts/find-makeappx.ps1` 解析 |
+
+本地复现对应架构的命令：
+
+```powershell
+rustup target add x86_64-pc-windows-msvc
+pnpm desktop:store:package --channel msix --arch x64 --output artifacts/stores/msix-x64-001
+```
+
+```powershell
+rustup target add aarch64-pc-windows-msvc
+pnpm desktop:store:package --channel msix --arch arm64 --output artifacts/stores/msix-arm64-001
+```
+
+不继承 NSIS 下载 bootstrapper 的逻辑。脚本检查 Runtime PE 架构和微软 Authenticode 签名，将固定 Runtime 临时放入忽略目录 `src-tauri/store-webview2/<arch>`，编译相同相对路径并复制到包内；完成或失败后清理本次临时目录。Runtime 的固定值放在 `config/webview2-runtime.json`，随代码评审而不是藏在仓库变量里：CI 先校验压缩包 SHA-256，打包脚本再独立要求解包出的 `msedgewebview2.exe` 带有效微软签名，两者任一不通过都不产出包。
+
+**当前状态（2026-09-19）**：两架构 MSIX 均已生成并通过独立核验（运行 `35430306346`，commit `158560f`）。Partner Center 身份已配置为 `53660AlanM.ScreenHello` / `CN=84AC3716-04E0-4D67-8951-0D3E51674CA0` / `AlanM.`，WebView2 运行时固定为 `153.0.4234.48`。
+
+| 架构 | runner | MSIX | 字节 | SHA-256 |
+| --- | --- | --- | --- | --- |
+| x64 | `windows-2025` | `ScreenHello-1.0.5.0-x64.msix` | 325 194 018 | `d73f7b88f5297d4efaa7eb38271ffd68f477d25857f2e116b191b886caeae460` |
+| arm64 | `windows-11-arm` | `ScreenHello-1.0.5.0-arm64.msix` | 310 160 317 | `3c3e3fcf2142150e28f8732db3227ce2d7e43ecf82006ea2352e54478ba043b3` |
+
+`package-evidence.json` 记录 `channel=msix`、`dirty=false`、`packaging=passed`、`releaseReady=false`，安装/GUI/升级/上传/审核全部 `not-run`。本地解包核对 29/29 通过：manifest 的 Name/Publisher/Version/ProcessorArchitecture 与 Partner Center 身份一致，主程序与随包 WebView2 的 PE 架构分别匹配各自包（x64 为 `0x8664`，arm64 为 `0xAA64`），且未混入另一架构的运行时。
+
+首次跑通 MSIX 链路时修掉了四个此前从未暴露的缺陷（该路径此前从未成功产出过包）：
+
+1. **同一 step 内读 `GITHUB_ENV`**：Actions 只把 `GITHUB_ENV` 应用到后续 step，下载与打包步骤改为同时写入当前进程环境。
+2. **`Get-AuthenticodeSignature` 无法加载**：runner 的 `PSModulePath` 把 PowerShell 7 模块排在前面，Windows PowerShell 5.1 的 `Microsoft.PowerShell.Security` 因类型数据重复而加载失败；打包入口改为对该调用使用只含 Windows PowerShell 目录的 `PSModulePath`。复现与验证见运行 `35426698201`。
+3. **`mkdir` + `cp(errorOnExist)`**：暂存目录被提前创建，随后 `cp` 必然以 EEXIST 失败；改为让 `cp` 自行创建，仍拒绝覆盖上一次构建留下的运行时。
+4. **诊断文件写进工作树**：`webview2-*.txt` 落在仓库根目录，使 `git status --porcelain` 非空，`package-evidence.json` 因此记成 `dirty=true` 并被本工作流自己的证据闸门拒绝；记录改写到 `RUNNER_TEMP`。
+
+这四处都补了单元回归测试。**仍未执行**：侧载安装、无预装 WebView2 的离线启动、升级、卸载、WACK、以及任何 Partner Center 上传或提交。
+
+Manifest 声明 `runFullTrust`，用于本地桌面程序的文件、剪贴板、截图与窗口交互；没有自动提权。最低候选目标是 Windows 10 2004（19041），这是配置值，尚不是最低系统实机验收结论。
+
+MakeAppx `pack` 保留默认校验，不使用 `/nv`；随后 `unpack` 核对 manifest、主程序与 WebView2 字节。输出为未签名商店候选 MSIX；微软在认证后重新签名。侧载测试需对**临时副本**签名和建立测试信任，不能把自签名包标为已获商店签名。
+
+仍需两架构分别验证：无预装 WebView2/离线启动、文件与截图权限、全部导出格式、同身份升级、卸载、WACK、受限 capability 说明、Store 实际下载安装。ARM 上 x64 模拟启动不能替代原生 ARM64 验收。
+
+## 后续实施顺序
+
+1. 已取得候选 `e66d2c0` 六目标可下载测试件、42 项文件哈希和完整自动审计通过，见 [本轮开发记录](./desktop-build-rollout-2026-09-17.md#最终六目标结果与下载)；继续人工安装、GUI 和升级验收。
+2. 补齐两个商店应用身份、版本和签名材料；在原生 runner 跑本文件的打包命令，修复真实打包失败。
+3. MAS 沙箱文件/截图后端适配及双架构 GUI 回归；MSIX 双架构清洁侧载、升级和 WACK。
+4. 把已验证的命令接入独立、手动触发的 Store CI，固定 Runtime 来源、工具链、证书清理和产物证据。
+5. 补齐商店资料，上传候选并分别记录 processing、审核、获批与公开分发状态。
+
+## 官方核对来源（2026-09-17）
+
+- [Tauri Mac App Store 分发](https://v2.tauri.app/distribute/app-store/)
+- [Apple 审核规则 §2.4.5 / §2.5.1](https://developer.apple.com/app-store/review/guidelines/)
+- [Apple 沙箱文件访问](https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox)
+- [Microsoft Store MSIX 要求](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements)
+- [MakeAppx 支持的命令](https://learn.microsoft.com/en-us/windows/win32/appxpkg/make-appx-package--makeappx-exe-)
+- [WebView2 分发](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution)
+
+保存授权实现更新见[第三阶段](./desktop-store-phase-3-2026-09-17.md)：MAS feature 在每次原子写入前明确选择并核对输出文件夹，取消不写入；仍待真实 macOS 沙箱验证。
+
+截图迁移验证入口见[第四阶段](./desktop-store-phase-4-2026-09-17.md)：`pnpm desktop:probe:sck` 默认只编译双架构，生产仍使用原后端；探针的 macOS 14.0 目标不改变产品最低版本。
+
+[第五阶段原生证据](./desktop-store-phase-5-2026-09-17.md)：ScreenCaptureKit 探针已通过 macOS ARM64/Intel 双主机编译和未授权启动保护，未执行真实截图或切换生产后端。
+
+[第六阶段](./desktop-store-phase-6-2026-09-17.md)将 MAS 渠道设为 macOS 14+，通过 `mac-app-store` 启用 ScreenCaptureKit；普通直装配置不变。MAS 打包入口固定 deployment target 并检查最终 Info.plist，真实截图/签名沙箱验收仍待完成。
+
+[第七阶段](./desktop-store-phase-7-2026-09-18.md)接入公开仓库的 MAS universal 签名候选工作流、空密码 P12 的临时钥匙串、失败清理、全 Mach-O 双架构检查及 GitHub artifact 证据；[交接记录](./mas-build-handoff-2026-09-19.md)记录了候选运行 `35331499660` 实际生成的签名 universal PKG 与核验结果。商店上传与实机验收仍独立待办。

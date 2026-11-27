@@ -1,0 +1,54 @@
+[package]
+name = "screenhello-desktop"
+version = "1.1.0"
+description = "ScreenHello Tauri desktop proof of concept"
+authors = ["ScreenHello contributors"]
+edition = "2021"
+rust-version = "1.90"
+license = "MIT"
+repository = "https://github.com/web-casa/ScreenHello"
+
+[lib]
+name = "screenhello_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+mac-app-store = ["screen-capture-kit"]
+screen-capture-kit = ["dep:objc2-screen-capture-kit", "dep:block2", "dep:objc2", "dep:objc2-foundation", "dep:objc2-core-foundation"]
+desktop-test-driver = ["dep:tauri-plugin-wdio-webdriver"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.6", features = [] }
+
+[dependencies]
+open = { version = "=5.4.5", features = ["shellexecute-on-windows"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+getrandom = "=0.3.4"
+tauri = { version = "=2.12.7", features = ["image-png", "tray-icon"] }
+tauri-plugin-clipboard-manager = "=2.5.0"
+tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-global-shortcut = "=2.4.1"
+tauri-plugin-single-instance = "=2.5.5"
+tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
+tempfile = "=3.27.0"
+xcap = { version = "=0.9.10", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.189"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = { version = "=0.6.2", optional = true }
+objc2 = { version = "=0.6.4", optional = true }
+objc2-foundation = { version = "=0.3.2", optional = true, default-features = false, features = ["std", "NSArray", "NSError"] }
+objc2-core-foundation = { version = "=0.3.2", optional = true }
+objc2-screen-capture-kit = { version = "=0.3.2", optional = true, default-features = false, features = ["std", "SCShareableContent", "SCStream", "SCScreenshotManager", "block2", "objc2-core-foundation", "objc2-core-graphics"] }
+objc2-core-graphics = { version = "=0.3.2", default-features = false, features = ["CGWindow", "CGBitmapContext", "CGContext", "CGColorSpace", "CGImage"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

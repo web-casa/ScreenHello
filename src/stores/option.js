@@ -1,5 +1,18 @@
 import { makeAutoObservable, toJS, runInAction } from 'mobx';
 import { getBackgroundDefinition, normalizeBackgroundKey } from '@utils/backgroundConfig';
+import { prepareWorkspaceImage } from '@utils/imageValidation';
+import { waitWithSignal } from '@utils/exportAsync';
+import { showUndoToast } from '@utils/undoToast';
+import { isDeviceFrameId } from '@utils/rasterDeviceConfig';
+import {
+    isPerspectiveActive,
+    isPerspectiveBlockedFrame,
+    normalizePerspective,
+    perspectiveFromPreset,
+} from '@utils/perspectiveSchema';
+import { normalizeWatermark } from '@utils/watermarkSchema';
+import { PROJECT_MANIFEST_SOFT_LIMIT_BYTES, estimateSerializedManifestBytes } from '@utils/textCardSchema';
+import { text2Svg } from '@utils/utils';
 import {
     DEFAULT_PADDING_BACKGROUND,
     normalizeInnerBorder,
@@ -9,20 +22,9 @@ import {
     shadowFromIntensity,
 } from '@utils/projectDocument';
 
-const DEVICE_FRAMES = [
-    'genericLaptop',
-    'genericDesktop',
-    'genericTablet',
-    'genericPhone',
-    'macbookpro16',
-    'macbookair',
-    'imacpro',
-    'ipadpro',
-    'iphonepro',
-];
 const BACKGROUND_MODES = ['cover', 'fit', 'stretch'];
 const BACKGROUND_ALIGNS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
-const isImageBackground = (definition) => definition?.type === 'upload-image';
+const isImageBackground = (definition) => ['upload-image', 'preset-image'].includes(definition?.type);
 const DEFAULT_GRADIENT_ANGLE = 90;
 
 const clampGradientAngle = (value, fallback = DEFAULT_GRADIENT_ANGLE) => {
@@ -81,6 +83,8 @@ export class Option {
     padding = 0;
     paddingBg = DEFAULT_PADDING_BACKGROUND;
     innerBorder = normalizeInnerBorder();
+    perspective3d = normalizePerspective();
+    exportPerspectiveRatio = null;
     round = 10;
     // 完整阴影配置（V1 由 0-6 强度档位迁移）；默认档 = 旧 shadow:3 的视觉
     shadow = shadowFromIntensity(3);
@@ -90,6 +94,11 @@ export class Option {
     browserHeaderSize = 100;
     background = 'gh_img_50';
     backgroundAssetId = null;
+    backgroundLoadingKey = null;
+    backgroundError = false;
+    _backgroundController = null;
+    _backgroundAssets = new Set();
+    _backgroundDisposed = false;
     backgroundMode = 'cover';
     backgroundAlign = 'center';
     // 旧预设 default_* 为从左到右，90° 可保持旧草稿的视觉方向。
@@ -102,6 +111,7 @@ export class Option {
     align = 'center';
     waterImg = null;
     waterIndex = 1;
+    watermark = normalizeWatermark();
     hdrEnabled = false;
     size = {
         type: 'auto',
@@ -122,15 +132,22 @@ export class Option {
         // 默认背景与初始页一致（gh_img_50 兼容 token）：填充始终从代码渐变定义派生。
         this.frameConf.background = this.getBackgroundFill(getBackgroundDefinition(this.background))
             ?? this.frameConf.background;
-        makeAutoObservable(this, { root: false });
+        makeAutoObservable(this, { root: false, _backgroundController: false, _backgroundAssets: false, _backgroundDisposed: false });
     }
 
     get waterSvg() {
         return toJS(this.waterImg);
     }
 
+    get hasActiveWatermark() {
+        if (this.watermark?.enabled && this.watermark.mode === 'image') {
+            return Boolean(this.watermark.imageDataUrl);
+        }
+        return Boolean(this.waterImg);
+    }
+
     get mode() {
-        return DEVICE_FRAMES.includes(this.frame) ? this.frameMode : 'cover';
+        return isDeviceFrameId(this.frame) ? this.frameMode : 'cover';
     }
 
     setScale(value, { commit = true } = {}) {
@@ -173,9 +190,94 @@ export class Option {
         this.root.history.commit('shadow:conf');
     }
 
+    setExportPerspectiveRatio(ratio) {
+        const next = Number(ratio);
+        this.exportPerspectiveRatio = Number.isFinite(next) && next > 1 ? Math.min(3, next) : null;
+    }
+
     setFrame(value) {
+        const resettingPerspective = isPerspectiveBlockedFrame(value) && isPerspectiveActive(this.perspective3d);
         this.frame = value;
+        if (resettingPerspective) {
+            this.perspective3d = normalizePerspective();
+            this.root.editor.message?.info?.(this.root.i18n.t("设备外框暂不支持 3D 透视，已自动重置为平面"));
+        }
         this.root.history.commit();
+    }
+
+    setPerspective(partial, { commit = true } = {}) {
+        const next = normalizePerspective({ ...this.perspective3d, ...partial });
+        if (isPerspectiveActive(next) && isPerspectiveBlockedFrame(this.frame)) {
+            this.frame = 'arc';
+            this.root.editor.message?.info?.(this.root.i18n.t("设备外框暂不支持 3D 透视，已自动切换为极简浏览器外框"));
+        }
+        this.perspective3d = next;
+        if (commit) this.root.history.commit('slider:perspective');
+    }
+
+    applyPerspectivePreset(presetId) {
+        const next = perspectiveFromPreset(presetId);
+        if (isPerspectiveActive(next) && isPerspectiveBlockedFrame(this.frame)) {
+            this.frame = 'arc';
+            this.root.editor.message?.info?.(this.root.i18n.t("设备外框暂不支持 3D 透视，已自动切换为极简浏览器外框"));
+        }
+        this.perspective3d = next;
+        this.root.history.commit();
+    }
+
+    /**
+     * 无历史提交副作用的原子字段写入（供场景模板单步事务使用）。
+     * 调用方必须在确认所有异步资源就绪后，于同一事务末尾只调用一次 history.commit()。
+     */
+    applyTemplateFields(fields = {}, preparedBackground = null) {
+        if (fields.size && typeof fields.size === 'object') {
+            this.size = { ...this.size, ...fields.size };
+            if (Number.isFinite(Number(fields.size.width)) && Number.isFinite(Number(fields.size.height))) {
+                this.frameConf.width = Math.round(Number(fields.size.width));
+                this.frameConf.height = Math.round(Number(fields.size.height));
+            }
+        }
+        if (typeof fields.frame === 'string') this.frame = fields.frame;
+        if (typeof fields.padding === 'number') this.padding = fields.padding;
+        if (typeof fields.paddingBg === 'string') this.paddingBg = normalizePaddingBackground(fields.paddingBg);
+        if (typeof fields.round === 'number') this.round = fields.round;
+        if (fields.innerBorder !== undefined) this.innerBorder = normalizeInnerBorder(fields.innerBorder);
+        if (fields.shadow !== undefined) this.shadow = normalizeShadow(fields.shadow);
+        if (typeof fields.align === 'string') this.align = fields.align;
+        if (typeof fields.backgroundGradientAngle === 'number') {
+            this.backgroundGradientAngle = clampGradientAngle(fields.backgroundGradientAngle);
+        }
+        if (fields.perspective3d !== undefined) {
+            this.perspective3d = isPerspectiveBlockedFrame(this.frame)
+                ? normalizePerspective()
+                : normalizePerspective(fields.perspective3d);
+        } else if (isPerspectiveBlockedFrame(this.frame)) {
+            this.perspective3d = normalizePerspective();
+        }
+        if (preparedBackground) {
+            this._backgroundAssets.add(preparedBackground.assetId);
+            this.background = preparedBackground.key;
+            this.backgroundAssetId = preparedBackground.assetId;
+            this.backgroundMode = preparedBackground.mode || 'cover';
+            this.backgroundAlign = preparedBackground.align || 'center';
+            this.frameConf.background = {
+                type: 'image',
+                url: preparedBackground.url,
+                mode: this.backgroundMode,
+                align: this.backgroundAlign,
+            };
+        } else if (typeof fields.background === 'string') {
+            const normalizedKey = normalizeBackgroundKey(fields.background);
+            const definition = getBackgroundDefinition(normalizedKey);
+            this.background = normalizedKey;
+            this.backgroundAssetId = null;
+            if (fields.backgroundGradientAngle == null && definition?.type === 'gradient') {
+                this.backgroundGradientAngle = getGradientPresetAngle(definition, this.backgroundGradientAngle);
+            }
+            this.frameConf.background = this.getBackgroundFill(definition);
+        } else {
+            this._syncGradientBackgroundFill();
+        }
     }
 
     setFrameMode(value) {
@@ -258,7 +360,10 @@ export class Option {
     setBackground(value) {
         const key = normalizeBackgroundKey(value);
         const definition = getBackgroundDefinition(key);
-        if (!definition) return false;
+        if (!definition || isImageBackground(definition) || this._backgroundDisposed) return false;
+        // 「无背景」是破坏性选择：只有确实移除了原背景（预设或上传图）才提示撤销
+        const removesBackground = key === 'none' && (this.background !== key || Boolean(this.backgroundAssetId));
+        this.cancelBackgroundSelection();
         this.releaseBackgroundAsset();
         this.background = key;
         this.backgroundAssetId = null;
@@ -267,14 +372,67 @@ export class Option {
         }
         this.frameConf.background = this.getBackgroundFill(definition);
         this.root.history.commit();
+        if (removesBackground) this._announceUndo(this.root.i18n.t('背景已移除'), 'undo:background-remove');
         return true;
     }
     /**
      * 统一背景选择入口。保留 Promise 返回形态，避免破坏已有 UI/宿主调用；
-     * 内置预设均为代码渐变，不读取网络或打包图片。
+     * 图片预设先下载并解码为实例拥有的 Blob，成功后一次性提交。
      */
     async applyBackground(value) {
-        return this.setBackground(value);
+        const key = normalizeBackgroundKey(value);
+        const definition = getBackgroundDefinition(key);
+        if (definition.type !== 'preset-image') return this.setBackground(value);
+        if (this._backgroundDisposed) return false;
+        this.cancelBackgroundSelection();
+        if (this.background === key && this.root.assetStore.get(this.backgroundAssetId)) return true;
+        const controller = new AbortController();
+        this._backgroundController = controller;
+        this.backgroundLoadingKey = key;
+        // Invalidate prepared output immediately; waiting exports also wait for this task.
+        this.root.renderTaskTracker?.changedPaint();
+        const task = this._loadPresetBackground(definition, controller);
+        // A rejected candidate leaves a valid old background; it is not a failed canvas effect.
+        this.root.renderTaskTracker?.track(task.catch(() => false));
+        return task;
+    }
+    async _loadPresetBackground(definition, controller) {
+        const { signal } = controller;
+        const timer = setTimeout(() => controller.abort(Object.assign(new Error('background-load-timeout'), { code: 'background-load-timeout' })), 15_000);
+        try {
+            const response = await waitWithSignal(fetch(definition.assetUrl, { signal }), signal);
+            if (!response.ok) throw new Error(`background-http-${response.status}`);
+            const blob = await waitWithSignal(response.blob(), signal);
+            await waitWithSignal(prepareWorkspaceImage(blob, { platform: this.root.platform, role: 'background' }), signal);
+            if (signal.aborted || this._backgroundDisposed || this._backgroundController !== controller) return false;
+            return runInAction(() => {
+                const asset = this.root.assetStore.add(blob);
+                if (!asset) throw new Error('background-object-url-unavailable');
+                this._backgroundAssets.add(asset.id);
+                this.background = definition.key;
+                this.backgroundAssetId = asset.id;
+                this.frameConf.background = { type: 'image', url: asset.url, mode: this.backgroundMode, align: this.backgroundAlign };
+                this.root.history.commit();
+                return true;
+            });
+        } catch (error) {
+            if (this._backgroundController !== controller || this._backgroundDisposed) return false;
+            runInAction(() => { this.backgroundError = true; });
+            throw error;
+        } finally {
+            clearTimeout(timer);
+            if (this._backgroundController === controller) runInAction(() => {
+                this._backgroundController = null;
+                this.backgroundLoadingKey = null;
+            });
+        }
+    }
+    cancelBackgroundSelection() {
+        const controller = this._backgroundController;
+        this._backgroundController = null;
+        this.backgroundLoadingKey = null;
+        this.backgroundError = false;
+        controller?.abort();
     }
     setBackgroundMode(value) {
         if (!BACKGROUND_MODES.includes(value)) return false;
@@ -338,7 +496,9 @@ export class Option {
         return true;
     }
     setUploadedBackground(asset) {
-        if (!asset?.id || !asset.url) return false;
+        if (!asset?.id || !asset.url || this._backgroundDisposed) return false;
+        this.cancelBackgroundSelection();
+        this._backgroundAssets.add(asset.id);
         this.releaseBackgroundAsset();
         this.background = 'upload_image';
         this.backgroundAssetId = asset.id;
@@ -353,6 +513,7 @@ export class Option {
     }
     setCustomSolidBackground(color) {
         if (typeof color !== 'string' || !color) return false;
+        this.cancelBackgroundSelection();
         this.releaseBackgroundAsset();
         this.background = 'custom_solid';
         this.backgroundAssetId = null;
@@ -399,6 +560,7 @@ export class Option {
             && this.padding === 0
             && this.paddingBg === DEFAULT_PADDING_BACKGROUND
             && this.innerBorder.visible === false
+            && !isPerspectiveActive(this.perspective3d)
             && this.round === 10
             && shadow.visible === defaultShadow.visible
             && shadow.x === defaultShadow.x
@@ -417,11 +579,26 @@ export class Option {
         this.padding = 0;
         this.paddingBg = DEFAULT_PADDING_BACKGROUND;
         this.innerBorder = normalizeInnerBorder();
+        this.perspective3d = normalizePerspective();
         this.round = 10;
         this.shadow = shadowFromIntensity(3);
         this.root.history.commit('image:style-reset');
+        // 一键重置属于「高频、易恢复」：不弹确认框，直接执行后用 toast 给一次撤销机会
+        this._announceUndo(this.root.i18n.t('图片样式已重置'), 'undo:image-style');
         return true;
     }
+
+    /** 破坏性操作后的统一 toast 撤销入口：只撤销这一步，之后的编辑会让凭据失效。 */
+    _announceUndo(label, key) {
+        const token = this.root.history.captureUndoToken();
+        showUndoToast(this.root, {
+            label,
+            key,
+            onUndo: () => this.root.history.undoTo(token),
+            onUnavailable: () => this.root.editor.message?.info?.(this.root.i18n.t('没有可撤销的操作')),
+        });
+    }
+
     toggleFlip(type) {
         if (type === 'x') {
             this.scaleX = !this.scaleX;
@@ -433,11 +610,46 @@ export class Option {
     }
     setWaterImg(value) {
         this.waterImg = value;
+        if (!value && this.watermark?.mode === 'text') {
+            this.watermark = normalizeWatermark({ ...this.watermark, enabled: false });
+        } else if (value) {
+            this.watermark = normalizeWatermark({ ...this.watermark, enabled: true, mode: 'text' });
+        }
         this.root.history.commit('water');
     }
     setWaterIndex(value) {
         this.waterIndex = value;
         this.root.history.commit('water');
+    }
+    setWatermark(patch = {}, { commit = true } = {}) {
+        const next = normalizeWatermark({ ...toJS(this.watermark), ...patch });
+        let nextWaterImg = null;
+        if (next.enabled && next.mode === 'text' && next.text.trim()) {
+            nextWaterImg = text2Svg({
+                text: next.text,
+                color: next.color,
+                angleDegrees: next.angle,
+            });
+        }
+        if (next.imageDataUrl && next.imageDataUrl !== this.watermark?.imageDataUrl) {
+            const currentDoc = this.root.editor?.serializeProject?.();
+            if (currentDoc) {
+                const projected = {
+                    ...currentDoc,
+                    option: { ...currentDoc.option, watermark: next, waterImg: nextWaterImg },
+                };
+                if (estimateSerializedManifestBytes(projected) > PROJECT_MANIFEST_SOFT_LIMIT_BYTES) {
+                    this.root.editor.message?.error?.(
+                        this.root.i18n.t("项目文档体积接近保存上限，请精简卡片内容或移除部分图层后重试"),
+                    );
+                    return false;
+                }
+            }
+        }
+        this.watermark = next;
+        this.waterImg = nextWaterImg;
+        if (commit) this.root.history.commit('water');
+        return true;
     }
     setHdrEnabled(value) {
         this.hdrEnabled = value;
@@ -451,7 +663,7 @@ export class Option {
     toDocument() {
         const frameConf = toJS(this.frameConf);
         if (frameConf.background) {
-            if (this.background === 'upload_image') {
+            if (isImageBackground(getBackgroundDefinition(this.background))) {
                 frameConf.background = { ...frameConf.background, url: null };
             }
         }
@@ -465,6 +677,7 @@ export class Option {
             padding: this.padding,
             paddingBg: this.paddingBg,
             innerBorder: toJS(this.innerBorder),
+            perspective3d: toJS(this.perspective3d),
             round: this.round,
             shadow: toJS(this.shadow),
             frame: this.frame,
@@ -483,6 +696,7 @@ export class Option {
             align: this.align,
             waterImg: toJS(this.waterImg),
             waterIndex: this.waterIndex,
+            watermark: toJS(this.watermark),
             hdrEnabled: this.hdrEnabled,
             size: toJS(this.size),
             frameConf
@@ -496,9 +710,7 @@ export class Option {
      */
     restoreFromDocument(doc) {
         const next = normalizeOption(doc?.option ?? doc);
-        if (this.backgroundAssetId && this.backgroundAssetId !== next.backgroundAssetId) {
-            this.root.assetStore.release(this.backgroundAssetId);
-        }
+        this.cancelBackgroundSelection();
         runInAction(() => {
             this.scale = next.scale;
             this.scaleX = next.scaleX;
@@ -509,6 +721,7 @@ export class Option {
             this.padding = next.padding;
             this.paddingBg = next.paddingBg;
             this.innerBorder = next.innerBorder;
+            this.perspective3d = next.perspective3d;
             this.round = next.round;
             this.shadow = next.shadow;
             this.frame = next.frame;
@@ -527,24 +740,37 @@ export class Option {
             this.align = next.align;
             this.waterImg = next.waterImg;
             this.waterIndex = next.waterIndex;
+            this.watermark = next.watermark;
             this.hdrEnabled = next.hdrEnabled;
             this.size = next.size;
             this.frameConf = next.frameConf;
             this._syncGradientBackgroundFill();
             const asset = this.root.assetStore.get(this.backgroundAssetId);
             if (asset && isImageBackground(getBackgroundDefinition(this.background)) && this.frameConf.background?.type === 'image') {
+                this._backgroundAssets.add(asset.id);
                 this.frameConf.background = { ...this.frameConf.background, url: asset.url };
             }
         });
     }
 
     releaseBackgroundAsset() {
-        if (!this.backgroundAssetId) return;
-        this.root.assetStore.release(this.backgroundAssetId);
+        this.cancelBackgroundSelection();
+        // History owns committed background lifetimes, just as it owns image layers.
         this.backgroundAssetId = null;
     }
 
+    pruneBackgroundAssets(retained) {
+        for (const id of this._backgroundAssets) {
+            if (retained.has(id)) continue;
+            this.root.assetStore.release(id);
+            this._backgroundAssets.delete(id);
+        }
+    }
+
     destroy() {
+        this._backgroundDisposed = true;
+        this.cancelBackgroundSelection();
+        this.pruneBackgroundAssets(new Set());
         this.releaseBackgroundAsset();
     }
 }

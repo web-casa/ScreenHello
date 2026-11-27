@@ -1,0 +1,102 @@
+---
+import { getEntry, render } from 'astro:content';
+import DocsShell from '@/components/DocsShell';
+import { pagesForLocale, catalogForLocale, treeForLocale } from '@/lib/source';
+import { DOCS_LOCALES, docsPagePath } from '@/lib/content.mjs';
+import '@/styles/global.css';
+import { plainText } from '@/lib/search.mjs';
+
+// 单一动态路由覆盖全部 7 语种 × 6 主题，输出 /docs/{locale}/{topic}/index.html。
+// locale 与 topic 直接来自内容目录结构，不依赖框架的 i18n slug 推断。
+export async function getStaticPaths() {
+    const paths = [];
+    for (const locale of DOCS_LOCALES) {
+        for (const { page, topic } of pagesForLocale(locale)) {
+            paths.push({
+                params: { slug: `${locale}/${topic}` },
+                props: { entryId: page.id, locale, topic },
+            });
+        }
+    }
+    if (paths.length !== DOCS_LOCALES.length * 6) {
+        throw new Error(`docs-route-incomplete:${paths.length}`);
+    }
+    return paths;
+}
+
+const { entryId, locale, topic } = Astro.props;
+const entry = await getEntry('docs', entryId);
+if (!entry) throw new Error(`docs-entry-missing:${entryId}`);
+const { Content, headings } = await render(entry);
+const toc = headings.filter(heading => heading.depth >= 2 && heading.depth <= 3)
+    .map(heading => ({ title: heading.text, url: `#${heading.slug}`, depth: heading.depth }));
+const tree = treeForLocale(locale);
+const catalog = catalogForLocale(locale);
+if (!catalog) throw new Error(`docs-catalog-missing:${locale}`);
+const searchEntries = pagesForLocale(locale).map(({ page, topic }) => ({
+    id: page.id, title: page.data.title,
+    text: plainText(`${page.data.description ?? ''}\n${page.body ?? ''}`),
+    url: docsPagePath(locale, topic === 'index' ? '' : topic),
+}));
+
+const isHome = topic === 'index';
+const url = new URL(docsPagePath(locale, isHome ? '' : topic), Astro.site ?? 'https://screenhello.com');
+const title = entry.data.title;
+const seoTitle = entry.data.seoTitle;
+const description = entry.data.description ?? '';
+const socialImage = new URL(`${import.meta.env.BASE_URL}site/social.png`, Astro.site ?? 'https://screenhello.com');
+const ogLocales = { en: 'en_US', 'zh-CN': 'zh_CN', 'zh-TW': 'zh_TW', de: 'de_DE', ko: 'ko_KR', es: 'es_ES', 'pt-PT': 'pt_PT' };
+const ogLocale = ogLocales[catalog.editorLanguage as keyof typeof ogLocales];
+---
+
+<!doctype html>
+<html lang={catalog.editorLanguage} suppressHydrationWarning>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{seoTitle} — ScreenHello</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={url.href} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="ScreenHello" />
+        <meta property="og:locale" content={ogLocale} />
+        <meta property="og:title" content={`${seoTitle} — ScreenHello`} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={url.href} />
+        <meta property="og:image" content={socialImage.href} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={title} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${seoTitle} — ScreenHello`} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={socialImage.href} />
+        <meta name="twitter:image:alt" content={title} />
+        <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+        <link rel="icon" href={`${import.meta.env.BASE_URL}favicon.ico`} />
+        {/* hreflang 与 JSON-LD 由构建后处理按 locale × topic 矩阵统一注入。 */}
+    </head>
+    <body class="flex flex-col min-h-screen">
+        <DocsShell
+            client:load
+            tree={tree}
+            locale={locale}
+            topic={isHome ? '' : topic}
+            catalog={catalog}
+            searchEntries={searchEntries}
+            title={title}
+            description={description}
+            reviewed={entry.data.reviewed}
+            toc={toc}
+            pathname={Astro.url.pathname}
+            params={Astro.params}
+        >
+            <Content />
+            <noscript>
+                <nav aria-label={catalog.languages} class="sh-language-fallback">
+                    {DOCS_LOCALES.map(language => <a href={docsPagePath(language, isHome ? '' : topic)} lang={catalogForLocale(language)?.editorLanguage}>{catalogForLocale(language)?.name}</a>)}
+                </nav>
+            </noscript>
+        </DocsShell>
+    </body>
+</html>
