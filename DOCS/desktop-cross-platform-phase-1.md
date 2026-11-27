@@ -21,7 +21,7 @@ Phase 1 完成时，当前自动候选 Gate 只覆盖 Linux x64、macOS ARM64 �
 | Linux | x64 | `candidate-gated` / `not-run` | `ubuntu-22.04` | DEB |
 | Linux | arm64 | `candidate-gated` / `not-run` | `ubuntu-22.04-arm` | DEB |
 | macOS | x64 | `candidate-gated` / `not-run` | `macos-15-intel` | DMG |
-| macOS | arm64 | `candidate-gated` / `not-run` | `macos-14` | DMG |
+| macOS | arm64 | `candidate-gated` / `not-run` | `macos-15` | DMG |
 | Windows | x64 | `candidate-gated` / `not-run` | `windows-2025` | NSIS |
 | Windows | arm64 | `candidate-gated` / `not-run` | `windows-11-arm` | NSIS |
 

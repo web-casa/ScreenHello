@@ -12,7 +12,7 @@ describe('desktop release workflow matrix', () => {
                 { target: 'linux-x64', runner: 'ubuntu-24.04', platform: 'linux', 'rust-target': 'x86_64-unknown-linux-gnu', bundle: 'deb' },
                 { target: 'linux-arm64', runner: 'ubuntu-24.04-arm', platform: 'linux', 'rust-target': 'aarch64-unknown-linux-gnu', bundle: 'deb' },
                 { target: 'macos-x64', runner: 'macos-15-intel', platform: 'macos', 'rust-target': 'x86_64-apple-darwin', bundle: 'dmg' },
-                { target: 'macos-arm64', runner: 'macos-14', platform: 'macos', 'rust-target': 'aarch64-apple-darwin', bundle: 'dmg' },
+                { target: 'macos-arm64', runner: 'macos-15', platform: 'macos', 'rust-target': 'aarch64-apple-darwin', bundle: 'dmg' },
                 { target: 'windows-x64', runner: 'windows-2025', platform: 'windows', 'rust-target': 'x86_64-pc-windows-msvc', bundle: 'nsis' },
                 { target: 'windows-arm64', runner: 'windows-11-arm', platform: 'windows', 'rust-target': 'aarch64-pc-windows-msvc', bundle: 'nsis' },
             ],

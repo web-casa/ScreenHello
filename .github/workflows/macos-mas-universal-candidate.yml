@@ -42,7 +42,7 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build/mas-universal-candidate-20260918') &&
       (github.event_name == 'push' || inputs.confirm == 'package-mas-universal-candidate')
     name: MAS credential-free preflight
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 90
     defaults:
       run:
@@ -91,7 +91,7 @@ jobs:
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build/mas-universal-candidate-20260918') &&
       (github.event_name == 'push' || inputs.confirm == 'package-mas-universal-candidate')
     name: Sign MAS app and universal PKG
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 180
     defaults:
       run:

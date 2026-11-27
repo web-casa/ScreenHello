@@ -25,7 +25,7 @@ env:
   SCREENHELLO_DESKTOP_GATE_SCOPE: full
   SCREENHELLO_DESKTOP_TARGET: macos-arm64
   SCREENHELLO_DESKTOP_PACKAGE_CHANNEL: github-actions-macos-signed-candidate
-  SCREENHELLO_RUNNER_LABEL: macos-14
+  SCREENHELLO_RUNNER_LABEL: macos-15
   SCREENHELLO_DESKTOP_ARTIFACT_INSPECTION: artifacts/macos-signed-candidate/artifact-inspection.json
   SCREENHELLO_DESKTOP_SBOM_DIR: artifacts/macos-signed-candidate
   SCREENHELLO_MACOS_SIGNED_CANDIDATE_DIR: artifacts/macos-signed-candidate
@@ -38,7 +38,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       inputs.confirm == 'sign-macos-arm64-candidate'
     name: macOS ARM64 preflight
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 90
     defaults:
       run:
@@ -98,7 +98,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       inputs.confirm == 'sign-macos-arm64-candidate'
     name: Sign and notarize macOS ARM64 candidate
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 180
     environment: macos-signing
     permissions:

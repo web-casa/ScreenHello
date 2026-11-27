@@ -79,7 +79,7 @@ const expectedTargets = Object.freeze({
     'macos-arm64': {
         developmentStatus: 'candidate-gated',
         evidenceStatus: 'not-run',
-        runner: 'macos-14',
+        runner: 'macos-15',
         platform: 'macos',
         nodePlatform: 'darwin',
         arch: 'arm64',
