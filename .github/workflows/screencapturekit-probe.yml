@@ -1,0 +1,52 @@
+name: ScreenCaptureKit native probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [build/screencapturekit-probe-20260917]
+    paths:
+      - .github/workflows/screencapturekit-probe.yml
+      - scripts/screencapturekit-probe.mjs
+      - scripts/native/screencapturekit-probe.swift
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sck-probe-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  compile:
+    if: github.repository_id == '1353846676'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Compile both architectures and test the no-consent guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          node scripts/screencapturekit-probe.mjs --output artifacts/sck-probe
+      - name: Preserve native evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sck-probe-${{ matrix.arch }}-${{ github.sha }}
+          path: artifacts/sck-probe/
+          if-no-files-found: error
+          retention-days: 14

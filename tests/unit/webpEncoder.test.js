@@ -29,6 +29,15 @@ const pixels = () => new Uint8ClampedArray([
 afterEach(() => vi.useRealTimers());
 
 describe('WebP encoder adapter', () => {
+    it('terminates large compressed jobs immediately instead of retaining WASM memory between downloads', async () => {
+        const worker = new FakeWorker();
+        const encoder = new WebpEncoder({ workerFactory: () => worker, idleMs: 60_000 });
+        try {
+            await encoder.encode({ pixels: new Uint8ClampedArray(2048 * 2048 * 4), width: 2048, height: 2048, compression: 'lossless' });
+            expect(worker.terminate).toHaveBeenCalledOnce();
+            expect(encoder._worker).toBeNull();
+        } finally { encoder.dispose(); }
+    });
     it('validates RIFF/WebP bytes and rejects renamed arbitrary data', () => {
         expect(isWebpBuffer(webpBytes())).toBe(true);
         expect(isWebpBuffer(new TextEncoder().encode('not-a-webp-file'))).toBe(false);

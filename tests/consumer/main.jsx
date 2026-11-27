@@ -8,6 +8,8 @@ const containers = {
     b: document.getElementById('consumer-b'),
 };
 const roots = { a: null, b: null };
+const workspace = new URLSearchParams(window.location.search).get('workspace') === 'true';
+const mixedLocales = new URLSearchParams(window.location.search).get('locales') === 'mixed';
 
 const mount = (key) => {
     if (roots[key]) return;
@@ -17,6 +19,8 @@ const mount = (key) => {
             <ImageBeautifier
                 persistence={{ key: `consumer-${key}`, autoRestore: false }}
                 boxClassName="h-[720px]"
+                workspace={workspace}
+                locale={mixedLocales && key === 'a' ? 'en-US' : 'zh-CN'}
             />
         </StrictMode>
     );

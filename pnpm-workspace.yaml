@@ -1,8 +1,10 @@
 packages:
   - .
+  - docs-site
 
 overrides:
-  mage-icons-react>react: 19.2.8
+  mage-icons-react>react: 19.3.1
+  workbox-build>glob: ^14.0.6
 
 patchedDependencies:
   mage-icons-react@0.7.0-beta: patches/mage-icons-react@0.7.0-beta.patch

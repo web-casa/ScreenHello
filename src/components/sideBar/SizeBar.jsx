@@ -1,6 +1,8 @@
+import useI18n from '../../i18n/useI18n';
 import { useId, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import Icon from '@components/Icon';
+import { NO_CSS_MOTION } from '@components/overlayMotion';
 import { Input, Popover, Button } from 'antd';
 import useStores from '@stores/useStores';
 import { cn, getMargin } from '@utils/utils';
@@ -10,6 +12,7 @@ import CustomSize from './CustomSize';
 const normalizeSearch = (value) => String(value || '').trim().toLocaleLowerCase().replace(/[：:×x]/g, ' ');
 
 export default observer(function SizeBar() {
+    const t = useI18n();
     const stores = useStores();
     const groupIdPrefix = useId();
     const box = useRef(null);
@@ -54,32 +57,41 @@ export default observer(function SizeBar() {
         const query = normalizeSearch(search);
         return sizeConfig.map((group) => {
             if (category !== 'all' && group.category !== category) return null;
-            const groupMatches = normalizeSearch(`${group.title} ${group.search}`).includes(query);
+            const groupMatches = normalizeSearch(`${t(group.title)} ${group.title} ${group.search}`).includes(query);
             const lists = groupMatches || !query
                 ? group.lists
-                : group.lists.filter((item) => normalizeSearch(`${item.title} ${item.search} ${item.w} ${item.h} ${item.width} ${item.height}`).includes(query));
+                : group.lists.filter((item) => normalizeSearch(`${t(item.title)} ${item.title} ${item.search} ${item.w} ${item.h} ${item.width} ${item.height}`).includes(query));
             return lists.length ? { ...group, lists } : null;
         }).filter(Boolean);
-    }, [category, search]);
+    }, [category, search, t]);
     const title = <CustomSize type={stores.option.size.type} frameWidth={stores.option.frameConf.width} frameHeight={stores.option.frameConf.height} onSet={onSet} />;
     const isShowSize = stores.editor.img?.src || stores.option.size.type !== 'auto';
+    const selectedGroup = sizeConfig.find((group) => group.key === stores.option.size.type);
+    const selectedPreset = selectedGroup?.lists.find((item) => checkSelected(selectedGroup.key, item));
+    const selectedTitle = selectedPreset
+        ? `${t(selectedGroup.title)}${selectedPreset.title ? ` ${t(selectedPreset.title)}` : ''} ${selectedPreset.w} : ${selectedPreset.h}`
+        : t(stores.option.size.title);
+    const sizeMeta = !isShowSize
+        ? t("自适应截图尺寸")
+        : `${stores.option.frameConf.width} × ${stores.option.frameConf.height} px`;
+    const showAutoTile = category !== 'platform'
+        && (!normalizeSearch(search) || normalizeSearch(`${t("自动")} auto 自适应`).includes(normalizeSearch(search)));
     const content = (
         <div className="shoteasy-size-popover flex h-full flex-col" data-mode={stores.editor.isDark ? 'dark' : 'light'}>
-            <div className="shoteasy-size-popover__custom shrink-0">{title}</div>
             <div className="shoteasy-size-popover__toolbar shrink-0">
                 <Input
                     allowClear
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="搜索比例、平台或尺寸"
+                    placeholder={t("搜索比例、平台或尺寸")}
                     prefix={<Icon.Magnifier size={15} />}
-                    aria-label="搜索尺寸"
+                    aria-label={t("搜索尺寸")}
                 />
-                <div className="shoteasy-size-tabs" role="tablist" aria-label="尺寸分类">
+                <div className="shoteasy-size-tabs" role="tablist" aria-label={t("尺寸分类")}>
                     {[
-                        { id: 'all', title: '全部' },
-                        { id: 'ratio', title: '比例' },
-                        { id: 'platform', title: '平台' },
+                        { id: 'all', title: t("全部") },
+                        { id: 'ratio', title: t("比例") },
+                        { id: 'platform', title: t("平台") },
                     ].map((item) => (
                         <Button
                             key={item.id}
@@ -93,32 +105,51 @@ export default observer(function SizeBar() {
                 </div>
             </div>
             <div className="shoteasy-size-popover__scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-                {filteredGroups.length ? filteredGroups.map((group) => (
+                {filteredGroups.length || showAutoTile ? (filteredGroups.length ? filteredGroups : [{ key: 'default', title: '比例 ', lists: [] }]).map((group) => (
                     <section className="shoteasy-size-group" key={group.key} data-size-category={group.key} aria-labelledby={`${groupIdPrefix}-${group.key}`}>
                         <div className="shoteasy-size-group__heading">
-                            <h3 id={`${groupIdPrefix}-${group.key}`}>{group.title}</h3>
-                            <span>{group.lists.length} 项</span>
+                            <h3 id={`${groupIdPrefix}-${group.key}`}>
+                                {group.badge && <span className="shoteasy-size-group__badge" aria-hidden="true">{group.badge}</span>}
+                                {t(group.title)}
+                            </h3>
+                            <span>{t('{0} 项', { 0: group.lists.length + (group.key === 'default' && showAutoTile ? 1 : 0) })}</span>
                         </div>
                         <div className="shoteasy-size-grid">
+                            {group.key === 'default' && showAutoTile && (
+                                <button
+                                    type="button"
+                                    className={cn('shoteasy-size-option is-auto', stores.option.size.type === 'auto' && 'is-selected')}
+                                    onClick={() => onSet({ type: 'auto', title: t("自动") })}
+                                    aria-pressed={stores.option.size.type === 'auto'}
+                                    aria-label={t("使用自动尺寸")}
+                                >
+                                    <div className="shoteasy-size-option__preview" aria-hidden="true">
+                                        <span className="shoteasy-size-option__auto-glyph"><Icon.Maximize size={18} /></span>
+                                    </div>
+                                    <strong>{t("自动")}</strong>
+                                    <span className="shoteasy-size-option__meta">{t("自适应截图尺寸")}</span>
+                                </button>
+                            )}
                             {group.lists.map((child) => {
                                 const selected = checkSelected(group.key, child);
                                 const ratio = child.w / child.h;
                                 const previewSize = ratio >= 1
-                                    ? { width: 58, height: Math.max(18, 58 / ratio) }
-                                    : { width: Math.max(18, 58 * ratio), height: 58 };
+                                    ? { width: child.wide ? 72 : 56, height: Math.max(18, Math.round((child.wide ? 72 : 56) / ratio)) }
+                                    : { width: Math.max(18, Math.round(52 * ratio)), height: 52 };
                                 return (
                                     <button
                                         key={child.id}
                                         type="button"
-                                        className={cn('shoteasy-size-option', selected && 'is-selected')}
+                                        className={cn('shoteasy-size-option', child.wide && 'is-wide', selected && 'is-selected')}
                                         onClick={() => toSelected(group.key, group.title, child)}
                                         aria-pressed={selected}
-                                        aria-label={`${group.title} ${child.title || ''} ${child.w}:${child.h}`}
+                                        aria-label={`${t(group.title)} ${t(child.title) ? `${t(child.title)} ` : ''}${child.w}:${child.h} ${child.width} × ${child.height}`}
                                     >
                                         <div className="shoteasy-size-option__preview" aria-hidden="true">
                                             <span style={previewSize} />
                                         </div>
-                                        <strong>{child.title || `${child.w}:${child.h}`}</strong>
+                                        <strong>{t(child.title) || `${child.w}:${child.h}`}</strong>
+                                        {' '}
                                         <span className="shoteasy-size-option__meta">
                                             {child.title ? `${child.w}:${child.h} · ` : ''}{child.width} × {child.height}
                                         </span>
@@ -127,8 +158,9 @@ export default observer(function SizeBar() {
                             })}
                         </div>
                     </section>
-                )) : <div className="shoteasy-size-empty">没有匹配的尺寸</div>}
+                )) : <div className="shoteasy-size-empty">{t("没有匹配的尺寸")}</div>}
             </div>
+            <div className="shoteasy-size-popover__custom is-bottom shrink-0">{title}</div>
         </div>
     );
     return (
@@ -137,6 +169,7 @@ export default observer(function SizeBar() {
             trigger="click"
             arrow={false}
             placement="bottomLeft"
+            motion={NO_CSS_MOTION}
             open={open}
             classNames={{
                 root: cn('shoteasy-components shoteasy-size-overlay', stores.editor.isDark && 'dark-mode'),
@@ -157,13 +190,14 @@ export default observer(function SizeBar() {
             }}
             onOpenChange={handleOpenChange}
         >
-            <button type="button" className={cn('shoteasy-size-trigger', open && 'is-open')} ref={box} aria-expanded={open} aria-label="选择画布尺寸">
+            <button type="button" className={cn('shoteasy-size-trigger', open && 'is-open')} ref={box} aria-expanded={open} aria-label={`${t("选择画布尺寸")}: ${selectedTitle} ${sizeMeta}`}>
                 <div className="shoteasy-size-trigger__preview" aria-hidden="true">
                     <span style={{ aspectRatio: stores.option.frameConf.width / stores.option.frameConf.height }} />
                 </div>
                 <div className="shoteasy-size-trigger__copy">
-                    <div className="shoteasy-size-trigger__title">{stores.option.size.title}</div>
-                    {!isShowSize ? <div className="shoteasy-size-trigger__meta">自适应截图尺寸</div> : <div className="shoteasy-size-trigger__meta">{stores.option.frameConf.width} × {stores.option.frameConf.height} px</div>}
+                    <div className="shoteasy-size-trigger__title">{selectedTitle}</div>
+                    {' '}
+                    <div className="shoteasy-size-trigger__meta">{sizeMeta}</div>
                 </div>
                 <Icon.ChevronDown size={15} className="shoteasy-size-trigger__chevron" />
             </button>

@@ -1,0 +1,40 @@
+{
+  "title": "Überblick",
+  "pages": [
+    "index~Überblick",
+    "guide~Anleitung",
+    "beautify~Gestaltung",
+    "frames~Rahmen",
+    "compression~Komprimierung",
+    "privacy~Datenschutz"
+  ],
+  "name": "Deutsch",
+  "ui": {
+    "Search": "Dokumentation durchsuchen",
+    "Close Search": "Suche schließen",
+    "No results found": "Keine Ergebnisse. Versuche ein anderes Suchwort.",
+    "Choose a language": "Sprache wählen",
+    "Toggle Theme": "Design wechseln",
+    "Light": "Hell",
+    "Dark": "Dunkel",
+    "System": "System",
+    "Open Sidebar": "Seitenleiste öffnen",
+    "Close Sidebar": "Seitenleiste schließen",
+    "Collapse Sidebar": "Seitenleiste einklappen",
+    "Hide Sidebar": "Seitenleiste ausblenden",
+    "Show Sidebar": "Seitenleiste anzeigen",
+    "Next Page": "Nächste Seite",
+    "Previous Page": "Vorherige Seite",
+    "On this page": "Auf dieser Seite",
+    "No Headings": "Keine Überschriften",
+    "Toggle Menu": "Menü umschalten",
+    "searchHint": "Durchsuche die deutschen Anleitungen, zum Beispiel nach PNG oder Projekt.",
+    "guideCaption": "Das integrierte Beispiel im Editor: links die Leinwand, rechts die Gestaltung. Abbildung mit englischer Oberfläche.",
+    "exportCaption": "Export: Format und Skalierung wählen, Ausgabegröße prüfen und herunterladen. Abbildung mit englischer Oberfläche."
+  },
+  "editorLanguage": "de",
+  "open": "Editor öffnen",
+  "skip": "Zum Inhalt",
+  "languages": "Sprache",
+  "updated": "Inhalt geprüft"
+}

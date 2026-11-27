@@ -12,14 +12,18 @@ const imageError = (code) => Object.assign(new Error(code), { code });
  * MIME/manifest metadata alone is insufficient because a ZIP entry can claim
  * to be a PNG while containing arbitrary bytes.
  */
-export async function prepareWorkspaceImage(blob, { retainObjectUrl = false, role = 'image' } = {}) {
+export async function prepareWorkspaceImage(blob, {
+    retainObjectUrl = false,
+    role = 'image',
+    platform = browserPlatform,
+} = {}) {
     if (!(blob instanceof Blob) || blob.size <= 0 || blob.size > MAX_WORKSPACE_IMAGE_BYTES) {
         throw imageError(`${role}-invalid`);
     }
     const type = String(blob.type || '').toLowerCase();
     if (!supportImg.includes(type)) throw imageError(`${role}-type-unsupported`);
 
-    const url = browserPlatform.file.createObjectURL(blob);
+    const url = platform.file.createObjectURL(blob);
     if (!url) throw imageError(`${role}-object-url-unavailable`);
     let retained = false;
     try {
@@ -42,6 +46,6 @@ export async function prepareWorkspaceImage(blob, { retainObjectUrl = false, rol
         retained = retainObjectUrl;
         return { url, width, height };
     } finally {
-        if (!retained) browserPlatform.file.revokeObjectURL(url);
+        if (!retained) platform.file.revokeObjectURL(url);
     }
 }

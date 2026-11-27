@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "rico-screenshot": "file:../../artifacts/screenhello-package.tgz"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "6.1.1",
-    "vite": "8.2.2"
+    "@vitejs/plugin-react": "6.3.0",
+    "vite": "8.3.8"
   }
 }

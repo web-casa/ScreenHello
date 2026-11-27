@@ -1,0 +1,682 @@
+/*
+ * Experience layer — motion, light and micro-interaction on top of main.css.
+ *
+ * Motif: the viewfinder. ScreenHello frames screenshots, so the interface borrows
+ * the capture reticle (corner brackets, mono readouts, a scan pass) and lights the
+ * dotted void wherever the pointer looks. Colour tokens stay those of main.css.
+ *
+ * Unlayered on purpose: these rules refine the layered component styles.
+ * Everything animated is gated by prefers-reduced-motion at the end of the file.
+ */
+
+.shoteasy-app,
+.shoteasy-components {
+    --se-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --se-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --se-vf-plate: #fbfcfe;
+    --se-vf-line: rgba(23, 32, 51, 0.46);
+    --se-vf-grid: rgba(23, 32, 51, 0.055);
+    --se-vf-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 34px 60px -38px rgba(37, 99, 235, 0.42);
+    --se-aura-a: rgba(37, 99, 235, 0.2);
+    --se-aura-b: rgba(168, 85, 247, 0.16);
+    --se-dot-lit: rgba(37, 99, 235, 0.62);
+    --se-stage-horizon: rgba(37, 99, 235, 0.09);
+    --se-stage-spot: rgba(255, 255, 255, 0.92);
+    --se-glass: color-mix(in srgb, var(--se-chrome) 82%, transparent);
+    --se-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(15, 23, 42, 0.08), 0 18px 36px -20px rgba(15, 23, 42, 0.34);
+}
+
+.shoteasy-app[data-mode="dark"],
+.shoteasy-components.dark-mode,
+.shoteasy-components [data-mode="dark"] {
+    --se-vf-plate: #030304;
+    --se-vf-line: rgba(255, 255, 255, 0.52);
+    --se-vf-grid: rgba(255, 255, 255, 0.055);
+    --se-vf-shadow: 0 40px 70px -44px rgba(0, 102, 255, 0.7);
+    --se-aura-a: rgba(0, 102, 255, 0.34);
+    --se-aura-b: rgba(150, 80, 255, 0.26);
+    --se-dot-lit: rgba(132, 176, 255, 0.95);
+    --se-stage-horizon: rgba(0, 102, 255, 0.16);
+    --se-stage-spot: rgba(0, 102, 255, 0.11);
+    --se-glass: color-mix(in srgb, var(--se-chrome) 80%, transparent);
+    --se-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 6px rgba(0, 0, 0, 0.3), 0 22px 44px -22px rgba(0, 0, 0, 0.9);
+}
+
+/* ───────────────────────── Welcome stage ───────────────────────── */
+
+.shoteasy-empty-state {
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+    isolation: isolate;
+    background-image: radial-gradient(120% 62% at 50% 116%, var(--se-stage-horizon), transparent 62%);
+}
+
+.shoteasy-empty-scroll {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: center;
+    /* A deeper bottom pad seats the composition at the optical centre. */
+    padding: clamp(16px, 4vh, 44px) 24px clamp(20px, 9vh, 104px);
+    overflow: auto;
+}
+
+/* The void answers the pointer: resting dots light up under it. */
+.shoteasy-stage-light {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 600ms ease;
+}
+
+.shoteasy-empty-state[data-lit] > .shoteasy-stage-light {
+    opacity: 1;
+    transition-duration: 240ms;
+}
+
+.shoteasy-stage-light::before,
+.shoteasy-stage-light::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+}
+
+.shoteasy-stage-light::before {
+    background-image: radial-gradient(var(--se-dot-lit) 0.9px, transparent 1.25px);
+    background-position: var(--se-dot-x, 0) var(--se-dot-y, 0);
+    background-size: 14px 14px;
+    -webkit-mask-image: radial-gradient(circle 230px at var(--se-lx, 50%) var(--se-ly, 50%), #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 100%);
+    mask-image: radial-gradient(circle 230px at var(--se-lx, 50%) var(--se-ly, 50%), #000 0%, rgba(0, 0, 0, 0.5) 42%, transparent 100%);
+}
+
+.shoteasy-stage-light::after {
+    background-image: radial-gradient(circle 340px at var(--se-lx, 50%) var(--se-ly, 50%), color-mix(in srgb, var(--se-accent) 9%, transparent), transparent 100%);
+}
+
+.shoteasy-init-canvas {
+    width: min(100%, 880px);
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+}
+
+.shoteasy-init-brand {
+    gap: 9px;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+}
+
+.shoteasy-init-heading h2 {
+    max-width: 17em;
+    margin: clamp(12px, 2.4vh, 22px) auto 0;
+    font-size: clamp(28px, min(4.6vw, 7.2vh), 58px);
+    letter-spacing: -0.045em;
+    line-height: 1.16;
+}
+
+/* The reserved place: a capture slot that the reticle locks onto. */
+.shoteasy-init-art-slot {
+    position: relative;
+    container: screenhello-viewfinder / inline-size;
+    width: min(100%, 624px);
+    height: clamp(180px, 33vh, 364px);
+    margin: clamp(18px, 3.6vh, 34px) 0 clamp(10px, 2.4vh, 24px);
+}
+
+.shoteasy-init-art-button {
+    --vf-inset: 0px;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 22px;
+}
+
+.shoteasy-init-art-button:hover,
+.shoteasy-init-art-button:focus-visible { --vf-inset: 5px; }
+.shoteasy-init-art-button:active { --vf-inset: 8px; }
+.shoteasy-empty-state.is-dragging .shoteasy-init-art-button { --vf-inset: 7px; }
+
+.shoteasy-vf,
+.shoteasy-vf > i,
+.shoteasy-vf__plate,
+.shoteasy-vf__plate > span,
+.shoteasy-vf__readouts,
+.shoteasy-vf__readout {
+    position: absolute;
+    pointer-events: none;
+}
+
+.shoteasy-vf__readouts {
+    inset: 12px;
+    overflow: hidden;
+    border-radius: 14px;
+}
+
+.shoteasy-vf { inset: 0; }
+
+.shoteasy-vf > i {
+    --vf-x: -1;
+    --vf-y: -1;
+    width: 22px;
+    height: 22px;
+    border: 0 solid var(--se-vf-line);
+    transition: inset 460ms var(--se-ease-out), border-color 240ms ease;
+}
+
+.shoteasy-vf > i[data-corner="tl"] { top: var(--vf-inset); left: var(--vf-inset); border-width: 1.5px 0 0 1.5px; border-top-left-radius: 9px; }
+.shoteasy-vf > i[data-corner="tr"] { --vf-x: 1; top: var(--vf-inset); right: var(--vf-inset); border-width: 1.5px 1.5px 0 0; border-top-right-radius: 9px; }
+.shoteasy-vf > i[data-corner="bl"] { --vf-y: 1; bottom: var(--vf-inset); left: var(--vf-inset); border-width: 0 0 1.5px 1.5px; border-bottom-left-radius: 9px; }
+.shoteasy-vf > i[data-corner="br"] { --vf-x: 1; --vf-y: 1; right: var(--vf-inset); bottom: var(--vf-inset); border-width: 0 1.5px 1.5px 0; border-bottom-right-radius: 9px; }
+
+.shoteasy-init-art-button:hover .shoteasy-vf > i,
+.shoteasy-init-art-button:focus-visible .shoteasy-vf > i,
+.shoteasy-empty-state.is-dragging .shoteasy-vf > i { border-color: var(--se-accent-text); }
+
+.shoteasy-vf__plate {
+    inset: 12px;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 14px;
+    background: var(--se-vf-plate);
+    box-shadow: inset 0 0 0 1px var(--se-border), var(--se-vf-shadow);
+    transition: box-shadow 320ms ease;
+}
+
+.shoteasy-init-art-button:hover .shoteasy-vf__plate,
+.shoteasy-empty-state.is-dragging .shoteasy-vf__plate {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--se-accent) 50%, var(--se-border)), var(--se-vf-shadow);
+}
+
+.shoteasy-vf__aura {
+    inset: -18%;
+    background:
+        radial-gradient(36% 46% at 37% 54%, var(--se-aura-a), transparent 72%),
+        radial-gradient(34% 44% at 65% 46%, var(--se-aura-b), transparent 72%);
+    filter: blur(22px);
+    opacity: 0.86;
+    translate: calc(var(--se-tx, 0) * -20px) calc(var(--se-ty, 0) * -14px);
+    transition: opacity 400ms ease;
+}
+
+.shoteasy-init-art-button:hover .shoteasy-vf__aura,
+.shoteasy-empty-state.is-dragging .shoteasy-vf__aura { opacity: 1; }
+
+.shoteasy-vf__grid {
+    inset: -28px;
+    background-image:
+        linear-gradient(var(--se-vf-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--se-vf-grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    -webkit-mask-image: radial-gradient(62% 72% at 50% 50%, #000 0%, transparent 100%);
+    mask-image: radial-gradient(62% 72% at 50% 50%, #000 0%, transparent 100%);
+    translate: calc(var(--se-tx, 0) * 9px) calc(var(--se-ty, 0) * 9px);
+}
+
+.shoteasy-vf__scan {
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 38%;
+    background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--se-accent) 9%, transparent) 94%, color-mix(in srgb, var(--se-accent) 62%, transparent) 100%);
+    opacity: 0;
+    translate: 0 -100%;
+}
+
+.shoteasy-vf__readout {
+    z-index: 2;
+    color: var(--se-muted-contrast);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    line-height: 1;
+    white-space: pre;
+    transition: color 240ms ease, opacity 300ms ease;
+}
+
+.shoteasy-vf__readout[data-at="tl"] { top: 16px; left: 18px; opacity: 0; }
+.shoteasy-vf__readout[data-at="bl"] { bottom: 16px; left: 18px; }
+.shoteasy-vf__readout[data-at="br"] { right: 18px; bottom: 16px; }
+.shoteasy-empty-state[data-lit] .shoteasy-vf__readout[data-at="tl"] { opacity: 1; }
+.shoteasy-init-art-button:hover + .shoteasy-vf__readouts .shoteasy-vf__readout { color: var(--se-ink); }
+
+@container screenhello-viewfinder (max-width: 430px) {
+    .shoteasy-vf__readout[data-at="tl"],
+    .shoteasy-vf__readout[data-at="br"] { display: none; }
+}
+
+.shoteasy-init-art {
+    position: relative;
+    z-index: 1;
+    scale: 1.32;
+    transform: perspective(900px) rotateX(calc(var(--se-ty, 0) * -10deg)) rotateY(calc(var(--se-tx, 0) * 13deg));
+    transition: scale 520ms var(--se-ease-out);
+    will-change: transform;
+}
+
+.shoteasy-init-art-button:hover .shoteasy-init-art {
+    scale: 1.4;
+    transform: perspective(900px) rotateX(calc(var(--se-ty, 0) * -10deg)) rotateY(calc(var(--se-tx, 0) * 13deg));
+}
+
+.shoteasy-init-art-button:active .shoteasy-init-art { scale: 1.27; transition-duration: 120ms; }
+.shoteasy-empty-state.is-dragging .shoteasy-init-art { scale: 1.46; }
+
+.shoteasy-init-shelf {
+    width: min(100%, 600px);
+    padding-top: 0;
+    border-top: 0;
+}
+
+.shoteasy-init-actions { gap: 10px; }
+
+/* Longer labels (German, Portuguese) take the room they need instead of wrapping. */
+@media (min-width: 641px) {
+    .shoteasy-init-actions > *,
+    .shoteasy-init-actions .shoteasy-upload-card { flex: 1 1 auto; }
+}
+
+.shoteasy-init-actions .ant-btn {
+    position: relative;
+    min-height: 50px;
+    overflow: hidden;
+    border-radius: 14px;
+    transition: transform 420ms var(--se-ease-out), box-shadow 320ms ease, color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.shoteasy-init-actions .ant-btn .ant-btn-icon { transition: transform 460ms var(--se-ease-spring); }
+.shoteasy-init-actions .ant-btn:not(:disabled):hover { transform: translateY(-2px); }
+.shoteasy-init-actions .ant-btn:not(:disabled):hover .ant-btn-icon { transform: translateY(-1px) rotate(-8deg) scale(1.1); }
+.shoteasy-init-actions .ant-btn:not(:disabled):active { transform: translateY(0) scale(0.985); transition-duration: 90ms; }
+
+.shoteasy-init-actions .ant-btn-primary:not(:disabled) {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 14px 28px -16px color-mix(in srgb, var(--se-primary) 90%, transparent);
+}
+
+.shoteasy-init-actions .ant-btn-primary:not(:disabled):hover {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 20px 34px -14px color-mix(in srgb, var(--se-primary) 96%, transparent);
+}
+
+/* One pass of light across the primary action, like a lens catching it. */
+.shoteasy-init-actions .ant-btn-primary:not(:disabled)::after,
+.shoteasy-export-primary.ant-btn:not(:disabled)::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 32%, rgba(255, 255, 255, 0.34) 50%, transparent 68%);
+    content: '';
+    pointer-events: none;
+    translate: -120% 0;
+}
+
+.shoteasy-init-actions .ant-btn-primary:not(:disabled):hover::after,
+.shoteasy-export-primary.ant-btn:not(:disabled):hover::after {
+    translate: 120% 0;
+    transition: translate 760ms var(--se-ease-out);
+}
+
+.shoteasy-init-hint {
+    margin-top: 20px;
+    letter-spacing: 0.01em;
+}
+
+.shoteasy-init-hint kbd {
+    min-width: 25px;
+    margin-inline: 2px;
+    padding: 1px 6px;
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    color: var(--se-ink);
+    background: var(--se-panel);
+    font-size: 11px;
+    line-height: 1.7;
+    text-align: center;
+    transition: translate 110ms ease, color 110ms ease, background-color 110ms ease, border-color 110ms ease, box-shadow 160ms ease;
+}
+
+/* The keycaps echo the real keyboard while the paste chord is held. */
+.shoteasy-init-hint kbd[data-pressed] {
+    border-color: var(--se-accent);
+    color: #ffffff;
+    background: var(--se-accent);
+    box-shadow: 0 0 0 4px var(--se-accent-soft);
+    translate: 0 1px;
+}
+
+.shoteasy-init-footer {
+    width: min(100%, 600px);
+    margin-top: clamp(18px, 4.6vh, 52px);
+    padding-top: 10px;
+    border-top: 1px solid var(--se-border);
+    justify-content: flex-start;
+    column-gap: 6px;
+}
+
+.shoteasy-init-footer p {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    row-gap: 4px;
+    margin-right: auto;
+    text-align: left;
+}
+
+.shoteasy-init-privacy-count { white-space: nowrap; }
+.shoteasy-init-footer .ant-btn svg { transition: translate 320ms var(--se-ease-out); }
+.shoteasy-init-footer .ant-btn:hover { color: var(--se-ink); }
+.shoteasy-init-footer .ant-btn:hover svg { translate: 3px 0; }
+
+/* Dropping a file: the whole workspace becomes the capture region. */
+.shoteasy-drop-overlay {
+    z-index: 30;
+    inset: 14px;
+    flex-direction: column;
+    gap: 14px;
+    border: 0;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--se-canvas) 68%, transparent);
+    box-shadow: none;
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+    backdrop-filter: blur(12px) saturate(1.3);
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    opacity: 1;
+    transform: none;
+}
+
+.shoteasy-drop-overlay::before {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--se-accent);
+    border-radius: inherit;
+    content: '';
+    -webkit-mask:
+        linear-gradient(#000 0 0) top left / 46px 46px no-repeat,
+        linear-gradient(#000 0 0) top right / 46px 46px no-repeat,
+        linear-gradient(#000 0 0) bottom left / 46px 46px no-repeat,
+        linear-gradient(#000 0 0) bottom right / 46px 46px no-repeat;
+    mask:
+        linear-gradient(#000 0 0) top left / 46px 46px no-repeat,
+        linear-gradient(#000 0 0) top right / 46px 46px no-repeat,
+        linear-gradient(#000 0 0) bottom left / 46px 46px no-repeat,
+        linear-gradient(#000 0 0) bottom right / 46px 46px no-repeat;
+}
+
+/* ───────────────────────── Editor workspace ───────────────────────── */
+
+/* A soft light table behind the artwork gives the void a centre. */
+.shoteasy-editor-canvas::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(58% 54% at 50% 47%, var(--se-stage-spot), transparent 72%);
+    content: '';
+    pointer-events: none;
+}
+
+.shoteasy-bottom-toolbar {
+    bottom: 16px;
+    gap: 4px;
+    padding: 6px 8px;
+    border-color: color-mix(in srgb, var(--se-border-strong) 70%, transparent);
+    border-radius: 18px;
+    background: var(--se-glass);
+    box-shadow: var(--se-glass-shadow);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+}
+
+.shoteasy-tool-button.ant-btn {
+    transition: transform 360ms var(--se-ease-spring), color 140ms ease, background-color 140ms ease;
+}
+
+.shoteasy-bottom-toolbar .shoteasy-tool-button.ant-btn:not(:disabled):hover { transform: translateY(-2px); }
+.shoteasy-bottom-toolbar .shoteasy-tool-button.ant-btn:not(:disabled):active { transform: translateY(0) scale(0.92); transition-duration: 80ms; }
+
+/* The armed tool carries a small index dot, so it reads at a glance. */
+.shoteasy-bottom-toolbar .shoteasy-tool-button.is-active.ant-btn {
+    background-image: radial-gradient(circle at 50% calc(100% - 3px), currentColor 1.5px, transparent 2.1px);
+}
+
+.shoteasy-zoom-controls__group,
+.shoteasy-zoom-controls__fit,
+.shoteasy-bottom-toolbar-collapsed.ant-btn {
+    border-color: color-mix(in srgb, var(--se-border-strong) 70%, transparent);
+    background: var(--se-glass);
+    box-shadow: var(--se-glass-shadow);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+}
+
+.shoteasy-zoom-controls .ant-btn svg { transition: scale 320ms var(--se-ease-spring); }
+.shoteasy-zoom-controls .ant-btn:hover svg { scale: 1.16; }
+
+/* ───────────────────────── Chrome ───────────────────────── */
+
+.shoteasy-app .ant-btn {
+    transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.shoteasy-logo__image { transition: rotate 900ms var(--se-ease-out), scale 500ms var(--se-ease-spring); }
+.shoteasy-logo:hover .shoteasy-logo__image { rotate: -32deg; scale: 1.08; }
+
+.shoteasy-app-menu__trigger { transition: color 140ms ease, background-color 140ms ease; }
+
+.shoteasy-export-primary.ant-btn {
+    position: relative;
+    overflow: hidden;
+    transition: transform 360ms var(--se-ease-out), box-shadow 280ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.shoteasy-export-primary.ant-btn:not(:disabled):hover {
+    box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--se-primary) 92%, transparent);
+    transform: translateY(-1px);
+}
+
+.shoteasy-export-primary.ant-btn:not(:disabled):active { transform: translateY(0) scale(0.98); }
+.shoteasy-export-primary.ant-btn .ant-btn-icon { transition: translate 360ms var(--se-ease-spring); }
+.shoteasy-export-primary.ant-btn:not(:disabled):hover .ant-btn-icon { translate: 0 2px; }
+
+.shoteasy-theme-trigger.ant-btn .ant-btn-icon { transition: rotate 700ms var(--se-ease-out); }
+.shoteasy-theme-trigger.ant-btn:hover .ant-btn-icon { rotate: 40deg; }
+
+/* Frame cards: the thumbnail lifts toward the pointer; the choice keeps a marker. */
+.shoteasy-frame-thumb { transition: transform 420ms var(--se-ease-spring); }
+.shoteasy-frame-option:hover .shoteasy-frame-thumb { transform: translateY(-2px) scale(1.04); }
+.shoteasy-frame-option:active .shoteasy-frame-thumb { transform: scale(0.97); transition-duration: 90ms; }
+
+.shoteasy-frame-option.is-selected .shoteasy-frame-option__content::after {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--se-accent-text);
+    box-shadow: 0 0 0 3px var(--se-accent-soft);
+    content: '';
+}
+
+.shoteasy-size-trigger__preview span { transition: scale 360ms var(--se-ease-spring); }
+.shoteasy-size-trigger:hover .shoteasy-size-trigger__preview span { scale: 1.12; }
+.shoteasy-frame-more.ant-btn svg { transition: translate 320ms var(--se-ease-out); }
+.shoteasy-frame-more.ant-btn:hover svg { translate: 3px 0; }
+
+/* Swatches behave like physical chips: they rise, and settle when pressed. */
+.shoteasy-inspector .ant-radio-wrapper .w-8,
+.shoteasy-background-options .ant-radio-wrapper .w-8 {
+    transition: scale 380ms var(--se-ease-spring), box-shadow 200ms ease;
+}
+
+.shoteasy-inspector .ant-radio-wrapper:hover .w-8,
+.shoteasy-background-options .ant-radio-wrapper:hover .w-8 { scale: 1.14; }
+
+.shoteasy-inspector .ant-radio-wrapper:active .w-8,
+.shoteasy-background-options .ant-radio-wrapper:active .w-8 { scale: 0.94; transition-duration: 90ms; }
+
+/* Same rank as its sibling labels (预设 / 精选渐变), so the section reads as one list. */
+.se-background-preset-heading h4 { font-size: 14px; font-weight: 600; }
+
+.se-background-preset { transition: border-color 120ms, translate 380ms var(--se-ease-out), box-shadow 280ms ease; }
+
+.se-background-preset:hover {
+    box-shadow: 0 12px 20px -14px rgba(0, 0, 0, 0.55);
+    translate: 0 -2px;
+}
+
+.se-background-preset:active { translate: 0 0; transition-duration: 90ms; }
+
+.shoteasy-inspector-section__trigger { transition: color 160ms ease, letter-spacing 420ms var(--se-ease-out); }
+.shoteasy-inspector-section__trigger:hover { letter-spacing: 0.09em; }
+
+.radix-themes .rt-SliderThumb { transition: scale 240ms var(--se-ease-spring); }
+.radix-themes .rt-SliderThumb:hover { scale: 1.25; }
+.radix-themes .rt-SliderThumb:active { scale: 1.1; }
+
+.shoteasy-layer-thumb img { transition: scale 480ms var(--se-ease-out); }
+.shoteasy-layer-row > button:hover .shoteasy-layer-thumb img { scale: 1.12; }
+
+/* ───────────────────────── Theme change ───────────────────────── */
+
+/* The new theme opens from the toggle like an iris. Scoped by class so a host
+   page's own view transitions are never restyled. */
+html.shoteasy-theme-transition::view-transition-old(root),
+html.shoteasy-theme-transition::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+html.shoteasy-theme-transition::view-transition-new(root) {
+    animation: shoteasy-iris 640ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes shoteasy-iris {
+    from { clip-path: circle(0 at var(--se-iris-x, 100%) var(--se-iris-y, 0)); }
+    to { clip-path: circle(var(--se-iris-r, 150vmax) at var(--se-iris-x, 100%) var(--se-iris-y, 0)); }
+}
+
+/* ───────────────────────── Motion ───────────────────────── */
+
+@keyframes shoteasy-rise {
+    from { opacity: 0; translate: 0 18px; }
+}
+
+@keyframes shoteasy-corner-in {
+    from { opacity: 0; translate: calc(var(--vf-x) * -14px) calc(var(--vf-y) * -14px); }
+}
+
+@keyframes shoteasy-fade-in {
+    from { opacity: 0; }
+}
+
+@keyframes shoteasy-float {
+    from { translate: 0 3px; }
+    to { translate: 0 -5px; }
+}
+
+@keyframes shoteasy-aura {
+    from { rotate: -6deg; scale: 1; }
+    to { rotate: 8deg; scale: 1.12; }
+}
+
+@keyframes shoteasy-scan {
+    0% { opacity: 0; translate: 0 -100%; }
+    6% { opacity: 1; }
+    34% { opacity: 1; translate: 0 166%; }
+    42%, 100% { opacity: 0; translate: 0 166%; }
+}
+
+@keyframes shoteasy-reticle-pulse {
+    50% { inset: 7px; opacity: 0.55; }
+}
+
+@keyframes shoteasy-reveal {
+    from { opacity: 0; translate: 0 -5px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .shoteasy-init-canvas > * { animation: shoteasy-rise 820ms var(--se-ease-out) backwards; }
+    .shoteasy-init-canvas > :nth-child(2) { animation-delay: 90ms; }
+    .shoteasy-init-canvas > :nth-child(3) { animation-delay: 170ms; }
+    .shoteasy-init-canvas > :nth-child(4) { animation-delay: 250ms; }
+
+    .shoteasy-vf > i { animation: shoteasy-corner-in 760ms var(--se-ease-out) 420ms backwards; }
+    .shoteasy-vf__readout { animation: shoteasy-fade-in 600ms ease 760ms backwards; }
+    .shoteasy-vf__aura { animation: shoteasy-aura 13s ease-in-out infinite alternate; }
+    .shoteasy-vf__scan { animation: shoteasy-scan 7.5s cubic-bezier(0.6, 0, 0.3, 1) 1.4s infinite; }
+    .shoteasy-init-art { animation: shoteasy-float 5.5s ease-in-out infinite alternate; }
+
+    .shoteasy-empty-state.is-dragging .shoteasy-vf__scan { animation-duration: 2.4s; animation-delay: 0s; }
+    .shoteasy-drop-overlay { animation: shoteasy-fade-in 200ms ease backwards; }
+    .shoteasy-drop-overlay::before { animation: shoteasy-reticle-pulse 1.5s ease-in-out infinite; }
+
+    .shoteasy-editor-canvas > .z-0 { animation: shoteasy-fade-in 520ms ease backwards; }
+    .shoteasy-editor-canvas::before { animation: shoteasy-fade-in 1200ms ease backwards; }
+    .shoteasy-bottom-toolbar:not(.is-collapsed) { animation: shoteasy-rise 720ms var(--se-ease-out) 160ms backwards; }
+    .shoteasy-zoom-controls { animation: shoteasy-fade-in 600ms ease 220ms backwards; }
+    .shoteasy-inspector-section__body { animation: shoteasy-reveal 360ms var(--se-ease-out) backwards; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shoteasy-stage-light,
+    .shoteasy-vf__scan { display: none; }
+
+    .shoteasy-init-art,
+    .shoteasy-init-actions .ant-btn,
+    .shoteasy-init-actions .ant-btn .ant-btn-icon,
+    .shoteasy-export-primary.ant-btn,
+    .shoteasy-tool-button.ant-btn,
+    .shoteasy-frame-thumb,
+    .shoteasy-vf > i,
+    .shoteasy-logo__image,
+    .se-background-preset,
+    .radix-themes .rt-SliderThumb {
+        transition-duration: 0.01ms !important;
+    }
+
+    .shoteasy-init-actions .ant-btn-primary::after,
+    .shoteasy-export-primary.ant-btn::after { display: none; }
+}
+
+/* ───────────────────────── Small screens ───────────────────────── */
+
+@media (hover: none) {
+    .shoteasy-vf__readout[data-at="tl"] { display: none; }
+}
+
+/* main.css keeps its small-screen block unlayered and later in the cascade, so these
+   carry the app scope to win on equal terms. */
+@media (max-width: 640px), (max-height: 500px) and (pointer: coarse) {
+    .shoteasy-app .shoteasy-empty-state { padding: 0; }
+    .shoteasy-app .shoteasy-init-canvas { padding: 0; }
+
+    .shoteasy-app .shoteasy-empty-scroll {
+        padding: 22px 16px calc(72px + env(safe-area-inset-bottom));
+    }
+
+    .shoteasy-app .shoteasy-init-art-slot {
+        height: clamp(170px, 28vh, 240px);
+        margin-block: 22px 12px;
+    }
+
+    .shoteasy-app .shoteasy-init-footer {
+        justify-content: center;
+        margin-top: 22px;
+    }
+
+    .shoteasy-app .shoteasy-init-footer p {
+        flex: 1 1 100%;
+        justify-content: center;
+        margin-right: 0;
+        text-align: center;
+    }
+
+    .shoteasy-app .shoteasy-bottom-toolbar { bottom: 12px; }
+}

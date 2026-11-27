@@ -81,6 +81,7 @@ export const captureCurrentBatchStyleSource = (root) => {
     const backgroundAsset = root.assetStore.get(root.option.backgroundAssetId);
     return {
         kind: 'snapshot',
+        theme: root.editor?.theme === 'dark' ? 'dark' : 'light',
         option,
         exportSettings: normalizeExportSettings(root.workspace.exportSettings),
         backgroundBlob: backgroundAsset?.blob || null,

@@ -1,0 +1,37 @@
+/* Library-only scoped base reset (replaces global Tailwind Preflight in lib/style.css). */
+@layer base {
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal),
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) *,
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) ::before,
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) ::after {
+        box-sizing: border-box;
+        border-width: 0;
+        border-style: solid;
+        border-color: currentColor;
+    }
+
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) :where(h1, h2, h3, h4, h5, h6, p, ul, ol, dl, dd, figure, pre) {
+        margin: 0;
+    }
+
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) :where(ul, ol) {
+        padding: 0;
+        list-style: none;
+    }
+
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) :where(img, svg, video, canvas) {
+        display: block;
+        vertical-align: middle;
+    }
+
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) :where(button, input, select, textarea) {
+        font: inherit;
+        color: inherit;
+        margin: 0;
+    }
+
+    :where(.shoteasy-app, .shoteasy-components, .shoteasy-portal) button {
+        background-color: transparent;
+        background-image: none;
+    }
+}

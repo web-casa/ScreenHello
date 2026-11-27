@@ -1,0 +1,55 @@
+name: Set up project-pinned pnpm
+description: Activates the package.json-pinned pnpm version through the selected Node runtime with Corepack.
+
+runs:
+  using: composite
+  steps:
+    - name: Activate the package.json-pinned pnpm on Linux and macOS
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+        corepack_root="$(mktemp -d "$RUNNER_TEMP/screenhello-corepack.XXXXXX")"
+        install_directory="$corepack_root/bin"
+        corepack_home="$corepack_root/home"
+        mkdir -p "$install_directory" "$corepack_home"
+        export COREPACK_HOME="$corepack_home"
+        export COREPACK_ENV_FILE=0
+        export COREPACK_DEFAULT_TO_LATEST=0
+        export COREPACK_ENABLE_PROJECT_SPEC=1
+        unset COREPACK_INTEGRITY_KEYS
+        corepack enable pnpm --install-directory "$install_directory"
+        corepack install
+        installed_pnpm="$("$install_directory/pnpm" --version)"
+        test "$installed_pnpm" = "10.12.1"
+        printf '%s\n' "$install_directory" >> "$GITHUB_PATH"
+        printf 'COREPACK_HOME=%s\n' "$corepack_home" >> "$GITHUB_ENV"
+        printf 'COREPACK_ENV_FILE=0\n' >> "$GITHUB_ENV"
+        printf 'COREPACK_DEFAULT_TO_LATEST=0\n' >> "$GITHUB_ENV"
+        printf 'COREPACK_ENABLE_PROJECT_SPEC=1\n' >> "$GITHUB_ENV"
+
+    - name: Activate the package.json-pinned pnpm on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Set-StrictMode -Version Latest
+        $corepackRoot = Join-Path $env:RUNNER_TEMP ("screenhello-corepack-{0}" -f [Guid]::NewGuid().ToString('N'))
+        $installDirectory = Join-Path $corepackRoot 'bin'
+        $corepackHome = Join-Path $corepackRoot 'home'
+        New-Item -ItemType Directory -Path $installDirectory -Force | Out-Null
+        New-Item -ItemType Directory -Path $corepackHome -Force | Out-Null
+        $env:COREPACK_HOME = $corepackHome
+        $env:COREPACK_ENV_FILE = '0'
+        $env:COREPACK_DEFAULT_TO_LATEST = '0'
+        $env:COREPACK_ENABLE_PROJECT_SPEC = '1'
+        Remove-Item -LiteralPath 'Env:COREPACK_INTEGRITY_KEYS' -ErrorAction SilentlyContinue
+        corepack enable pnpm --install-directory $installDirectory
+        corepack install
+        $installedPnpm = (& (Join-Path $installDirectory 'pnpm.cmd') --version).Trim()
+        if ($installedPnpm -ne '10.12.1') { throw "Unexpected pnpm version: $installedPnpm" }
+        "COREPACK_HOME=$corepackHome" >> $env:GITHUB_ENV
+        'COREPACK_ENV_FILE=0' >> $env:GITHUB_ENV
+        'COREPACK_DEFAULT_TO_LATEST=0' >> $env:GITHUB_ENV
+        'COREPACK_ENABLE_PROJECT_SPEC=1' >> $env:GITHUB_ENV
+        $installDirectory >> $env:GITHUB_PATH

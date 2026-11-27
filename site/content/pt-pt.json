@@ -1,0 +1,298 @@
+{
+  "lang": "pt-PT",
+  "name": "Português",
+  "open": "Abrir editor",
+  "skip": "Saltar para o conteúdo",
+  "nav": "Explorar o ScreenHello",
+  "languages": "Idioma",
+  "before": "Original",
+  "after": "Com moldura de navegador",
+  "example": "Exemplo ilustrativo: a mesma imagem local com fundo, margem e moldura de navegador.",
+  "related": "Continuar a explorar",
+  "source": "Código-fonte",
+  "upstream": "Baseado no Shoteasy. O código e os recursos gráficos opcionais têm licenças distintas.",
+  "browser": "Suporta Chrome/Edge 111+, Firefox 128+ e Safari 16.4+. A captura, a área de transferência e a instalação dependem do navegador e das permissões.",
+  "updated": "Conteúdo revisto",
+  "reviewed": "2026-11-26",
+  "labels": [
+    "Apresentação",
+    "Estilo",
+    "Molduras",
+    "Compressão",
+    "Guia",
+    "Privacidade"
+  ],
+  "pages": [
+    {
+      "title": "Capturas mais cuidadas, no seu dispositivo",
+      "seoTitle": "Editor de capturas: funções e privacidade",
+      "description": "O ScreenHello é um editor gratuito e local de capturas e cartões visuais. Adicione fundos, molduras, perspetiva 3D, cartões de código ou texto, 18 modelos, marca de água com logótipo e exportação GIF local.",
+      "sections": [
+        [
+          "Da captura à apresentação",
+          "Abra uma imagem local, cole a partir da área de transferência, experimente o exemplo ou crie de imediato um cartão de código, um cartão de texto/social ou aplique um dos 18 modelos incluídos. Adicione espaço, fundos, perspetiva 3D, molduras de navegador, marcas de água de texto ou logótipo e anotações. Tudo é processado no seu dispositivo, sem conta nem nuvem."
+        ],
+        [
+          "Guarde um projeto editável",
+          "Organize até 12 camadas de imagem ou cartão, oculte ou mostre camadas com o botão de visibilidade, anule alterações e guarde um ficheiro portátil .screenhello (com cartões de código/texto, perspetiva 3D e marca de água). É a sua cópia de segurança; os rascunhos automáticos do navegador podem desaparecer ao limpar os dados do site."
+        ],
+        [
+          "Funcionalidades Web e disponibilidade",
+          "Exporte PNG, JPG ou WebP com pré-visualização da compressão, AVIF padrão, ou gere 5 microanimações em ciclo para GIF89a local (e WebM se o navegador suportar). Estas páginas descrevem o editor Web. As versões para computador ainda são candidatas de teste e a extensão Chrome/Edge está planeada. O AVIF só permite exportação padrão, sem controlo de qualidade nem pré-visualização de compressão."
+        ]
+      ]
+    },
+    {
+      "title": "Dê espaço ao que importa na captura",
+      "seoTitle": "Como melhorar capturas: fundos, espaço e sombras",
+      "description": "Melhore capturas localmente com fundos, margens, perspetiva 3D, cartões de código e texto, 18 modelos, marca de água com logótipo e camadas ocultáveis.",
+      "sections": [
+        [
+          "1. Importar uma imagem ou criar um cartão",
+          "Escolha um ficheiro, arraste-o para a área inicial, cole uma imagem ou use os atalhos iniciais para criar um cartão de código (14 linguagens offline, 6 temas, destaque de linhas e modo +/- diff), um cartão de texto/social (publicação, citação ou registo de alterações) ou abrir a galeria de 18 modelos. A captura de ecrã requer autorização do navegador.",
+          [
+            {
+              "h": "Até 12 camadas com controlo de visibilidade",
+              "p": "Um projeto comporta no máximo 12 camadas de imagem ou cartão. Cada uma mantém posição e aspeto e pode ser ocultada ou mostrada na lista sem a eliminar; camadas ocultas não entram na exportação e suportam anular/refazer."
+            },
+            {
+              "h": "Atalhos de teclado",
+              "p": "Controle o editor sem largar o teclado. No macOS use Command onde a tabela diz Ctrl."
+            },
+            {
+              "table": {
+                "head": [
+                  "Ação",
+                  "Teclas"
+                ],
+                "rows": [
+                  [
+                    "Abrir projeto",
+                    "Ctrl + O"
+                  ],
+                  [
+                    "Guardar projeto",
+                    "Ctrl + S"
+                  ],
+                  [
+                    "Guardar como",
+                    "Ctrl + Shift + S"
+                  ],
+                  [
+                    "Abrir exportação",
+                    "Ctrl + Shift + E"
+                  ],
+                  [
+                    "Copiar imagem final",
+                    "Ctrl + C"
+                  ],
+                  [
+                    "Anular",
+                    "Ctrl + Z"
+                  ],
+                  [
+                    "Refazer",
+                    "Ctrl + Shift + Z"
+                  ],
+                  [
+                    "Eliminar seleção",
+                    "Delete / Backspace"
+                  ],
+                  [
+                    "Ampliar",
+                    "Ctrl + +"
+                  ],
+                  [
+                    "Reduzir",
+                    "Ctrl + -"
+                  ],
+                  [
+                    "Ajustar à tela",
+                    "Ctrl + 0"
+                  ]
+                ]
+              }
+            },
+            {
+              "note": "Os atalhos ficam inativos enquanto escreve num campo de texto."
+            }
+          ]
+        ],
+        [
+          "2. Criar estilo, modelos e marca de água",
+          "Ajuste o tamanho da tela (incluindo 1.618:1, OG 1200×630, Product Hunt, Xiaohongshu e LinkedIn), margem interior, cantos, sombra e contorno interior. Escolha cores, gradientes, fundos próprios ou aplique qualquer um dos 18 modelos num só passo reversível. Adicione marcas de água de texto ou logótipo local comprimido (<= 64 KiB, grelha 3×3 ou mosaico), setas, números de passo e lupas."
+        ],
+        [
+          "3. Exportar imagens fixas ou animações em ciclo",
+          "Escolha PNG para transparência ou exporte JPG, WebP e AVIF (JPG e WebP preenchem áreas transparentes a branco). Para animações em ciclo, abra Ficheiro → Exportar animação para pré-visualizar 5 microanimações e codificar GIF89a ou WebM localmente. O zoom só altera a vista; a escala altera os píxeis finais."
+        ]
+      ]
+    },
+    {
+      "title": "Molduras de navegador, perspetiva 3D e dispositivos",
+      "seoTitle": "Molduras de navegador, perspetiva 3D e dispositivos",
+      "description": "Adicione molduras de navegador, 8 predefinições de perspetiva 3D com pré-visualização e ângulos livres. Conheça exclusão mútua, ajuste e licenças.",
+      "sections": [
+        [
+          "Moldura de navegador e perspetiva 3D sem visitar sites",
+          "Escolha uma moldura à esquerda, introduza o URL apresentado e ajuste a barra superior; o ScreenHello não visita nem captura esse site. O painel esquerdo oferece também 8 predefinições de perspetiva 3D com pré-visualização em tempo real e controlos de ângulos X/Y/Z e distância, renderizados localmente."
+        ],
+        [
+          "Recursos de dispositivo e exclusão mútua com 3D",
+          "O seletor só apresenta recursos existentes na compilação atual. Algumas instalações locais podem incluir MacBook Air M2, iMac de 24 polegadas, Surface Pro, Surface Studio ou Pixel 9 Pro; a distribuição pública não os garante. Escolher uma moldura de dispositivo repõe o 3D para plano, e ativar 3D muda uma moldura de dispositivo para uma moldura de navegador minimalista."
+        ],
+        [
+          "Proporções e licenças",
+          "Conter preserva toda a imagem, cobrir preenche o ecrã e pode recortar, esticar pode deformar. Os recursos opcionais têm licenças próprias, não abrangidas automaticamente pela licença do código. O projeto guarda o identificador do dispositivo, não o pacote gráfico. Instale o recurso em falta ou escolha outra moldura para uma exportação completa."
+        ]
+      ]
+    },
+    {
+      "title": "Compressão e exportação local de animações",
+      "seoTitle": "Guia de compressão PNG, JPG, WebP e exportação GIF",
+      "description": "Compare otimização PNG sem perdas, redução de cores, WebP sem perdas e níveis de qualidade, além da exportação local de microanimações GIF89a e WebM.",
+      "sections": [
+        [
+          "Qualidade 100 não significa sem perdas",
+          "A otimização PNG sem perdas preserva os píxeis, mas não garante um ficheiro menor. A redução com perdas usa 256, 128 ou 64 cores e pode alterar gradientes e sombras translúcidas. O WebP tem um modo sem perdas separado. Os controlos de JPG e WebP continuam com perdas mesmo a 100. O WebP preenche a transparência a branco antes de codificar. O AVIF só permite exportação padrão, sem controlo de qualidade nem pré-visualização de compressão.",
+          [
+            {
+              "h": "Standard, sem perdas e com perdas",
+              "p": "A exportação padrão usa a codificação predefinida do formato. PNG e WebP oferecem modos sem perdas; JPG e WebP oferecem qualidade com perdas ajustável. AVIF só oferece exportação padrão, sem controlo de qualidade nem pré-visualização da compressão."
+            },
+            {
+              "h": "Limites que vai encontrar",
+              "p": "O editor verifica estes valores antes de iniciar uma transferência."
+            },
+            {
+              "table": {
+                "head": [
+                  "Operação",
+                  "Limite"
+                ],
+                "rows": [
+                  [
+                    "Pré-visualização completa",
+                    "1 048 576 píxeis (cerca de 1 MP)"
+                  ],
+                  [
+                    "Transferência comprimida",
+                    "4 194 304 píxeis (cerca de 4 MP), lado maior 8192 px"
+                  ],
+                  [
+                    "Exportação AVIF",
+                    "4 194 304 píxeis, apenas exportação standard"
+                  ],
+                  [
+                    "Redução de paleta PNG",
+                    "256, 128 ou 64 cores"
+                  ],
+                  [
+                    "Qualidade com perdas",
+                    "JPG / WebP: 90 / 80 / 60"
+                  ],
+                  [
+                    "Escala de exportação",
+                    "1x, 2x ou 3x"
+                  ],
+                  [
+                    "Tempo de compressão",
+                    "30 segundos"
+                  ]
+                ]
+              }
+            },
+            {
+              "h": "Microanimações e exportação local GIF / WebM",
+              "p": "Pré-visualize 5 microanimações em ciclo (flutuar, respirar, balanço 3D, panorâmica e zoom; 2s, 3s ou 4s a 15 ou 24 fps). O GIF89a é codificado localmente num Web Worker; o WebM é disponibilizado apenas quando o MediaRecorder do navegador o suporta. Não é um conversor nem envio geral de vídeo."
+            },
+            {
+              "note": "AVIF é apenas exportação standard: sem controlo de qualidade nem pré-visualização de compressão."
+            }
+          ]
+        ],
+        [
+          "Compare a mesma composição",
+          "Crie uma pré-visualização na exportação e alterne entre o resultado padrão e o comprimido com as mesmas dimensões. Veja os detalhes a 100% e os bytes reais. A referência é a tela editada, não a imagem original. Um resultado maior também é apresentado. Transferir uma pré-visualização válida reutiliza exatamente os dados já gerados."
+        ],
+        [
+          "Limites e processamento local",
+          "O AVIF só permite exportação padrão, sem controlo de qualidade nem pré-visualização de compressão. As transferências comprimidas PNG/JPG/WebP permitem 4,194,304 píxeis. A pré-visualização completa de PNG/JPG/WebP permite 1,048,576 píxeis. Sem pré-visualização, pode transferir diretamente dentro do limite de tamanho. PNG/JPG/WebP padrão permitem 16,777,216 e AVIF padrão 4,194,304; cada lado tem um limite de 8192 píxeis. Reduza a tela ou a escala se necessário. Os codificadores são carregados deste site na primeira utilização e executados localmente. Os lotes aceitam até 12 imagens e entregam os resultados bem-sucedidos num ZIP."
+        ]
+      ]
+    },
+    {
+      "title": "O seu primeiro projeto ScreenHello",
+      "seoTitle": "Como usar o ScreenHello: importar, melhorar e exportar",
+      "description": "Aprenda a importar imagens, criar cartões de código ou texto, aplicar modelos e perspetiva 3D, guardar projetos e exportar imagens ou GIF locais.",
+      "sections": [
+        [
+          "1. Abre um exemplo, importa uma imagem ou cria um cartão",
+          "Seleciona Abrir editor nesta página e depois o exemplo no centro da tela, ou usa os atalhos iniciais para cartão de código, cartão de texto ou modelos. Para usares uma captura tua, seleciona uma imagem local no seletor de ficheiros."
+        ],
+        [
+          "2. Ajusta fundo, moldura, perspetiva 3D e marca de água",
+          "À direita, escolhe um fundo, ajusta o espaço, os cantos, a sombra e a marca de água de texto ou logótipo, e alterna a visibilidade das camadas se precisares. À esquerda, configura dimensões, moldura, perspetiva 3D ou explora os 18 modelos."
+        ],
+        [
+          "3. Confirma as dimensões e transfere imagem ou animação",
+          "Abre Exportar no topo, escolhe PNG, exportação padrão e escala 1×, confirma as dimensões finais e transfere. Para ciclos animados, abre Ficheiro → Exportar animação e gera GIF89a ou WebM localmente."
+        ],
+        [
+          "4. Guarda um projeto editável",
+          "Guarda um ficheiro .screenhello no menu de ficheiros. As imagens ou GIF transferidos são resultados finais; o projeto preserva visibilidade de camadas, cartões de código/texto, perspetiva 3D e marcas de água."
+        ],
+        [
+          "Faça uma cópia do projeto",
+          "No menu Ficheiro, use Guardar projeto ou Guardar como e recupere com Abrir projeto. Rascunhos e projetos recentes estão neste navegador, não na nuvem. Guarde ficheiros antes de limpar os dados do site e transfira-os manualmente para outro dispositivo. Não existe sincronização automática."
+        ],
+        [
+          "Offline e resolução de problemas",
+          "Depois da indicação de disponibilidade offline, o núcleo em cache pode reabrir sem ligação. Fundos, dispositivos e codificadores ainda não usados podem precisar da primeira transferência online. Estes guias requerem ligação e não fazem parte da cache do editor. Se a captura ou área de transferência forem recusadas, abra um ficheiro. Se exceder o limite, reduza dimensões ou escala."
+        ]
+      ]
+    },
+    {
+      "title": "As suas imagens ficam no seu dispositivo",
+      "seoTitle": "Processamento local, armazenamento e privacidade",
+      "description": "Como o ScreenHello processa localmente imagens, cartões de código/texto, 3D, logótipos e animações GIF/WebM, guarda rascunhos e gere pedidos.",
+      "sections": [
+        [
+          "O que é processado localmente?",
+          "Imagens importadas, capturas, cartões de código e texto, perspetiva 3D, marcas de água com logótipo (<= 64 KiB) e avatares (<= 32 KiB), bem como compressão de imagens e codificação GIF89a/WebM correm no navegador ou Web Worker local. Não existe servidor de envio, contas na nuvem ou sincronização."
+        ],
+        [
+          "O que é guardado ou pedido?",
+          "Projetos, rascunhos e estilos podem ficar em IndexedDB (incluindo os dados locais de avatar ou logótipo que adicionar); idioma e aparência são guardados localmente. Código, ícones, fundos e codificadores são pedidos conforme necessário. Esta versão não adiciona SDK de análise, píxeis publicitários ou gravação de sessões."
+        ],
+        [
+          "Como apagar ou mover os dados?",
+          "Gira rascunhos, estilos e projetos recentes na biblioteca local ou limpe os dados do site nas definições do navegador. Guarde primeiro os ficheiros .screenhello que pretende manter. Isto não apaga ficheiros já transferidos para o dispositivo. As ligações externas ao código-fonte levam a sites com as suas próprias políticas."
+        ]
+      ]
+    }
+  ],
+  "docsUi": {
+    "Search": "Pesquisar documentação",
+    "Close Search": "Fechar pesquisa",
+    "No results found": "Sem resultados. Experimenta outra palavra.",
+    "Choose a language": "Escolher idioma",
+    "Toggle Theme": "Mudar tema",
+    "Light": "Claro",
+    "Dark": "Escuro",
+    "System": "Sistema",
+    "Open Sidebar": "Abrir barra lateral",
+    "Close Sidebar": "Fechar barra lateral",
+    "Collapse Sidebar": "Recolher barra lateral",
+    "Hide Sidebar": "Ocultar barra lateral",
+    "Show Sidebar": "Mostrar barra lateral",
+    "Next Page": "Página seguinte",
+    "Previous Page": "Página anterior",
+    "On this page": "Nesta página",
+    "No Headings": "Sem títulos",
+    "Toggle Menu": "Alternar menu",
+    "searchHint": "Pesquisa nos guias em português, por exemplo PNG ou projeto.",
+    "guideCaption": "Exemplo integrado no editor: tela à esquerda e estilo à direita. Captura com a interface em inglês.",
+    "exportCaption": "Painel de exportação: escolhe formato e escala, confirma as dimensões finais e transfere. Captura com a interface em inglês."
+  }
+}

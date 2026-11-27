@@ -21,6 +21,7 @@ const DEBOUNCE_MS = 120;
 function computeRevision(editor, option, imageStore) {
     const o = toJS(option);
     return JSON.stringify({
+        theme: editor.theme,
         images: imageStore?.list.map((layer) => {
             const image = imageStore.resolve(layer);
             return {
@@ -65,6 +66,7 @@ export class BaseSnapshotService {
         this.timer = null;             // 防抖句柄
         this.onUpdate = null;          // (snapshot) => void，由 editor store 注入，写回可观察 snap
         this.variants = new Map();     // 处理后变体缓存：key -> { revision, snapshot }（M5.9/M5.10）
+        this.effect = null;
     }
 
     /** 当前原始底图快照（无则 null）。 */
@@ -80,12 +82,31 @@ export class BaseSnapshotService {
         const revision = computeRevision(editor, this.root.option, this.root.imageStore);
         if (!force && revision === this.revision && this.snapshot) return; // 内容未变，复用
         this.revision = revision;
+        this.pendingEditor = editor;
         clearTimeout(this.timer);
-        this.timer = setTimeout(() => this._generate(editor, revision), DEBOUNCE_MS);
+        this.timer = setTimeout(() => this.flush(), DEBOUNCE_MS);
     }
 
-    async _generate(editor, revision) {
+    flush() {
+        if (!this.timer) return;
+        clearTimeout(this.timer);
+        this.timer = null;
+        const editor = this.pendingEditor;
+        const revision = this.revision;
         const myTask = ++this.taskId;
+        this.effect?.dispose();
+        const effect = this.root.renderTaskTracker?.beginEffect('base-snapshot');
+        this.effect = effect;
+        const generate = () => this._generate(editor, revision, myTask);
+        const operation = (this.root.renderTaskTracker?.withCapture(generate) ?? generate()).catch(() => {
+            if (myTask === this.taskId) effect?.fail('export-effect-failed');
+        });
+        this.root.renderTaskTracker?.track(operation);
+        return operation;
+    }
+
+    async _generate(editor, revision, myTask = ++this.taskId) {
+        if (myTask !== this.taskId || revision !== this.revision) return;
         const frame = editor?.app?.tree?.children[0];
         if (!frame) return;
         // 仅保留所有图片容器（背景 + 外框 + 图片），隐藏其余标注/水印/区域效果，避免递归捕获自身。
@@ -98,7 +119,8 @@ export class BaseSnapshotService {
             }
         });
         try {
-            const image = await frame.export('png', { pixelRatio: 2 }).catch(() => null);
+            const image = await frame.export('png', { pixelRatio: 2 });
+            if (!image?.data || image.error) throw new Error('base-snapshot-failed');
             // 过期任务或更新请求已到达：丢弃本次结果（M5.2 异步失效）
             if (myTask !== this.taskId || revision !== this.revision) return;
             this.snapshot = image;
@@ -122,8 +144,10 @@ export class BaseSnapshotService {
             this.schedule(editor, { force: revision !== this.revision });
             return null;
         }
-        const variant = await generator(this.snapshot);
-        if (revision !== this.revision) return null; // 生成期间底图已变，丢弃
+        const snapshot = this.snapshot;
+        const taskId = this.taskId;
+        const variant = await generator(snapshot);
+        if (revision !== this.revision || snapshot !== this.snapshot || taskId !== this.taskId) return null;
         this.variants.set(key, { revision, snapshot: variant });
         return variant;
     }
@@ -134,6 +158,8 @@ export class BaseSnapshotService {
         this.revision = null;
         this.snapshot = null;
         this.variants.clear();
+        this.effect?.dispose();
+        this.effect = null;
         clearTimeout(this.timer);
         this.timer = null;
     }

@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react';
+import useI18n from '../../i18n/useI18n';
+import { useEffect, useId, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Button, Drawer, Empty, Select, Tag } from 'antd';
 import Icon from '@components/Icon';
 import useStores from '@stores/useStores';
 import { MAX_BATCH_FILES } from '@utils/batchContract';
 import { supportImg } from '@utils/utils';
+import { formatExportBytes } from '@utils/exportPreview';
+import { WEB_AVIF_LIMIT_MESSAGE } from '@utils/exportSettings';
 
 const STATUS_LABELS = {
     queued: '等待中',
@@ -27,8 +30,14 @@ const STATUS_COLORS = {
 
 const errorMessage = (code) => {
     if (!code) return '';
+    if (code === 'desktop-file-exists') return '补全扩展名后的文件已存在，未覆盖原文件；请重新下载并选择其他文件名或明确选择要覆盖的文件';
     if (code === 'batch-output-budget-exceeded') return '累计输出达到 96 MiB 安全上限';
     if (code === 'batch-budget-stopped') return '因累计输出上限停止';
+    if (code === 'batch-background-unavailable') return '背景资源不可用，请修复后重新开始批次。';
+    if (code === 'batch-preset-invalid' || code === 'batch-style-invalid') return '风格预设不可用，请重新选择并开始批次。';
+    if (code === 'batch-style-timeout') return '读取批量风格超时，请重新开始批次。';
+    if (code === 'export-web-avif-compression-size-too-large') return WEB_AVIF_LIMIT_MESSAGE;
+    if (code === 'export-compression-size-too-large') return '压缩下载最多支持约 419 万像素，最长边为 8192 像素。请降低倍率或画布尺寸，或改用 PNG/JPG/WebP 标准导出。';
     if (code === 'export-size-too-large') return '导出像素超过安全上限';
     if (code === 'export-avif-size-too-large') return 'AVIF 最多导出约 420 万像素';
     if (code.startsWith('export-avif')) return 'AVIF 编码失败，请改用 PNG 或 WebP';
@@ -38,17 +47,13 @@ const errorMessage = (code) => {
     return '处理失败';
 };
 
-const formatBytes = (value) => {
-    if (!Number.isFinite(value)) return '';
-    if (value < 1024) return `${value} B`;
-    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-    return `${(value / 1024 / 1024).toFixed(1)} MB`;
-};
-
 export default observer(function BatchExportPanel({ open, onClose }) {
+    const t = useI18n();
+    const styleSelectId = useId();
     const stores = useStores();
     const batch = stores.batch;
     const input = useRef(null);
+    const formatBytes = value => Number.isFinite(value) ? formatExportBytes(value, stores.i18n.locale) : '';
 
     useEffect(() => {
         if (open) void stores.workspace.refreshLibrary();
@@ -63,23 +68,23 @@ export default observer(function BatchExportPanel({ open, onClose }) {
         try {
             batch.selectFiles(files);
         } catch {
-            stores.editor.message?.error?.(`一次最多选择 ${MAX_BATCH_FILES} 张图片`);
+            stores.editor.message?.error?.(t("一次最多选择 {0} 张图片", { 0: MAX_BATCH_FILES }));
         }
     };
 
     const start = async () => {
         const ok = await batch.start();
         if (!ok) {
-            if (batch.state !== 'cancelled') stores.editor.message?.error?.('批量处理无法启动或意外中止');
+            if (batch.state !== 'cancelled') stores.editor.message?.error?.(t("批量处理无法启动或意外中止"));
             return;
         }
         if (batch.state === 'cancelled') return;
         if (batch.summary?.successCount > 0) {
             stores.editor.message?.[batch.summary.failedCount > 0 || batch.summary.cancelledCount > 0 ? 'warning' : 'success']?.(
-                `批量处理完成：${batch.summary.successCount} 张成功`
+                t("批量处理完成：{0} 张成功", { 0: batch.summary.successCount })
             );
         } else {
-            stores.editor.message?.warning?.('没有可下载的成功结果');
+            stores.editor.message?.warning?.(t("没有可下载的成功结果"));
         }
     };
 
@@ -87,22 +92,24 @@ export default observer(function BatchExportPanel({ open, onClose }) {
         const ok = await batch.retryFailed();
         if (ok && batch.state !== 'cancelled') {
             stores.editor.message?.[batch.summary?.successCount ? 'success' : 'warning']?.(
-                batch.summary?.successCount ? '重试任务已完成' : '重试后仍没有成功结果'
+                batch.summary?.successCount ? t("重试任务已完成") : t("重试后仍没有成功结果")
             );
         }
     };
 
     const download = async () => {
         const ok = await batch.download();
-        stores.editor.message?.[ok ? 'success' : 'error']?.(ok ? 'ZIP 下载已开始' : 'ZIP 下载失败');
+        if (ok) stores.editor.message?.success?.(t("ZIP 下载已开始"));
+        else if (batch.errorCode) stores.editor.message?.error?.(batch.errorCode === 'desktop-file-exists' ? t(errorMessage(batch.errorCode)) : t("ZIP 下载失败"));
     };
 
     const presetOptions = [
-        { value: '', label: `当前风格 · ${stores.workspace.exportSettings.ratio}x ${stores.workspace.exportSettings.format.toUpperCase()}` },
+        { value: '', label: t("当前风格 · {0}x {1}", { 0: stores.workspace.exportSettings.ratio, 1: stores.workspace.exportSettings.format.toUpperCase() }) },
         ...stores.workspace.presets.map((preset) => ({ value: preset.id, label: preset.name })),
     ];
     const completed = batch.jobs.filter((job) => job.status === 'completed').length;
     const terminal = batch.jobs.filter((job) => ['completed', 'failed', 'cancelled'].includes(job.status)).length;
+    const frozenSettings = batch.snapshotSettings;
 
     return (
         <>
@@ -116,12 +123,16 @@ export default observer(function BatchExportPanel({ open, onClose }) {
                 onChange={chooseFiles}
             />
             <Drawer
-                title="批量处理"
+                title={t("批量处理")}
                 placement="right"
                 size={520}
                 open={open}
-                onClose={onClose}
+                onClose={() => { if (!batch.isHandingOff) onClose(); }}
+                keyboard={!batch.isHandingOff}
+                closable={{ disabled: batch.isHandingOff }}
+                mask={{ closable: !batch.isHandingOff }}
                 className="shoteasy-batch-drawer"
+                rootClassName={`shoteasy-components shoteasy-overlay-drawer${stores.editor.isDark ? ' dark-mode' : ''}`}
                 styles={{ body: { padding: 0 } }}
                 extra={<Tag>{batch.jobs.length}/{MAX_BATCH_FILES}</Tag>}
             >
@@ -129,46 +140,51 @@ export default observer(function BatchExportPanel({ open, onClose }) {
                     <section className="shoteasy-batch-section">
                         <div className="shoteasy-batch-heading">
                             <div>
-                                <strong>输入图片</strong>
-                                <small>JPEG、PNG、BMP、GIF、WebP · 文件只在本机处理</small>
+                                <strong>{t("输入图片")}</strong>
+                                <small>{t("JPEG、PNG、BMP、GIF、WebP · 文件只在本机处理")}</small>
                             </div>
-                            <Button disabled={batch.isRunning} onClick={() => input.current?.click()}>
-                                选择 1～{MAX_BATCH_FILES} 张
-                            </Button>
+                            <Button disabled={batch.isBusy} onClick={() => input.current?.click()}>{t('选择 1～{0} 张', { 0: MAX_BATCH_FILES })}</Button>
                         </div>
-                        <label className="shoteasy-batch-label" htmlFor="screenhello-batch-style">风格来源</label>
+                        <label className="shoteasy-batch-label" htmlFor={styleSelectId}>{t("风格来源")}</label>
                         <Select
-                            id="screenhello-batch-style"
-                            aria-label="批量风格来源"
+                            id={styleSelectId}
+                            aria-label={t("批量风格来源")}
                             value={batch.presetId || ''}
                             options={presetOptions}
-                            disabled={batch.isRunning}
+                            disabled={batch.isBusy}
                             onChange={(value) => batch.setPreset(value)}
                         />
-                        <p className="shoteasy-batch-note">开始时会冻结所选风格；批处理不会替换当前图片、历史或草稿。</p>
+                        <p className="shoteasy-batch-note">{t("开始时会冻结所选风格；批处理不会替换当前图片、历史或草稿。")}</p>
+                        {frozenSettings ? <p className="shoteasy-batch-note" data-testid="batch-frozen-settings">
+                            {t('本批次固定设置')} · {frozenSettings.format.toUpperCase()} {frozenSettings.ratio}x · {frozenSettings.compression === 'lossless'
+                                ? t('无损优化') : frozenSettings.compression === 'lossy' ? frozenSettings.format === 'png'
+                                    ? t('最多 {0} 色', { 0: frozenSettings.paletteColors }) : `${t('质量')} ${frozenSettings.quality}` : t('标准导出')}
+                        </p> : null}
+                        {batch.hasSettingsWarning ? <p className="shoteasy-batch-note">{t('无法识别的压缩设置已恢复为标准导出；图片和图层未改变。')}</p> : null}
                     </section>
 
                     <section className="shoteasy-batch-section is-jobs" aria-live="polite" aria-atomic="false">
                         <div className="shoteasy-batch-heading">
                             <div>
-                                <strong>任务</strong>
-                                <small>{batch.jobs.length ? `${terminal}/${batch.jobs.length} 已结束 · ${completed} 成功` : '尚未选择图片'}</small>
+                                <strong>{t("任务")}</strong>
+                                <small>{batch.jobs.length ? t("{0}/{1} 已结束 · {2} 成功", { 0: terminal, 1: batch.jobs.length, 2: completed }) : t("尚未选择图片")}</small>
                             </div>
                         </div>
                         {batch.jobs.length === 0 ? (
-                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择图片后会按顺序逐张处理" />
+                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("选择图片后会按顺序逐张处理")} />
                         ) : (
-                            <ol className="shoteasy-batch-jobs" aria-label="批量任务列表">
+                            <ol className="shoteasy-batch-jobs" aria-label={t("批量任务列表")}>
                                 {batch.jobs.map((job) => (
                                     <li key={job.id}>
                                         <div>
                                             <strong title={job.name}>{job.name}</strong>
                                             <small>
-                                                {job.filename || errorMessage(job.errorCode) || formatBytes(job.inputBytes)}
-                                                {job.releaseErrorCode ? ' · 资源清理异常' : ''}
+                                                {job.filename || t(errorMessage(job.errorCode)) || formatBytes(job.inputBytes)}
+                                                {job.status === 'completed' && Number.isFinite(job.bytes) ? ` · ${formatBytes(job.bytes)}` : ''}
+                                                {job.releaseErrorCode ? t(" · 资源清理异常") : ''}
                                             </small>
                                         </div>
-                                        <Tag color={STATUS_COLORS[job.status]}>{STATUS_LABELS[job.status] || job.status}</Tag>
+                                        <Tag color={STATUS_COLORS[job.status]}>{t(STATUS_LABELS[job.status] || job.status)}</Tag>
                                     </li>
                                 ))}
                             </ol>
@@ -177,29 +193,31 @@ export default observer(function BatchExportPanel({ open, onClose }) {
 
                     {batch.summary && (
                         <section className="shoteasy-batch-summary" role="status">
-                            <strong>{batch.summary.successCount} 张成功</strong>
-                            <span>{batch.summary.failedCount} 失败 · {batch.summary.cancelledCount} 取消</span>
+                            <strong>{t('{0} 张成功', { 0: batch.summary.successCount })}</strong>
+                            <span>{t('{0} 失败 · {1} 取消', { 0: batch.summary.failedCount, 1: batch.summary.cancelledCount })}</span>
+                            <span>{t('图片输出合计')} {formatBytes(batch.summary.outputBytes)}</span>
                             {batch.archive && <span>ZIP {formatBytes(batch.summary.archiveBytes)}</span>}
                         </section>
                     )}
-                    {batch.errorCode && <p className="shoteasy-batch-error" role="alert">{errorMessage(batch.errorCode)}</p>}
+                    {batch.errorCode && <p className="shoteasy-batch-error" role="alert">{t(errorMessage(batch.errorCode))}</p>}
+                    {batch.canRetry ? <section className="shoteasy-batch-section"><p className="shoteasy-batch-note" data-testid="batch-retry-notice">{t('重试沿用本批次固定风格，只生成本次成功项的新 ZIP。请先下载需要保留的旧 ZIP；要使用新设置，请重新开始批次。')}</p></section> : null}
 
                     <div className="shoteasy-batch-actions">
                         {!batch.isRunning ? (
                             <Button
                                 type="primary"
-                                disabled={batch.jobs.length === 0}
+                                disabled={batch.isBusy || batch.jobs.length === 0}
                                 onClick={start}
-                            >开始批量处理</Button>
+                            >{t("开始批量处理")}</Button>
                         ) : (
                             <>
-                                <Button onClick={() => batch.cancelCurrent()}>取消当前</Button>
-                                <Button danger onClick={() => batch.cancelAll()}>取消全部</Button>
+                                <Button onClick={() => batch.cancelCurrent()}>{t("取消当前")}</Button>
+                                <Button danger onClick={() => batch.cancelAll()}>{t("取消全部")}</Button>
                             </>
                         )}
-                        <Button disabled={!batch.archive || batch.isRunning} icon={<Icon.Download size={16} />} onClick={download}>下载 ZIP</Button>
-                        <Button disabled={!batch.canRetry} onClick={retry}>重试失败项</Button>
-                        <Button disabled={batch.isRunning || batch.jobs.length === 0} onClick={() => batch.clear()}>清空</Button>
+                        <Button disabled={!batch.archive || batch.isBusy} loading={batch.isHandingOff} icon={<Icon.Download size={16} />} onClick={download}>{batch.isHandingOff ? t('正在保存…') : t("下载 ZIP")}</Button>
+                        <Button disabled={!batch.canRetry} onClick={retry}>{t("重试失败项")}</Button>
+                        <Button aria-label={t('清空')} disabled={batch.isBusy || batch.jobs.length === 0} onClick={() => batch.clear()}>{t("清空")}</Button>
                     </div>
                 </div>
             </Drawer>

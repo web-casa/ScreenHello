@@ -21,10 +21,12 @@ export class History {
     canRedo = false;
     _mergeKey = null;
     _mergeAt = 0;
+    // 每次栈内容/游标变化都自增，用于判断 toast 撤销凭据是否仍然有效
+    _revision = 0;
 
     constructor(root) {
         this.root = root;
-        makeAutoObservable(this, { root: false });
+        makeAutoObservable(this, { root: false, _revision: false });
         this.manager = new UndoRedoManager({
             limit: LIMIT,
             onChange: () => this._syncFlags()
@@ -41,12 +43,15 @@ export class History {
 
     _pruneResources() {
         const retained = new Set(this.root.imageStore.list.map((layer) => layer.assetId));
+        const backgrounds = new Set([this.root.option.backgroundAssetId]);
         this.manager?.stacks?.forEach((document) => {
+            if (document?.option?.backgroundAssetId) backgrounds.add(document.option.backgroundAssetId);
             document?.images?.forEach((image) => {
                 if (image.assetId) retained.add(image.assetId);
             });
         });
         this.root.imageStore.pruneResources(retained);
+        this.root.option.pruneBackgroundAssets(backgrounds);
     }
 
     /**
@@ -56,6 +61,7 @@ export class History {
     reset() {
         this._mergeKey = null;
         this._mergeAt = 0;
+        this._revision++;
         this.manager.clear();
         this.manager.add(this.root.editor.serializeProject());
         this._pruneResources();
@@ -81,8 +87,29 @@ export class History {
             this._mergeKey = mergeKey || null;
         }
         this._mergeAt = now;
+        this._revision++;
         this._pruneResources();
         this._syncFlags();
+    }
+
+    /**
+     * 捕获当前栈顶的撤销凭据。
+     * 危险操作的 toast 撤销只在该凭据仍然有效时执行，避免误撤销之后的新操作。
+     */
+    captureUndoToken() {
+        if (!this.manager?.canUndo) return null;
+        return { revision: this._revision, pointer: this.manager.pointer };
+    }
+
+    /**
+     * 仅当 token 仍是当前栈顶（之后没有提交、撤销或重建基线）时撤销一步。
+     * @returns {boolean} 是否真的执行了撤销
+     */
+    undoTo(token) {
+        if (!token || !this.manager?.canUndo) return false;
+        if (token.revision !== this._revision || token.pointer !== this.manager.pointer) return false;
+        this.undo();
+        return true;
     }
 
     undo() {
@@ -91,6 +118,7 @@ export class History {
         this.root.editor.restoreProject(this.manager.current);
         // undo/redo 后禁止与上一次操作合并，保证后续编辑是新的一步
         this._mergeKey = null;
+        this._revision++;
         this._syncFlags();
     }
 
@@ -99,6 +127,7 @@ export class History {
         this.manager.redo();
         this.root.editor.restoreProject(this.manager.current);
         this._mergeKey = null;
+        this._revision++;
         this._syncFlags();
     }
 
@@ -107,6 +136,7 @@ export class History {
         this.manager = null;
         this._mergeKey = null;
         this._mergeAt = 0;
+        this._revision++;
         this._syncFlags();
     }
 }

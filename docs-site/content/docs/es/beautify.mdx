@@ -1,0 +1,57 @@
+---
+title: "Dale espacio a lo importante"
+seoTitle: "Cómo mejorar capturas: fondos, espacio y sombras"
+description: "Mejora capturas localmente con fondos, márgenes, perspectiva 3D, tarjetas de código y texto, 18 plantillas, marca de agua con logotipo y capas ocultables."
+reviewed: "2026-11-26"
+---
+import BeforeAfter from '../../../src/components/BeforeAfter.astro';
+
+## 1. Importa una imagen o crea una tarjeta
+
+Selecciona un archivo, arrástralo a la pantalla inicial, pega una imagen o usa los accesos rápidos para crear una tarjeta de código (14 lenguajes sin conexión, 6 temas, líneas resaltadas y modo +/- diff), una tarjeta de texto/social (publicación, cita o registro de cambios) o abrir la galería de 18 plantillas. Capturar pantalla requiere permiso del navegador.
+
+### Hasta 12 capas con botón de visibilidad
+
+Un proyecto admite como máximo 12 capas de imagen o tarjeta. Cada una conserva su posición y aspecto y puede ocultarse o mostrarse desde la lista sin borrarla; las capas ocultas no se exportan y forman parte del historial de deshacer.
+
+### Atajos de teclado
+
+Maneja el editor sin soltar el teclado. En macOS usa Command donde la tabla dice Ctrl.
+
+| Acción | Teclas |
+| --- | --- |
+| Abrir proyecto | Ctrl + O |
+| Guardar proyecto | Ctrl + S |
+| Guardar como | Ctrl + Shift + S |
+| Abrir exportación | Ctrl + Shift + E |
+| Copiar imagen final | Ctrl + C |
+| Deshacer | Ctrl + Z |
+| Rehacer | Ctrl + Shift + Z |
+| Eliminar selección | Delete / Backspace |
+| Acercar | Ctrl + + |
+| Alejar | Ctrl + - |
+| Ajustar al lienzo | Ctrl + 0 |
+
+> Los atajos se desactivan mientras escribes en un campo de texto.
+
+## 2. Crea un estilo, aplica plantillas y marca de agua
+
+Ajusta el tamaño del lienzo (incluidos 1.618:1, OG 1200×630, Product Hunt, Xiaohongshu y LinkedIn), margen interior, esquinas, sombra y borde interior. Elige colores, degradados, fondos propios o aplica cualquiera de las 18 plantillas en un paso reversible. Añade marcas de agua de texto o logotipo local comprimido (&lt;= 64 KiB, cuadrícula 3×3 o mosaico), flechas, pasos y lupas.
+
+
+## 3. Exporta imágenes fijas o animaciones en bucle
+
+Usa PNG para transparencia o exporta JPG, WebP y AVIF (JPG y WebP rellenan de blanco las zonas transparentes). Para bucles animados, abre Archivo → Exportar animación para previsualizar 5 microanimaciones y codificar GIF89a o WebM localmente. El zoom solo cambia la vista; la escala cambia los píxeles finales.
+
+
+<BeforeAfter
+  before="/site/before.svg"
+  after="/site/after.svg"
+  beforeAlt="Original"
+  afterAlt="Con marco de navegador"
+  caption="Ejemplo ilustrativo: la misma imagen local con fondo, margen y marco de navegador."
+/>
+
+## Sigue explorando
+
+[Marcos de navegador, perspectiva 3D y dispositivos](../frames/) · [Guía de compresión PNG, JPG, WebP y exportación GIF](../compression/)

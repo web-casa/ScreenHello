@@ -152,7 +152,7 @@ describe('ExportService', () => {
             webpEncoderFactory: async () => encoder,
             exportImpl: async (format, options) => {
                 expect(format).toBe('canvas');
-                expect(options).toEqual({ pixelRatio: 1, fill: '#ffffff' });
+                expect(options).toEqual({ pixelRatio: 1, contextSettings: { willReadFrequently: true }, fill: '#ffffff' });
                 return { data: wrapper, width: 2, height: 1 };
             },
         });
@@ -169,7 +169,7 @@ describe('ExportService', () => {
             pixels: imageData.data,
             width: 2,
             height: 1,
-            signal: undefined,
+            signal: expect.any(AbortSignal),
         });
         expect(wrapper.destroy).toHaveBeenCalledOnce();
         expect(nativeCanvas).toMatchObject({ width: 0, height: 0 });
@@ -214,7 +214,7 @@ describe('ExportService', () => {
             avifEncoderFactory,
             exportImpl: async (format, options) => {
                 expect(format).toBe('canvas');
-                expect(options).toEqual({ pixelRatio: 1 });
+                expect(options).toEqual({ pixelRatio: 1, contextSettings: { willReadFrequently: true } });
                 return { data: wrapper, width: 800, height: 600 };
             },
         });
@@ -234,7 +234,7 @@ describe('ExportService', () => {
         expect(encodeOptions).toMatchObject({
             width: 800,
             height: 600,
-            signal: undefined,
+            signal: expect.any(AbortSignal),
         });
         expect(encodeOptions.pixels).toBe(imageData.data);
         expect(wrapper.destroy).toHaveBeenCalledOnce();
@@ -556,5 +556,69 @@ describe('ExportService', () => {
         await expect(second.service.exportImage()).resolves.toMatchObject({ format: 'png' });
         expect(first.treeExport).toHaveBeenCalledOnce();
         expect(second.treeExport).toHaveBeenCalledOnce();
+    });
+
+    it('manages motion export busy state, mutual exclusion, deactivate abort, and handoff protection', async () => {
+        const { root, service } = createHarness();
+        root.isActive = true;
+        const gate = deferred();
+        const task = service.exportMotion(async ({ signal, assertCurrent, handoff }) => {
+            expect(signal.aborted).toBe(false);
+            assertCurrent();
+            await gate.promise;
+            return handoff(async () => 'delivered');
+        });
+
+        expect(service.isBusy).toBe(true);
+        await expect(service.exportMotion(async () => 'concurrent').promise)
+            .rejects.toMatchObject({ code: 'export-busy' });
+
+        gate.resolve();
+        await expect(task.promise).resolves.toBe('delivered');
+        expect(service.isBusy).toBe(false);
+        expect(task.cancel()).toBe(false);
+
+        const secondGate = deferred();
+        let started = false;
+        let observedAbort = false;
+        const secondTask = service.exportMotion(async ({ signal }) => {
+            started = true;
+            signal.addEventListener('abort', () => { observedAbort = true; }, { once: true });
+            await secondGate.promise;
+            return 'never';
+        });
+        await vi.waitFor(() => expect(started).toBe(true));
+        service.deactivate();
+        secondGate.resolve();
+        await expect(secondTask.promise).rejects.toMatchObject({ code: 'export-stale' });
+        expect(observedAbort).toBe(true);
+        expect(service.isBusy).toBe(false);
+    });
+
+    it('allows scoped motion task cancel before handoff and blocks cancel during handoff', async () => {
+        const { service } = createHarness();
+        const beforeHandoff = deferred();
+        const cancellable = service.exportMotion(async ({ signal, assertCurrent }) => {
+            await beforeHandoff.promise;
+            assertCurrent();
+            return signal.aborted;
+        });
+        expect(cancellable.cancel()).toBe(true);
+        beforeHandoff.resolve();
+        await expect(cancellable.promise).rejects.toSatisfy(isExportCancelled);
+
+        const deliveryGate = deferred();
+        let enteredHandoff = false;
+        const delivering = service.exportMotion(async ({ handoff }) => (
+            handoff(async () => {
+                enteredHandoff = true;
+                await deliveryGate.promise;
+                return 'ok';
+            })
+        ));
+        await vi.waitFor(() => expect(enteredHandoff).toBe(true));
+        expect(delivering.cancel()).toBe(false);
+        deliveryGate.resolve();
+        await expect(delivering.promise).resolves.toBe('ok');
     });
 });

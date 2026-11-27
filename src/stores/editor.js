@@ -1,5 +1,5 @@
 import { makeAutoObservable, toJS, action, runInAction } from 'mobx';
-import { maxBy } from 'lodash';
+import { maxBy } from '@utils/timing';
 import '@leafer-in/export';
 import { createDocument, validateDocument, normalizeShape } from '@utils/projectDocument';
 
@@ -19,9 +19,18 @@ export class Editor {
     _imageReleaseTimer = null;
     _destroyTimer = null;
     _invalidTimer = null;
+    _initialLoadToken = 0;
+    _initialLoadController = null;
     constructor (root) {
         this.root = root;
-        makeAutoObservable(this, { root: false, _invalidTimer: false })
+        makeAutoObservable(this, {
+            root: false,
+            _invalidTimer: false,
+            _initialLoadToken: false,
+            _initialLoadController: false,
+            beginInitialImageLoad: false,
+            cancelInitialImageLoad: false,
+        })
         // 底图快照服务生成完成后写回可观察 snap，驱动放大镜等消费者重绘
         this.root.baseSnapshot.onUpdate = (image) => runInAction(() => { this.snap = image; });
     }
@@ -68,7 +77,7 @@ export class Editor {
 
     ensureEditing() {
         if (this.isEditing) return true;
-        this.message?.info?.('请先添加图片');
+        this.message?.info?.(this.root.i18n.t("请先添加图片"));
         this.setInvalid();
         return false;
     }
@@ -90,13 +99,13 @@ export class Editor {
      * - 其他（'update'）：仅在存在快照消费者或已有快照时更新，避免没有放大镜时每次截图调整都空跑整帧导出。
      * revision 未变时由服务复用缓存，不重复生成。
      */
-    createSnap(type) {
+    createSnap(type, options) {
         if (type === 'init') {
-            this.root.baseSnapshot.schedule(this);
+            this.root.baseSnapshot.schedule(this, options);
             return;
         }
         if (this.snap || this._hasSnapshotConsumer()) {
-            this.root.baseSnapshot.schedule(this);
+            this.root.baseSnapshot.schedule(this, options);
         }
     }
 
@@ -272,6 +281,7 @@ export class Editor {
 
     setApp(app) {
         this.app = app;
+        this.root.renderTaskTracker?.attachTree?.(app?.tree);
     }
 
     setScale(value) {
@@ -372,7 +382,39 @@ export class Editor {
         this.clearFun = value;
     }
 
+    beginInitialImageLoad() {
+        this.cancelInitialImageLoad();
+        this._initialLoadToken += 1;
+        const token = this._initialLoadToken;
+        const controller = new AbortController();
+        this._initialLoadController = controller;
+        const startBaseline = this.root.imageStore.baselineRevision;
+        return {
+            token,
+            signal: controller.signal,
+            isCurrent: () => (
+                this._initialLoadToken === token
+                && !controller.signal.aborted
+                && !this.root.isDisposed
+                && this.root.imageStore.baselineRevision === startBaseline
+            ),
+            finish: () => {
+                if (this._initialLoadController === controller) {
+                    this._initialLoadController = null;
+                }
+            },
+        };
+    }
+
+    cancelInitialImageLoad() {
+        this._initialLoadToken += 1;
+        const previous = this._initialLoadController;
+        this._initialLoadController = null;
+        previous?.abort?.();
+    }
+
     clearImg() {
+        this.cancelInitialImageLoad();
         this.root.option.releaseBackgroundAsset();
         this.cancelScheduledImageRelease();
         this.root.imageStore.clearAll({ release: true });
@@ -404,6 +446,7 @@ export class Editor {
 
     /** 销毁整个编辑器实例拥有的运行时资源；不删除 IndexedDB 草稿。 */
     dispose() {
+        this.cancelInitialImageLoad();
         this.cancelScheduledImageRelease();
         clearTimeout(this._invalidTimer);
         this._invalidTimer = null;

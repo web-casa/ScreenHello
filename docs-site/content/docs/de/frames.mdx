@@ -1,0 +1,34 @@
+---
+title: "Browserrahmen, 3D-Perspektive und Gerätemockups"
+seoTitle: "Browserrahmen, 3D-Perspektive und Gerätemockups"
+description: "Ergänze Browserrahmen, 8 Live-Vorschau-3D-Perspektiven und freie Winkel. Erfahre, wie Gerätegrafiken, Ausschlussregeln, Anpassung und Lizenzen in ScreenHello funktionieren."
+reviewed: "2026-11-26"
+---
+import BeforeAfter from '../../../src/components/BeforeAfter.astro';
+
+## Browserrahmen und 3D-Perspektive ohne Seitenaufruf
+
+Wähle links einen Browserrahmen und passe die angezeigte URL sowie die Höhe der Werkzeugleiste an; ScreenHello ruft die Adresse nicht auf. Links stehen außerdem 8 3D-Perspektivvorlagen mit Live-Vorschau sowie eigene Regler für X-/Y-/Z-Winkel und Perspektivabstand bereit, vollständig lokal gerendert und rückgängig machbar.
+
+
+## Gerätepaket und 3D-Ausschlussregel
+
+Die Auswahl zeigt nur Grafiken des installierten Builds. Manche lokalen Installationen enthalten MacBook Air M2, iMac 24 Zoll, Surface Pro, Surface Studio oder Pixel 9 Pro; die öffentliche Distribution garantiert diese Motive nicht. Ein Raster-Geräterahmen setzt 3D automatisch auf flach zurück; umgekehrt wechselt ein 3D-Preset von einem Geräterahmen auf einen schlichten Browserrahmen.
+
+
+## Proportionen und Lizenzen beachten
+
+Einpassen zeigt das ganze Bild, Ausfüllen kann es beschneiden, Strecken kann es verzerren. Optionale Grafiken haben eigene Lizenzen; die Codelizenz deckt sie nicht automatisch ab. Projekte speichern nur eine Gerätekennung, nicht das Grafikpaket. Fehlende Grafiken müssen installiert oder durch einen anderen Rahmen ersetzt werden.
+
+
+<BeforeAfter
+  before="/site/before.svg"
+  after="/site/after.svg"
+  beforeAlt="Original"
+  afterAlt="Mit Browserrahmen"
+  caption="Beispieldarstellung: dasselbe lokale Bild mit Hintergrund, Abstand und Browserrahmen."
+/>
+
+## Mehr erfahren
+
+[Screenshots gestalten: Hintergrund, Abstand und Schatten](../beautify/) · [ScreenHello-Anleitung: Import, Gestaltung und Export](../guide/)

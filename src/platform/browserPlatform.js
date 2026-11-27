@@ -7,8 +7,10 @@
  * @property {(blob: Blob) => Promise<string>} readAsDataURL
  * @property {() => boolean} supportsFileSystemAccess
  * @property {(options: Object) => Promise<{status: 'selected', file: File, handle: Object} | {status: 'cancelled' | 'unsupported'}>} openWithPicker
+ * @property {(options?: Object) => Promise<{status: 'selected', files: File[]} | {status: 'cancelled' | 'unsupported'}>} openImages
  * @property {(options: Object) => Promise<{status: 'selected', handle: Object} | {status: 'cancelled' | 'unsupported'}>} chooseSaveHandle
  * @property {(handle: Object, blob: Blob) => Promise<void>} writeToHandle
+ * @property {(handle: Object) => Promise<void>} releaseHandle
  * @property {(blob: Blob, options: Object) => Promise<{status: 'saved', handle: Object} | {status: 'cancelled' | 'unsupported'}>} saveWithPicker
  */
 
@@ -24,15 +26,17 @@
 
 /**
  * @typedef {Object} BrowserPlatformCapabilities
+ * @property {'browser' | 'desktop'} [kind]
  * @property {BrowserFileCapabilities} file
  * @property {BrowserStorageCapabilities} storage
- * @property {{ writeImage: (blob: Blob) => Promise<void> }} clipboard
- * @property {{ getDisplayMedia: () => Promise<MediaStream> }} capture
+ * @property {{ supportsWriteImage: () => boolean, writeImage: (blob: Blob) => Promise<void> }} clipboard
+ * @property {{ isSupported: () => boolean, supportsSourcePicker: () => boolean, shortcut: string | null, getDisplayMedia: () => Promise<MediaStream> }} capture
  * @property {{ download: (data: Blob | string, name: string) => Promise<void> }} export
  */
 
 /** @type {BrowserPlatformCapabilities} */
 export const browserPlatform = {
+    kind: 'browser',
     file: {
         createObjectURL(blob) {
             const urlApi = globalThis.URL;
@@ -78,6 +82,9 @@ export const browserPlatform = {
                 throw error;
             }
         },
+        async openImages() {
+            return { status: 'unsupported' };
+        },
         async saveWithPicker(blob, options = {}) {
             const config = /** @type {any} */ (options);
             const existingHandle = config.handle;
@@ -120,6 +127,7 @@ export const browserPlatform = {
                 throw error;
             }
         },
+        async releaseHandle() {},
     },
     storage: {
         getPreference(key) {
@@ -181,6 +189,10 @@ export const browserPlatform = {
         },
     },
     clipboard: {
+        supportsWriteImage() {
+            const clipboard = /** @type {any} */ (globalThis.navigator?.clipboard);
+            return typeof clipboard?.write === 'function' && typeof globalThis.ClipboardItem === 'function';
+        },
         async writeImage(blob) {
             const clipboard = globalThis.navigator?.clipboard;
             const ClipboardItemCtor = globalThis.ClipboardItem;
@@ -189,6 +201,11 @@ export const browserPlatform = {
         },
     },
     capture: {
+        isSupported() {
+            return typeof globalThis.navigator?.mediaDevices?.getDisplayMedia === 'function';
+        },
+        supportsSourcePicker: () => false,
+        shortcut: null,
         async getDisplayMedia() {
             const mediaDevices = globalThis.navigator?.mediaDevices;
             if (!mediaDevices?.getDisplayMedia) throw new Error('display-capture-unavailable');
@@ -198,7 +215,7 @@ export const browserPlatform = {
     export: {
         async download(data, name) {
             let objectUrl = '';
-            let href = '';
+            let href;
             if (typeof data !== 'string') {
                 objectUrl = browserPlatform.file.createObjectURL(data) || '';
                 href = objectUrl;

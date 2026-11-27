@@ -4,8 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ScreenHello library consumer smoke</title>
+    <style>
+      :root { --indigo-9: rgb(1, 2, 3); }
+      #host-isolation-probe h1 { margin-top: 24px; font-size: 30px; }
+      #host-isolation-probe button { background-color: rgb(10, 20, 30); border: 2px solid rgb(40, 50, 60); }
+      #host-isolation-probe img { display: inline; }
+    </style>
   </head>
   <body>
+    <div id="host-isolation-probe" aria-hidden="true">
+      <h1>Host Heading</h1>
+      <button type="button">Host Button</button>
+      <img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+    </div>
     <div id="consumer-root">
       <div id="consumer-a"></div>
       <div id="consumer-b"></div>

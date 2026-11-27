@@ -1,0 +1,40 @@
+{
+  "title": "Apresentação",
+  "pages": [
+    "index~Apresentação",
+    "guide~Guia",
+    "beautify~Estilo",
+    "frames~Molduras",
+    "compression~Compressão",
+    "privacy~Privacidade"
+  ],
+  "name": "Português",
+  "ui": {
+    "Search": "Pesquisar documentação",
+    "Close Search": "Fechar pesquisa",
+    "No results found": "Sem resultados. Experimenta outra palavra.",
+    "Choose a language": "Escolher idioma",
+    "Toggle Theme": "Mudar tema",
+    "Light": "Claro",
+    "Dark": "Escuro",
+    "System": "Sistema",
+    "Open Sidebar": "Abrir barra lateral",
+    "Close Sidebar": "Fechar barra lateral",
+    "Collapse Sidebar": "Recolher barra lateral",
+    "Hide Sidebar": "Ocultar barra lateral",
+    "Show Sidebar": "Mostrar barra lateral",
+    "Next Page": "Página seguinte",
+    "Previous Page": "Página anterior",
+    "On this page": "Nesta página",
+    "No Headings": "Sem títulos",
+    "Toggle Menu": "Alternar menu",
+    "searchHint": "Pesquisa nos guias em português, por exemplo PNG ou projeto.",
+    "guideCaption": "Exemplo integrado no editor: tela à esquerda e estilo à direita. Captura com a interface em inglês.",
+    "exportCaption": "Painel de exportação: escolhe formato e escala, confirma as dimensões finais e transfere. Captura com a interface em inglês."
+  },
+  "editorLanguage": "pt-PT",
+  "open": "Abrir editor",
+  "skip": "Saltar para o conteúdo",
+  "languages": "Idioma",
+  "updated": "Conteúdo revisto"
+}

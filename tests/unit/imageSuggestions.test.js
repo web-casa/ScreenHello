@@ -20,12 +20,12 @@ describe('local image suggestions', () => {
         });
     });
 
-    it('suggests a dark inner border and phone frame for light portrait edges', () => {
+    it('suggests a dark inner border and card without restoring removed generic phone choices', () => {
         const result = analyzeRgbaEdges(solid(3, 4, [240, 240, 240]), 3, 4, 900, 1600);
         expect(result).toMatchObject({
             edgeColor: '#f0f0f0',
             orientation: 'portrait',
-            frame: 'genericPhone',
+            frame: 'card',
             innerBorder: { color: '#00000066' },
         });
     });

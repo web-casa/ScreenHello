@@ -5,7 +5,7 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
     testDir: '.',
-    testMatch: 'web-release.spec.js',
+    testMatch: ['web-release.spec.js', 'batch-recovery.spec.js'],
     outputDir: '../../artifacts/release/playwright',
     fullyParallel: false,
     timeout: 90_000,

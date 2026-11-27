@@ -1,0 +1,19 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss" source("../");
+
+body { margin: 0; background: #0B0C0F; color: #E9EAEE; font-family: -apple-system, "Segoe UI", "PingFang SC", system-ui, sans-serif; }
+.ip-shell { max-width: 1560px; margin: 0 auto; padding: 40px 28px 80px; }
+.ip-shell h1 { font-size: 26px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 12px; }
+.ip-lede { max-width: 96ch; color: #A9ADB6; font-size: 13.5px; line-height: 1.8; margin: 0 0 28px; }
+.ip-grid { display: grid; grid-template-columns: repeat(4, 320px); gap: 18px; align-items: start; }
+@media (max-width: 1400px) { .ip-grid { grid-template-columns: repeat(2, 320px); } }
+.ip-panel { width: 320px; border: 1px solid #24262B; border-radius: 10px; overflow: hidden; }
+.ip-cap { padding: 5px 10px; font-size: 10.5px; color: #8B909A; background: #16181C; border-bottom: 1px solid #24262B; font-family: ui-monospace, Menlo, monospace; }
+.ip-body { min-height: 720px; }
+.ip-label { font-size: 12.5px; font-weight: 500; }
+.ip-swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.ip-swatch { aspect-ratio: 1; border-radius: 50%; border: 1px solid rgba(128,128,128,.35); background: #d4d4d8; cursor: pointer; padding: 0; }
+.ip-swatch.is-on { outline: 2px solid #4F46E5; outline-offset: 2px; }
+.ip-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+.ip-thumb { aspect-ratio: 3 / 2; border-radius: 5px; border: 1px solid rgba(128,128,128,.35); cursor: pointer; padding: 0; }
+.ip-color { width: 24px; height: 24px; border-radius: 5px; border: 1px solid rgba(128,128,128,.4); display: inline-block; }
